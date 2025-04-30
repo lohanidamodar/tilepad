@@ -27,9 +27,14 @@ class ButtonGrid extends StatelessWidget {
       // Try to parse the icon as a code point
       final codePoint = int.tryParse(iconName);
       if (codePoint != null) {
-        return IconData(codePoint, fontFamily: 'FontAwesomeSolid');
+        // Use FontAwesomeSolid font family for FontAwesome icons
+        return IconData(
+          codePoint, 
+          fontFamily: 'FontAwesomeSolid',
+          fontPackage: 'font_awesome_flutter',
+        );
       }
-
+      
       // Default to a placeholder icon
       return Icons.smart_button;
     } catch (e) {

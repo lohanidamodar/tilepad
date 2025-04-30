@@ -104,6 +104,14 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     return Color(int.parse('FF$hexColor', radix: 16));
   }
 
+  /// Handles icon selection and stores the code point
+  void _selectIcon(IconData icon) {
+    setState(() {
+      // Store just the code point as a string
+      _selectedIcon = icon.codePoint.toString();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -210,9 +218,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
 
                     return GestureDetector(
                       onTap: () {
-                        setState(() {
-                          _selectedIcon = iconString;
-                        });
+                        _selectIcon(icon);
                       },
                       child: Container(
                         margin: const EdgeInsets.all(4),
