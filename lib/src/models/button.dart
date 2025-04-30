@@ -6,7 +6,7 @@ enum ButtonType {
   command,
 
   /// Execute a predefined command from the list
-  commandePreset,
+  commandPreset,
 
   /// Send keystroke(s) to the system
   keystroke,

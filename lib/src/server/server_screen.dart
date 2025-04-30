@@ -155,6 +155,22 @@ class _ServerScreenState extends State<ServerScreen> {
     }
   }
 
+  /// Gets the subtitle text for a button based on its type
+  String _getButtonSubtitle(Button button) {
+    switch (button.type) {
+      case ButtonType.command:
+        return button.command;
+      case ButtonType.commandPreset:
+        return button.command;
+      case ButtonType.keystroke:
+        final modifiers =
+            button.modifiers.isNotEmpty
+                ? '${button.modifiers.map((m) => m.toUpperCase()).join('+')}+'
+                : '';
+        return 'Keystroke: $modifiers${button.key.toUpperCase()}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -277,7 +293,7 @@ class _ServerScreenState extends State<ServerScreen> {
                         ),
                       ),
                       title: Text(button.name),
-                      subtitle: Text(button.command),
+                      subtitle: Text(_getButtonSubtitle(button)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [

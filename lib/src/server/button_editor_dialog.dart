@@ -340,7 +340,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         type: _selectedType,
         command:
             _selectedType == ButtonType.command ||
-                    _selectedType == ButtonType.commandePreset
+                    _selectedType == ButtonType.commandPreset
                 ? _commandController.text
                 : '',
         key: _selectedType == ButtonType.keystroke ? _selectedKey : '',
@@ -389,7 +389,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
               icon: Icon(Icons.terminal),
             ),
             ButtonSegment<ButtonType>(
-              value: ButtonType.commandePreset,
+              value: ButtonType.commandPreset,
               label: Text('Preset'),
               icon: Icon(Icons.list_alt),
             ),
@@ -540,7 +540,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
 
   /// Builds the predefined command selection section
   Widget _buildPredefinedCommandSection() {
-    if (_selectedType != ButtonType.commandePreset) {
+    if (_selectedType != ButtonType.commandPreset) {
       return const SizedBox.shrink();
     }
 
