@@ -40,6 +40,7 @@ class _MarcoDeckClientAppState extends State<MarcoDeckClientApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'MarcoDeck Client',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4285F4)),
