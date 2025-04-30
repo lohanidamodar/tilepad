@@ -487,49 +487,42 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                     const SizedBox(height: 8),
 
                     // Icons grid
-                    Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: GridView.builder(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 5,
-                              mainAxisSpacing: 4,
-                              crossAxisSpacing: 4,
-                            ),
-                        itemCount: _presetIcons.length,
-                        itemBuilder: (context, index) {
-                          final icon = _presetIcons[index];
-                          final iconString = icon.codePoint.toString();
-                          final isSelected = iconString == _selectedIcon;
+                    GridView.builder(
+                      shrinkWrap: true,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 5,
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: 4,
+                          ),
+                      itemCount: _presetIcons.length,
+                      itemBuilder: (context, index) {
+                        final icon = _presetIcons[index];
+                        final iconString = icon.codePoint.toString();
+                        final isSelected = iconString == _selectedIcon;
 
-                          return InkWell(
-                            onTap: () {
-                              _selectIcon(icon);
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              margin: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color:
-                                    isSelected
-                                        ? _hexToColor(_selectedColor)
-                                        : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                icon,
-                                size: 24,
-                                color:
-                                    isSelected ? Colors.white : Colors.black87,
-                              ),
+                        return InkWell(
+                          onTap: () {
+                            _selectIcon(icon);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            margin: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color:
+                                  isSelected
+                                      ? _hexToColor(_selectedColor)
+                                      : Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          );
-                        },
-                      ),
+                            child: Icon(
+                              icon,
+                              size: 24,
+                              color: isSelected ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
