@@ -201,7 +201,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
 
   /// Converts a color to a hex string
   String _colorToHex(Color color) {
-    return '#${color.value.toRadixString(16).substring(2)}';
+    return '#${color.toARGB32().toRadixString(16).substring(2)}';
   }
 
   /// Converts a hex string to a Color
@@ -464,8 +464,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                                       isSelected
                                           ? [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(
-                                                0.3,
+                                              color: Colors.black.withValues(
+                                                alpha: 50,
                                               ),
                                               blurRadius: 5,
                                               spreadRadius: 1,

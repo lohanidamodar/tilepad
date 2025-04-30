@@ -120,7 +120,8 @@ class _ButtonGroupEditorDialogState extends State<ButtonGroupEditorDialog> {
 
   void _saveGroup() {
     if (_formKey.currentState!.validate()) {
-      final colorHex = '#${_groupColor.value.toRadixString(16).substring(2)}';
+      final colorHex =
+          '#${_groupColor.toARGB32().toRadixString(16).substring(2)}';
 
       final group = (widget.group ??
               ButtonGroup(

@@ -46,8 +46,6 @@ class CommandExecutor {
   Future<CommandResult> _executeWindowsCommand(String command) async {
     try {
       // Use cmd.exe to run the command
-      final fullCommand = 'cmd.exe /c $command';
-
       final process = await Process.run(
         'cmd.exe',
         ['/c', command],
@@ -203,7 +201,7 @@ class CommandExecutor {
     // Build AppleScript to send keystrokes
     final script = '''
       tell application "System Events"
-        keystroke "${keyString}" ${modifierString.isNotEmpty ? "using $modifierString" : ""}
+        keystroke "$keyString" ${modifierString.isNotEmpty ? "using $modifierString" : ""}
       end tell
     ''';
 

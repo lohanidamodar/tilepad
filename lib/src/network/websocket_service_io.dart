@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -26,7 +27,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
   @override
   Future<bool> connect(String address) async {
     try {
-      print('Attempting to connect to: $address');
+      debugPrint('Attempting to connect to: $address');
 
       // Close existing connection if any
       await close();
@@ -47,22 +48,22 @@ class IOClientWebSocketService implements ClientWebSocketService {
               final message = Message.decode(data);
               _messageController.add(message);
             } catch (e) {
-              print('Error decoding message: $e');
+              debugPrint('Error decoding message: $e');
             }
           }
         },
         onDone: () {
-          print('WebSocket connection closed');
+          debugPrint('WebSocket connection closed');
         },
         onError: (error) {
-          print('WebSocket error: $error');
+          debugPrint('WebSocket error: $error');
         },
       );
 
-      print('Connection established');
+      debugPrint('Connection established');
       return true;
     } catch (e) {
-      print('Failed to connect: $e');
+      debugPrint('Failed to connect: $e');
       return false;
     }
   }
@@ -93,7 +94,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
   Future<bool> start(int port) async {
     try {
       _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
-      print('WebSocket server listening on port $port');
+      debugPrint('WebSocket server listening on port $port');
 
       _server!.listen((HttpRequest request) {
         if (WebSocketTransformer.isUpgradeRequest(request)) {
@@ -108,13 +109,13 @@ class IOServerWebSocketService implements ServerWebSocketService {
 
       return true;
     } catch (e) {
-      print('Failed to start server: $e');
+      debugPrint('Failed to start server: $e');
       return false;
     }
   }
 
   void _handleClientConnection(WebSocket client) {
-    print('Client connected');
+    debugPrint('Client connected');
     _clients.add(client);
 
     client.listen(
@@ -124,16 +125,16 @@ class IOServerWebSocketService implements ServerWebSocketService {
             final message = Message.decode(data);
             _messageController.add(message);
           } catch (e) {
-            print('Error decoding message: $e');
+            debugPrint('Error decoding message: $e');
           }
         }
       },
       onDone: () {
-        print('Client disconnected');
+        debugPrint('Client disconnected');
         _clients.remove(client);
       },
       onError: (error) {
-        print('Error from client: $error');
+        debugPrint('Error from client: $error');
         _clients.remove(client);
       },
     );
