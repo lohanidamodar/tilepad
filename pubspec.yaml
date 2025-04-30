@@ -18,6 +18,9 @@ dependencies:
   font_awesome_flutter: ^10.6.0  # For custom icons
   provider: ^6.1.1  # For state management
   uuid: ^4.2.2  # For generating unique IDs
+  win32: ^5.12.0
+  ffi: ^2.1.4
+  flutter_colorpicker: ^1.1.0  # For color picking in button group editor
 
 dev_dependencies:
   flutter_test:

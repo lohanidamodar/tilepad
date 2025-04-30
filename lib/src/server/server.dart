@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // Add Flutter foundation import
 
 import '../models/button.dart';
 import '../models/message.dart';
@@ -59,7 +60,7 @@ class MarcoServer {
 
       return true;
     } catch (e) {
-      print('Failed to start server: $e');
+      debugPrint('Failed to start server: $e');
       return false;
     }
   }
@@ -74,7 +75,7 @@ class MarcoServer {
 
   /// Handles a message from a client
   void _handleClientMessage(Message message) async {
-    print('Received message: ${message.type}');
+    debugPrint('Received message: ${message.type}');
 
     switch (message.type) {
       case MessageType.connect:
@@ -122,8 +123,28 @@ class MarcoServer {
         orElse: () => throw Exception('Button not found'),
       );
 
-      print('Executing command: ${button.command}');
-      final result = await _commandExecutor.executeCommand(button.command);
+      CommandResult result;
+
+      // Process the button based on its type
+      switch (button.type) {
+        case ButtonType.command:
+          debugPrint('Executing command: ${button.command}');
+          result = await _commandExecutor.executeCommand(button.command);
+          break;
+
+        case ButtonType.keystroke:
+          debugPrint(
+            'Executing keystroke: ${button.key} with modifiers ${button.modifiers}',
+          );
+          result = await _commandExecutor.executeKeystroke(
+            button.key,
+            button.modifiers,
+          );
+          break;
+
+        default:
+          throw Exception('Unsupported button type: ${button.type}');
+      }
 
       _webSocketService.sendMessage(
         Message(

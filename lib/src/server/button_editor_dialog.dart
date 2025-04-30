@@ -21,6 +21,9 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
   final _commandController = TextEditingController();
   String _selectedIcon = FontAwesomeIcons.lightbulb.codePoint.toString();
   String _selectedColor = '#4285F4';
+  ButtonType _selectedType = ButtonType.command;
+  String _selectedKey = 'a';
+  final Set<String> _selectedModifiers = <String>{};
 
   final List<Color> _presetColors = [
     const Color(0xFF4285F4), // Google Blue
@@ -58,6 +61,96 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     FontAwesomeIcons.code,
   ];
 
+  // Common keys for keystroke selection
+  final List<String> _commonKeys = [
+    'a',
+    'b',
+    'c',
+    'd',
+    'e',
+    'f',
+    'g',
+    'h',
+    'i',
+    'j',
+    'k',
+    'l',
+    'm',
+    'n',
+    'o',
+    'p',
+    'q',
+    'r',
+    's',
+    't',
+    'u',
+    'v',
+    'w',
+    'x',
+    'y',
+    'z',
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    'f1',
+    'f2',
+    'f3',
+    'f4',
+    'f5',
+    'f6',
+    'f7',
+    'f8',
+    'f9',
+    'f10',
+    'f11',
+    'f12',
+    'enter',
+    'tab',
+    'space',
+    'backspace',
+    'delete',
+    'esc',
+    'up',
+    'down',
+    'left',
+    'right',
+    'home',
+    'end',
+    'pageup',
+    'pagedown',
+  ];
+
+  // Modifier keys
+  final List<ModifierKeyOption> _modifierKeys = [
+    ModifierKeyOption(
+      name: 'Ctrl',
+      value: 'ctrl',
+      icon: Icons.keyboard_control_key,
+    ),
+    ModifierKeyOption(
+      name: 'Alt',
+      value: 'alt',
+      icon: Icons.keyboard_alt_outlined,
+    ),
+    ModifierKeyOption(
+      name: 'Shift',
+      value: 'shift',
+      icon: Icons.keyboard_arrow_up,
+    ),
+    ModifierKeyOption(
+      name: 'Win/Meta',
+      value: 'meta',
+      icon: Icons.window_outlined,
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +161,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
       _commandController.text = widget.button!.command;
       _selectedIcon = widget.button!.iconName;
       _selectedColor = widget.button!.color;
+      _selectedType = widget.button!.type;
+
+      if (_selectedType == ButtonType.keystroke) {
+        _selectedKey = widget.button!.key.isNotEmpty ? widget.button!.key : 'a';
+        _selectedModifiers.addAll(widget.button!.modifiers);
+      }
     }
   }
 
@@ -85,7 +184,14 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         id: widget.button?.id,
         name: _nameController.text,
         iconName: _selectedIcon,
-        command: _commandController.text,
+        type: _selectedType,
+        command:
+            _selectedType == ButtonType.command ? _commandController.text : '',
+        key: _selectedType == ButtonType.keystroke ? _selectedKey : '',
+        modifiers:
+            _selectedType == ButtonType.keystroke
+                ? _selectedModifiers.toList()
+                : const [],
         color: _selectedColor,
       );
 
@@ -112,6 +218,165 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     });
   }
 
+  /// Builds the type selection section
+  Widget _buildTypeSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Button Type', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        SegmentedButton<ButtonType>(
+          segments: const [
+            ButtonSegment<ButtonType>(
+              value: ButtonType.command,
+              label: Text('Command'),
+              icon: Icon(Icons.terminal),
+            ),
+            ButtonSegment<ButtonType>(
+              value: ButtonType.keystroke,
+              label: Text('Keystroke'),
+              icon: Icon(Icons.keyboard),
+            ),
+          ],
+          selected: {_selectedType},
+          onSelectionChanged: (Set<ButtonType> newSelection) {
+            setState(() {
+              _selectedType = newSelection.first;
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  /// Builds the command input section
+  Widget _buildCommandSection() {
+    if (_selectedType != ButtonType.command) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _commandController,
+          decoration: const InputDecoration(
+            labelText: 'Command',
+            hintText: 'e.g., notepad.exe or python script.py',
+            border: OutlineInputBorder(),
+          ),
+          validator: (value) {
+            if (_selectedType == ButtonType.command &&
+                (value == null || value.isEmpty)) {
+              return 'Please enter a command';
+            }
+            return null;
+          },
+          maxLines: 3,
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  /// Builds the keystroke configuration section
+  Widget _buildKeystrokeSection() {
+    if (_selectedType != ButtonType.keystroke) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Select Keystroke',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+
+        // Modifiers selection
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children:
+              _modifierKeys.map((modifier) {
+                final isSelected = _selectedModifiers.contains(modifier.value);
+                return FilterChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        modifier.icon,
+                        size: 16,
+                        color: isSelected ? Colors.white : null,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(modifier.name),
+                    ],
+                  ),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedModifiers.add(modifier.value);
+                      } else {
+                        _selectedModifiers.remove(modifier.value);
+                      }
+                    });
+                  },
+                  backgroundColor: Colors.grey[200],
+                  selectedColor: _hexToColor(_selectedColor),
+                  checkmarkColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : null,
+                  ),
+                );
+              }).toList(),
+        ),
+        const SizedBox(height: 16),
+
+        // Key selection
+        DropdownButtonFormField<String>(
+          decoration: const InputDecoration(
+            labelText: 'Key',
+            border: OutlineInputBorder(),
+          ),
+          value: _selectedKey,
+          items:
+              _commonKeys.map((key) {
+                return DropdownMenuItem<String>(
+                  value: key,
+                  child: Text(key.toUpperCase()),
+                );
+              }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedKey = value;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'This will simulate pressing ${_getKeystrokeDescription()}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  /// Gets a human-readable description of the keystroke
+  String _getKeystrokeDescription() {
+    final modifierNames = _selectedModifiers
+        .map((m) {
+          return _modifierKeys.firstWhere((mod) => mod.value == m).name;
+        })
+        .join(' + ');
+
+    final keyName = _selectedKey.toUpperCase();
+
+    return modifierNames.isNotEmpty ? '$modifierNames + $keyName' : keyName;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -128,117 +393,149 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                 widget.button == null ? 'Create Button' : 'Edit Button',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Button Name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a name';
-                  }
-                  return null;
-                },
-              ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _commandController,
-                decoration: const InputDecoration(
-                  labelText: 'Command',
-                  hintText: 'e.g., notepad.exe or python script.py',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a command';
-                  }
-                  return null;
-                },
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Button Color',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 50,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _presetColors.length,
-                  itemBuilder: (context, index) {
-                    final color = _presetColors[index];
-                    final colorHex = _colorToHex(color);
-                    final isSelected = colorHex == _selectedColor;
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedColor = colorHex;
-                          });
-                        },
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                            border:
-                                isSelected
-                                    ? Border.all(color: Colors.white, width: 3)
-                                    : null,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Button Icon',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
+              // Use Expanded + ListView instead of Column for better scrolling
               Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                  ),
-                  itemCount: _presetIcons.length,
-                  itemBuilder: (context, index) {
-                    final icon = _presetIcons[index];
-                    final iconString = icon.codePoint.toString();
-                    final isSelected = iconString == _selectedIcon;
-
-                    return GestureDetector(
-                      onTap: () {
-                        _selectIcon(icon);
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color:
-                              isSelected
-                                  ? _hexToColor(_selectedColor)
-                                  : Colors.grey[200],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          icon,
-                          size: 24,
-                          color: isSelected ? Colors.white : Colors.black87,
-                        ),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Button Name',
+                        border: OutlineInputBorder(),
                       ),
-                    );
-                  },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a name';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Button type selection
+                    _buildTypeSelection(),
+
+                    // Conditional sections based on button type
+                    _buildCommandSection(),
+                    _buildKeystrokeSection(),
+
+                    Text(
+                      'Button Color',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 50,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _presetColors.length,
+                        itemBuilder: (context, index) {
+                          final color = _presetColors[index];
+                          final colorHex = _colorToHex(color);
+                          final isSelected = colorHex == _selectedColor;
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedColor = colorHex;
+                                });
+                              },
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                  border:
+                                      isSelected
+                                          ? Border.all(
+                                            color: Colors.white,
+                                            width: 3,
+                                          )
+                                          : null,
+                                  boxShadow:
+                                      isSelected
+                                          ? [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(
+                                                0.3,
+                                              ),
+                                              blurRadius: 5,
+                                              spreadRadius: 1,
+                                            ),
+                                          ]
+                                          : null,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Button Icon',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Icons grid
+                    Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 5,
+                              mainAxisSpacing: 4,
+                              crossAxisSpacing: 4,
+                            ),
+                        itemCount: _presetIcons.length,
+                        itemBuilder: (context, index) {
+                          final icon = _presetIcons[index];
+                          final iconString = icon.codePoint.toString();
+                          final isSelected = iconString == _selectedIcon;
+
+                          return InkWell(
+                            onTap: () {
+                              _selectIcon(icon);
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              margin: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color:
+                                    isSelected
+                                        ? _hexToColor(_selectedColor)
+                                        : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                icon,
+                                size: 24,
+                                color:
+                                    isSelected ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
+
+              // Bottom buttons
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -260,4 +557,23 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
       ),
     );
   }
+}
+
+/// Helper class for modifier key options
+class ModifierKeyOption {
+  /// Display name of the modifier key
+  final String name;
+
+  /// Value to be stored
+  final String value;
+
+  /// Icon to represent the modifier key
+  final IconData icon;
+
+  /// Creates a new modifier key option
+  const ModifierKeyOption({
+    required this.name,
+    required this.value,
+    required this.icon,
+  });
 }

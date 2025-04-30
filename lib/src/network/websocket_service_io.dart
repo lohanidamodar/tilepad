@@ -16,10 +16,10 @@ ServerWebSocketService createWebSocketServer() => IOServerWebSocketService();
 class IOClientWebSocketService implements ClientWebSocketService {
   WebSocketChannel? _channel;
   final _messageController = StreamController<Message>.broadcast();
-  
+
   @override
   WebSocketChannel? get channel => _channel;
-  
+
   @override
   Stream<Message> get messageStream => _messageController.stream;
 
@@ -27,18 +27,18 @@ class IOClientWebSocketService implements ClientWebSocketService {
   Future<bool> connect(String address) async {
     try {
       print('Attempting to connect to: $address');
-      
+
       // Close existing connection if any
       await close();
-      
+
       _channel = IOWebSocketChannel.connect(
         Uri.parse(address),
         pingInterval: const Duration(seconds: 5),
       );
-      
+
       // Wait a short time to ensure connection is established
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       // Set up the connection listener
       _channel!.stream.listen(
         (dynamic data) {
@@ -58,7 +58,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
           print('WebSocket error: $error');
         },
       );
-      
+
       print('Connection established');
       return true;
     } catch (e) {
@@ -66,14 +66,14 @@ class IOClientWebSocketService implements ClientWebSocketService {
       return false;
     }
   }
-  
+
   @override
   void sendMessage(Message message) {
     if (_channel != null) {
       _channel!.sink.add(message.encode());
     }
   }
-  
+
   @override
   Future<void> close() async {
     await _channel?.sink.close();
@@ -85,16 +85,16 @@ class IOServerWebSocketService implements ServerWebSocketService {
   HttpServer? _server;
   final List<WebSocket> _clients = [];
   final _messageController = StreamController<Message>.broadcast();
-  
+
   @override
   Stream<Message> get messageStream => _messageController.stream;
-  
+
   @override
   Future<bool> start(int port) async {
     try {
       _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
       print('WebSocket server listening on port $port');
-      
+
       _server!.listen((HttpRequest request) {
         if (WebSocketTransformer.isUpgradeRequest(request)) {
           WebSocketTransformer.upgrade(request).then((WebSocket socket) {
@@ -105,18 +105,18 @@ class IOServerWebSocketService implements ServerWebSocketService {
           request.response.close();
         }
       });
-      
+
       return true;
     } catch (e) {
       print('Failed to start server: $e');
       return false;
     }
   }
-  
+
   void _handleClientConnection(WebSocket client) {
     print('Client connected');
     _clients.add(client);
-    
+
     client.listen(
       (dynamic data) {
         if (data is String) {
@@ -138,12 +138,12 @@ class IOServerWebSocketService implements ServerWebSocketService {
       },
     );
   }
-  
+
   @override
   void sendMessage(Message message) {
     broadcast(message);
   }
-  
+
   @override
   void broadcast(Message message) {
     final encodedMessage = message.encode();
@@ -151,7 +151,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
       client.add(encodedMessage);
     }
   }
-  
+
   @override
   Future<void> close() async {
     for (var client in [..._clients]) {

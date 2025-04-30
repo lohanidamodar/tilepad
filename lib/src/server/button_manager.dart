@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -41,7 +42,7 @@ class ButtonManager {
         _buttons = jsonList.map((json) => Button.fromJson(json)).toList();
       }
     } catch (e) {
-      print('Error loading button configuration: $e');
+      debugPrint('Error loading button configuration: $e');
       _buttons = [];
     }
   }
@@ -58,7 +59,7 @@ class ButtonManager {
       final jsonList = _buttons.map((button) => button.toJson()).toList();
       await file.writeAsString(jsonEncode(jsonList));
     } catch (e) {
-      print('Error saving button configuration: $e');
+      debugPrint('Error saving button configuration: $e');
     }
   }
 

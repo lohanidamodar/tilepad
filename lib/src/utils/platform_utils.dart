@@ -2,7 +2,8 @@
 // to handle differences between web and native platforms
 
 // Use conditional imports to handle web vs. native code paths
-import 'platform_utils_io.dart' if (dart.library.html) 'platform_utils_web.dart';
+import 'platform_utils_io.dart'
+    if (dart.library.html) 'platform_utils_web.dart';
 
 /// Returns true if running on a desktop platform (Windows, macOS, Linux)
 /// This is used to determine whether to run the server or client
@@ -24,10 +25,10 @@ bool isMobilePlatform() {
 enum PlatformType {
   /// Desktop platforms (Windows, macOS, Linux)
   desktop,
-  
+
   /// Mobile platforms (Android, iOS)
   mobile,
-  
+
   /// Web platform
   web,
 }

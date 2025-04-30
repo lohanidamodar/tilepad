@@ -61,7 +61,7 @@ class _ServerScreenState extends State<ServerScreen> {
         _refreshButtons();
       }
     } catch (e) {
-      print('Error initializing server: $e');
+      debugPrint('Error initializing server: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),

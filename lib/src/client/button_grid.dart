@@ -29,12 +29,12 @@ class ButtonGrid extends StatelessWidget {
       if (codePoint != null) {
         // Use FontAwesomeSolid font family for FontAwesome icons
         return IconData(
-          codePoint, 
+          codePoint,
           fontFamily: 'FontAwesomeSolid',
           fontPackage: 'font_awesome_flutter',
         );
       }
-      
+
       // Default to a placeholder icon
       return Icons.smart_button;
     } catch (e) {

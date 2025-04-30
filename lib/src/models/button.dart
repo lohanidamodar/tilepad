@@ -1,5 +1,14 @@
 import 'package:uuid/uuid.dart';
 
+/// Defines the types of actions a button can perform
+enum ButtonType {
+  /// Execute a shell command
+  command,
+
+  /// Send keystroke(s) to the system
+  keystroke,
+}
+
 /// Represents a custom button that can be displayed on the client
 /// and configured from the server.
 class Button {
@@ -12,8 +21,18 @@ class Button {
   /// Icon identifier (corresponds to an icon in the Flutter library)
   String iconName;
 
-  /// Command to execute when the button is pressed
+  /// Type of action this button performs
+  ButtonType type;
+
+  /// Command to execute when the button is pressed (for command type)
   String command;
+
+  /// Key to press (for keystroke type)
+  String key;
+
+  /// Modifier keys to hold while pressing the key (for keystroke type)
+  /// Can include: ctrl, alt, shift, meta/win
+  List<String> modifiers;
 
   /// Background color of the button (in hex format)
   String color;
@@ -23,7 +42,10 @@ class Button {
     String? id,
     required this.name,
     required this.iconName,
-    required this.command,
+    this.type = ButtonType.command,
+    this.command = '',
+    this.key = '',
+    this.modifiers = const [],
     this.color = '#4285F4', // Default Google blue
   }) : id = id ?? const Uuid().v4();
 
@@ -33,7 +55,17 @@ class Button {
       id: json['id'] as String,
       name: json['name'] as String,
       iconName: json['iconName'] as String,
-      command: json['command'] as String,
+      type: ButtonType.values.firstWhere(
+        (e) => e.name == (json['type'] as String?),
+        orElse: () => ButtonType.command,
+      ),
+      command: json['command'] as String? ?? '',
+      key: json['key'] as String? ?? '',
+      modifiers:
+          (json['modifiers'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
       color: json['color'] as String? ?? '#4285F4',
     );
   }
@@ -44,7 +76,10 @@ class Button {
       'id': id,
       'name': name,
       'iconName': iconName,
+      'type': type.name,
       'command': command,
+      'key': key,
+      'modifiers': modifiers,
       'color': color,
     };
   }

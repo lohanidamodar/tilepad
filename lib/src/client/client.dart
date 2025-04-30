@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/button.dart';
 import '../models/message.dart';
@@ -60,7 +61,7 @@ class MarcoClient {
       final prefs = await SharedPreferences.getInstance();
       _serverAddress = prefs.getString('server_address');
     } catch (e) {
-      print('Error loading saved server: $e');
+      debugPrint('Error loading saved server: $e');
     }
   }
 
@@ -71,7 +72,7 @@ class MarcoClient {
       await prefs.setString('server_address', address);
       _serverAddress = address;
     } catch (e) {
-      print('Error saving server address: $e');
+      debugPrint('Error saving server address: $e');
     }
   }
 
@@ -96,7 +97,7 @@ class MarcoClient {
 
       return false;
     } catch (e) {
-      print('Error connecting to server: $e');
+      debugPrint('Error connecting to server: $e');
       return false;
     }
   }
@@ -128,7 +129,7 @@ class MarcoClient {
 
   /// Handles a message from the server
   void _handleServerMessage(Message message) {
-    print('Received message: ${message.type}');
+    debugPrint('Received message: ${message.type}');
 
     switch (message.type) {
       case MessageType.connectAck:
@@ -142,7 +143,7 @@ class MarcoClient {
         _handleCommandResult(message.payload);
         break;
       case MessageType.error:
-        print('Error from server: ${message.payload['error']}');
+        debugPrint('Error from server: ${message.payload['error']}');
         break;
       default:
         // Unknown message type
@@ -157,7 +158,7 @@ class MarcoClient {
       _buttons = buttonsJson.map((json) => Button.fromJson(json)).toList();
       _buttonsController.add(_buttons);
     } catch (e) {
-      print('Error handling buttons response: $e');
+      debugPrint('Error handling buttons response: $e');
     }
   }
 
@@ -173,7 +174,7 @@ class MarcoClient {
         ),
       );
     } catch (e) {
-      print('Error handling command result: $e');
+      debugPrint('Error handling command result: $e');
     }
   }
 

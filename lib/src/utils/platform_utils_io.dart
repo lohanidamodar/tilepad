@@ -8,7 +8,7 @@ PlatformType getPlatformType() {
   } else if (Platform.isAndroid || Platform.isIOS) {
     return PlatformType.mobile;
   }
-  
+
   // Default fallback - should not reach here
   return PlatformType.mobile;
 }
