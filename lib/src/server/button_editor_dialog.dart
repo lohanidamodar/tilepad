@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:io' show Platform;
 
 import '../models/button.dart';
+import '../utils/icon_picker_dialog.dart';
 
 /// Predefined command with name, description, and platform-specific implementation
 class PredefinedCommand {
@@ -374,6 +375,18 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     });
   }
 
+  /// Opens the extended icon picker dialog with search functionality
+  Future<void> _showExtendedIconPicker() async {
+    final result = await showDialog<IconData>(
+      context: context,
+      builder: (context) => const IconPickerDialog(),
+    );
+
+    if (result != null) {
+      _selectIcon(result);
+    }
+  }
+
   /// Builds the type selection section
   Widget _buildTypeSelection() {
     return Column(
@@ -685,6 +698,22 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                     Text(
                       'Button Icon',
                       style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // More icons button
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: _showExtendedIconPicker,
+                        icon: const Icon(Icons.search),
+                        label: const Text('More Icons'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 8),
 
