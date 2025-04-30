@@ -1,7 +1,160 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'dart:io' show Platform;
 
 import '../models/button.dart';
+
+/// Predefined command with name, description, and platform-specific implementation
+class PredefinedCommand {
+  /// Display name of the command
+  final String name;
+
+  /// Description of what the command does
+  final String description;
+
+  /// Map of platform-specific command implementations
+  final Map<String, String> platformCommands;
+
+  /// Icon to display for this command
+  final IconData icon;
+
+  /// Creates a new predefined command
+  const PredefinedCommand({
+    required this.name,
+    required this.description,
+    required this.platformCommands,
+    required this.icon,
+  });
+
+  /// Gets the command for the current platform
+  String getCommand() {
+    if (Platform.isWindows && platformCommands.containsKey('windows')) {
+      return platformCommands['windows']!;
+    } else if (Platform.isMacOS && platformCommands.containsKey('macos')) {
+      return platformCommands['macos']!;
+    } else if (Platform.isLinux && platformCommands.containsKey('linux')) {
+      return platformCommands['linux']!;
+    }
+
+    // Fallback to first available command
+    return platformCommands.values.first;
+  }
+}
+
+/// List of predefined commands for common actions
+final List<PredefinedCommand> predefinedCommands = [
+  PredefinedCommand(
+    name: 'Sleep Computer',
+    description: 'Put the computer to sleep mode',
+    platformCommands: {
+      'windows':
+          '%windir%\\System32\\rundll32.exe powrprof.dll,SetSuspendState 0,1,0',
+      'macos': 'pmset sleepnow',
+      'linux': 'systemctl suspend',
+    },
+    icon: FontAwesomeIcons.powerOff,
+  ),
+  PredefinedCommand(
+    name: 'Shutdown Computer',
+    description: 'Shutdown the computer',
+    platformCommands: {
+      'windows': 'shutdown /s /t 0',
+      'macos': 'sudo shutdown -h now',
+      'linux': 'sudo shutdown -h now',
+    },
+    icon: FontAwesomeIcons.powerOff,
+  ),
+  PredefinedCommand(
+    name: 'Restart Computer',
+    description: 'Restart the computer',
+    platformCommands: {
+      'windows': 'shutdown /r /t 0',
+      'macos': 'sudo shutdown -r now',
+      'linux': 'sudo reboot',
+    },
+    icon: FontAwesomeIcons.arrowsRotate,
+  ),
+  PredefinedCommand(
+    name: 'Lock Screen',
+    description: 'Lock the computer screen',
+    platformCommands: {
+      'windows': 'rundll32.exe user32.dll,LockWorkStation',
+      'macos': 'pmset displaysleepnow',
+      'linux': 'xdg-screensaver lock',
+    },
+    icon: FontAwesomeIcons.lock,
+  ),
+  PredefinedCommand(
+    name: 'Copy Selection',
+    description: 'Copy selected text',
+    platformCommands: {
+      'windows':
+          'powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'^c\')"',
+      'macos':
+          'osascript -e \'tell application "System Events" to keystroke "c" using command down\'',
+      'linux': 'xdotool key ctrl+c',
+    },
+    icon: FontAwesomeIcons.copy,
+  ),
+  PredefinedCommand(
+    name: 'Paste',
+    description: 'Paste clipboard content',
+    platformCommands: {
+      'windows':
+          'powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'^v\')"',
+      'macos':
+          'osascript -e \'tell application "System Events" to keystroke "v" using command down\'',
+      'linux': 'xdotool key ctrl+v',
+    },
+    icon: FontAwesomeIcons.paste,
+  ),
+  PredefinedCommand(
+    name: 'Take Screenshot',
+    description: 'Capture a screenshot',
+    platformCommands: {
+      'windows':
+          'powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{PRTSC}\')"',
+      'macos': 'screencapture -i ~/Desktop/screenshot.png',
+      'linux': 'gnome-screenshot -i',
+    },
+    icon: FontAwesomeIcons.camera,
+  ),
+  PredefinedCommand(
+    name: 'Volume Up',
+    description: 'Increase system volume',
+    platformCommands: {
+      'windows':
+          'powershell -command "(new-object -com wscript.shell).SendKeys([char]175)"',
+      'macos':
+          'osascript -e "set volume output volume (output volume of (get volume settings) + 10) --100%"',
+      'linux': 'pactl set-sink-volume @DEFAULT_SINK@ +10%',
+    },
+    icon: FontAwesomeIcons.volumeHigh,
+  ),
+  PredefinedCommand(
+    name: 'Volume Down',
+    description: 'Decrease system volume',
+    platformCommands: {
+      'windows':
+          'powershell -command "(new-object -com wscript.shell).SendKeys([char]174)"',
+      'macos':
+          'osascript -e "set volume output volume (output volume of (get volume settings) - 10) --100%"',
+      'linux': 'pactl set-sink-volume @DEFAULT_SINK@ -10%',
+    },
+    icon: FontAwesomeIcons.volumeLow,
+  ),
+  PredefinedCommand(
+    name: 'Mute/Unmute',
+    description: 'Toggle system audio mute',
+    platformCommands: {
+      'windows':
+          'powershell -command "(new-object -com wscript.shell).SendKeys([char]173)"',
+      'macos': 'osascript -e "set volume with output muted"',
+      'linux': 'pactl set-sink-mute @DEFAULT_SINK@ toggle',
+    },
+    icon: FontAwesomeIcons.volumeXmark,
+  ),
+];
 
 /// Dialog for editing a macro button's properties
 class ButtonEditorDialog extends StatefulWidget {
@@ -377,6 +530,46 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     return modifierNames.isNotEmpty ? '$modifierNames + $keyName' : keyName;
   }
 
+  /// Builds the predefined command selection section
+  Widget _buildPredefinedCommandSection() {
+    if (_selectedType != ButtonType.command) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Predefined Commands',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children:
+              predefinedCommands.map((command) {
+                return ChoiceChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(command.icon, size: 16),
+                      const SizedBox(width: 4),
+                      Text(command.name),
+                    ],
+                  ),
+                  selected: _commandController.text == command.getCommand(),
+                  onSelected: (selected) {
+                    setState(() {
+                      _commandController.text = command.getCommand();
+                    });
+                  },
+                );
+              }).toList(),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -420,6 +613,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
 
                     // Conditional sections based on button type
                     _buildCommandSection(),
+                    _buildPredefinedCommandSection(),
                     _buildKeystrokeSection(),
 
                     Text(
@@ -464,9 +658,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                                       isSelected
                                           ? [
                                             BoxShadow(
-                                              color: Colors.black.withValues(
-                                                alpha: 50,
-                                              ),
+                                              color: Colors.black.withAlpha(50),
                                               blurRadius: 5,
                                               spreadRadius: 1,
                                             ),

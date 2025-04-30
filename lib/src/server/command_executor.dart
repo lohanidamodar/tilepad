@@ -5,13 +5,54 @@ import 'package:flutter/foundation.dart';
 import 'package:process_run/process_run.dart';
 
 import '../utils/win32_keyboard.dart';
+import '../utils/win32_commands.dart';
 
 /// Service responsible for executing shell commands and keystrokes
 class CommandExecutor {
   /// Executes a shell command and returns the result
   Future<CommandResult> executeCommand(String command) async {
     try {
+      // Check for special Win32 command patterns
       if (Platform.isWindows) {
+        // Sleep command
+        if (command.contains(
+          '%windir%\\System32\\rundll32.exe powrprof.dll,SetSuspendState',
+        )) {
+          return await executeWin32Sleep();
+        }
+        // Shutdown command
+        else if (command.contains('shutdown /s /t 0')) {
+          return await executeWin32Shutdown();
+        }
+        // Restart command
+        else if (command.contains('shutdown /r /t 0')) {
+          return await executeWin32Restart();
+        }
+        // Lock screen command
+        else if (command.contains('rundll32.exe user32.dll,LockWorkStation')) {
+          return await executeWin32LockWorkstation();
+        }
+        // Screenshot command
+        else if (command.contains('powershell') &&
+            command.contains('SendKeys]::SendWait') &&
+            command.contains('PRTSC')) {
+          return await executeWin32Screenshot();
+        }
+        // Volume commands
+        else if (command.contains('powershell') &&
+            command.contains('wscript.shell') &&
+            command.contains('[char]175')) {
+          return await executeWin32VolumeAction('up');
+        } else if (command.contains('powershell') &&
+            command.contains('wscript.shell') &&
+            command.contains('[char]174')) {
+          return await executeWin32VolumeAction('down');
+        } else if (command.contains('powershell') &&
+            command.contains('wscript.shell') &&
+            command.contains('[char]173')) {
+          return await executeWin32VolumeAction('mute');
+        }
+
         // Special handling for Windows
         return await _executeWindowsCommand(command);
       } else {
@@ -40,6 +81,73 @@ class CommandExecutor {
         error: 'Failed to execute command: $e',
       );
     }
+  }
+
+  /// Execute Sleep command using Win32 API
+  Future<CommandResult> executeWin32Sleep() async {
+    final success = Win32Commands.sleep();
+    return CommandResult(
+      success: success,
+      output: success ? 'Computer put to sleep mode' : '',
+      error: success ? '' : 'Failed to put computer to sleep',
+    );
+  }
+
+  /// Execute Shutdown command using Win32 API
+  Future<CommandResult> executeWin32Shutdown() async {
+    final success = Win32Commands.shutdown();
+    return CommandResult(
+      success: success,
+      output: success ? 'Computer shutting down' : '',
+      error: success ? '' : 'Failed to shut down computer',
+    );
+  }
+
+  /// Execute Restart command using Win32 API
+  Future<CommandResult> executeWin32Restart() async {
+    final success = Win32Commands.restart();
+    return CommandResult(
+      success: success,
+      output: success ? 'Computer restarting' : '',
+      error: success ? '' : 'Failed to restart computer',
+    );
+  }
+
+  /// Execute Lock Workstation command using Win32 API
+  Future<CommandResult> executeWin32LockWorkstation() async {
+    final success = Win32Commands.lockWorkstation();
+    return CommandResult(
+      success: success,
+      output: success ? 'Workstation locked' : '',
+      error: success ? '' : 'Failed to lock workstation',
+    );
+  }
+
+  /// Execute Screenshot command using Win32 API
+  Future<CommandResult> executeWin32Screenshot() async {
+    final success = await Win32Commands.takeScreenshot();
+    return CommandResult(
+      success: success,
+      output: success ? 'Screenshot taken and saved to Desktop' : '',
+      error: success ? '' : 'Failed to take screenshot',
+    );
+  }
+
+  /// Execute Volume actions using Win32 API
+  Future<CommandResult> executeWin32VolumeAction(String action) async {
+    final success = Win32Commands.adjustVolume(action);
+    String actionText =
+        action == 'up'
+            ? 'increased'
+            : action == 'down'
+            ? 'decreased'
+            : 'toggled';
+
+    return CommandResult(
+      success: success,
+      output: success ? 'Volume $actionText' : '',
+      error: success ? '' : 'Failed to change volume',
+    );
   }
 
   /// Special handling for Windows command execution
@@ -92,7 +200,7 @@ class CommandExecutor {
           );
         }
 
-        return executeCommand(command);
+        return await executeCommand(command);
       }
     } catch (e) {
       debugPrint('Keystroke execution error: $e');
