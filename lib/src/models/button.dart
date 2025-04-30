@@ -2,8 +2,11 @@ import 'package:uuid/uuid.dart';
 
 /// Defines the types of actions a button can perform
 enum ButtonType {
-  /// Execute a shell command
+  /// Execute a custom shell command
   command,
+
+  /// Execute a predefined command from the list
+  commandePreset,
 
   /// Send keystroke(s) to the system
   keystroke,
