@@ -703,16 +703,35 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
 
                     // More icons button
                     Center(
-                      child: TextButton.icon(
-                        onPressed: _showExtendedIconPicker,
-                        icon: const Icon(Icons.search),
-                        label: const Text('More Icons'),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
+                      child: Column(
+                        children: [
+                          // Selected icon preview
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: _hexToColor(_selectedColor),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              _getIconData(_selectedIcon),
+                              color: Colors.white,
+                              size: 36,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: _showExtendedIconPicker,
+                            icon: const Icon(Icons.search),
+                            label: const Text('More Icons'),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -780,6 +799,25 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         ),
       ),
     );
+  }
+
+  /// Gets an IconData from a string code point
+  IconData _getIconData(String iconName) {
+    try {
+      // Try to parse the icon as a code point
+      final codePoint = int.tryParse(iconName);
+      if (codePoint != null) {
+        // Use FontAwesomeSolid font family for FontAwesome icons
+        return IconData(
+          codePoint,
+          fontFamily: 'FontAwesomeSolid',
+          fontPackage: 'font_awesome_flutter',
+        );
+      }
+      return Icons.smart_button;
+    } catch (e) {
+      return Icons.smart_button;
+    }
   }
 }
 
