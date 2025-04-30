@@ -19,9 +19,9 @@ class MacOSCommandHandler {
       // Using AppleScript for volume control
       final result = await Process.run('osascript', [
         '-e',
-        'set volume output volume (output volume of (get volume settings) + 10) --max 100'
+        'set volume output volume (output volume of (get volume settings) + 10) --max 100',
       ]);
-      
+
       if (result.exitCode == 0) {
         return 'Volume increased successfully';
       } else {
@@ -39,11 +39,12 @@ class MacOSCommandHandler {
       final modelResult = await Process.run('sysctl', ['-n', 'hw.model']);
       final osVersionResult = await Process.run('sw_vers', ['-productVersion']);
       final memoryResult = await Process.run('sysctl', ['-n', 'hw.memsize']);
-      
+
       // Convert memory from bytes to GB
-      final memoryBytes = int.tryParse(memoryResult.stdout.toString().trim()) ?? 0;
+      final memoryBytes =
+          int.tryParse(memoryResult.stdout.toString().trim()) ?? 0;
       final memoryGB = (memoryBytes / (1024 * 1024 * 1024)).toStringAsFixed(2);
-      
+
       return '''
 System Information:
 Hostname: ${hostnameResult.stdout.toString().trim()}
@@ -60,7 +61,7 @@ Memory: $memoryGB GB
     try {
       var shell = Shell();
       var results = await shell.run(command);
-      
+
       StringBuffer output = StringBuffer();
       for (var result in results) {
         if (result.stdout.toString().isNotEmpty) {
@@ -70,9 +71,9 @@ Memory: $memoryGB GB
           output.writeln(result.stderr);
         }
       }
-      
-      return output.toString().trim().isNotEmpty 
-          ? output.toString() 
+
+      return output.toString().trim().isNotEmpty
+          ? output.toString()
           : 'Command executed successfully with no output';
     } catch (e) {
       return 'Error executing command: $e';
