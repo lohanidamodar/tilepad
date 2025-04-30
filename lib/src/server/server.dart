@@ -37,6 +37,9 @@ class MarcoServer {
   /// Gets whether the server is running
   bool get isRunning => _isRunning;
 
+  /// Gets the list of all configured buttons
+  List<Button> get buttons => _buttonManager.buttons;
+
   /// Starts the server
   Future<bool> start() async {
     try {

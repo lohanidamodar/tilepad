@@ -56,14 +56,10 @@ class _ServerScreenState extends State<ServerScreen> {
             ),
           );
         }
+      } else {
+        // Immediately load buttons after server start
+        _refreshButtons();
       }
-
-      // Periodically refresh buttons list (every 5 seconds)
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) {
-          _refreshButtons();
-        }
-      });
     } catch (e) {
       print('Error initializing server: $e');
       if (mounted) {
@@ -77,11 +73,9 @@ class _ServerScreenState extends State<ServerScreen> {
   /// Refreshes the list of buttons
   void _refreshButtons() {
     if (widget.server.isRunning) {
-      // This is a mock implementation - in a real app, you'd get the buttons from the server
-      // Since our server doesn't have a getter for buttons, we'll use empty list for now
       setState(() {
-        // This would be populated with actual buttons from the server
-        // _buttons = widget.server.getButtons();
+        // Get the buttons from the server
+        _buttons = widget.server.buttons;
       });
     }
   }
