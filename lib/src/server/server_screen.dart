@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../models/button.dart';
 import '../models/client_info.dart';
-import 'button_editor_dialog.dart';
+import 'button_editor_page.dart';
 import 'server.dart';
 
 /// The main screen for the server application
@@ -230,13 +230,29 @@ class _ServerScreenState extends State<ServerScreen> {
     }
   }
 
-  /// Shows a dialog to add or edit a button
-  Future<void> _showButtonDialog(Button? button) async {
-    final result = await showDialog<Button>(
-      context: context,
-      builder: (context) => ButtonEditorDialog(button: button),
+  /// Navigate to the button editor page to add or edit a button
+  Future<void> _navigateToButtonEditor(Button? button) async {
+    final result = await Navigator.push<Button>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => ButtonEditorPage(
+              button: button,
+              onSave: (updatedButton) {
+                if (button == null) {
+                  // Add new button
+                  widget.server.addButton(updatedButton);
+                } else {
+                  // Update existing button
+                  widget.server.updateButton(updatedButton);
+                }
+                _refreshButtons();
+              },
+            ),
+      ),
     );
 
+    // If the page returns a result directly (though we use the onSave callback normally)
     if (result != null) {
       if (button == null) {
         // Add new button
@@ -245,7 +261,6 @@ class _ServerScreenState extends State<ServerScreen> {
         // Update existing button
         widget.server.updateButton(result);
       }
-
       _refreshButtons();
     }
   }
@@ -305,19 +320,19 @@ class _ServerScreenState extends State<ServerScreen> {
     }
   }
 
-  /// Gets the subtitle text for a button based on its type
-  String _getButtonSubtitle(Button button) {
-    switch (button.type) {
-      case ButtonType.command:
-        return button.command;
-      case ButtonType.commandPreset:
-        return button.command;
-      case ButtonType.keystroke:
-        final modifiers =
-            button.modifiers.isNotEmpty
-                ? '${button.modifiers.map((m) => m.toUpperCase()).join('+')}+'
+  /// Gets a description of a button action
+  String _getActionDescription(ButtonAction action) {
+    switch (action.type) {
+      case ActionType.command:
+        return 'Command: ${action.command}';
+      case ActionType.commandPreset:
+        return 'Preset: ${action.command}';
+      case ActionType.keystroke:
+        final modifierText =
+            action.modifiers.isNotEmpty
+                ? '${action.modifiers.map((m) => m.toUpperCase()).join('+')}+'
                 : '';
-        return 'Keystroke: $modifiers${button.key.toUpperCase()}';
+        return 'Keystroke: $modifierText${action.key.toUpperCase()}';
     }
   }
 
@@ -486,7 +501,7 @@ class _ServerScreenState extends State<ServerScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () => _showButtonDialog(null),
+                  onPressed: () => _navigateToButtonEditor(null),
                   icon: const Icon(Icons.add),
                   label: const Text('Add New'),
                 ),
@@ -530,13 +545,32 @@ class _ServerScreenState extends State<ServerScreen> {
                         ),
                       ),
                       title: Text(button.name),
-                      subtitle: Text(_getButtonSubtitle(button)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Actions: ${button.actions.length}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          if (button.actions.isNotEmpty)
+                            Text(_getActionDescription(button.actions.first)),
+                          if (button.actions.length > 1)
+                            Text(
+                              '+ ${button.actions.length - 1} more ${button.actions.length == 2 ? 'action' : 'actions'}',
+                              style: TextStyle(
+                                fontStyle: FontStyle.italic,
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                        ],
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
                             icon: const Icon(Icons.edit),
-                            onPressed: () => _showButtonDialog(button),
+                            onPressed: () => _navigateToButtonEditor(button),
                             tooltip: 'Edit',
                           ),
                           IconButton(
@@ -546,6 +580,7 @@ class _ServerScreenState extends State<ServerScreen> {
                           ),
                         ],
                       ),
+                      onTap: () => _navigateToButtonEditor(button),
                     ),
                   );
                 },
