@@ -5,6 +5,7 @@ import 'package:web_socket_channel/html.dart';
 
 import 'websocket_service.dart';
 import '../models/message.dart';
+import '../models/client_info.dart';
 
 /// Creates a client WebSocket implementation for web platform
 ClientWebSocketService createWebSocketClient() => WebClientWebSocketService();
@@ -83,9 +84,18 @@ class WebClientWebSocketService implements ClientWebSocketService {
 /// Note: This is only to prevent import errors since servers don't run on web
 class WebServerWebSocketService implements ServerWebSocketService {
   final _messageController = StreamController<Message>.broadcast();
+  final _clientConnectionController =
+      StreamController<ClientConnectionEvent>.broadcast();
 
   @override
   Stream<Message> get messageStream => _messageController.stream;
+
+  @override
+  Stream<ClientConnectionEvent> get clientConnectionStream =>
+      _clientConnectionController.stream;
+
+  @override
+  List<ClientInfo> get connectedClients => [];
 
   @override
   Future<bool> start(int port) async {
@@ -106,5 +116,6 @@ class WebServerWebSocketService implements ServerWebSocketService {
   @override
   Future<void> close() async {
     await _messageController.close();
+    await _clientConnectionController.close();
   }
 }

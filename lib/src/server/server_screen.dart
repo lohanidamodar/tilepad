@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/button.dart';
+import '../models/client_info.dart';
 import 'button_editor_dialog.dart';
 import 'server.dart';
 
@@ -21,11 +24,26 @@ class _ServerScreenState extends State<ServerScreen> {
   int _serverPort = 8080;
   bool _isRunning = false;
   List<Button> _buttons = [];
+  List<ClientInfo> _connectedClients = [];
+  late StreamSubscription<List<ClientInfo>> _clientsSubscription;
 
   @override
   void initState() {
     super.initState();
     _initializeServer();
+
+    // Subscribe to client connection updates
+    _clientsSubscription = widget.server.clientsStream.listen((clients) {
+      setState(() {
+        _connectedClients = clients;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _clientsSubscription.cancel();
+    super.dispose();
   }
 
   /// Initializes the server
@@ -44,6 +62,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
       setState(() {
         _isRunning = success;
+        _connectedClients = widget.server.connectedClients;
       });
 
       if (!success) {
@@ -237,9 +256,37 @@ class _ServerScreenState extends State<ServerScreen> {
             ),
           ),
 
+          // Connected clients card
+          if (_isRunning)
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Connected Clients (${_connectedClients.length})',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildConnectedClientsList(),
+                  ],
+                ),
+              ),
+            ),
+
           // Buttons list header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -316,6 +363,53 @@ class _ServerScreenState extends State<ServerScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildConnectedClientsList() {
+    if (_connectedClients.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0),
+        child: Text('No clients connected'),
+      );
+    }
+
+    final dateFormat = DateFormat('h:mm:ss a');
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _connectedClients.length,
+      itemBuilder: (context, index) {
+        final client = _connectedClients[index];
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            children: [
+              const Icon(Icons.smartphone, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      client.deviceName ?? 'Unknown Device',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'IP: ${client.ipAddress} • Connected at: ${dateFormat.format(client.connectedAt)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

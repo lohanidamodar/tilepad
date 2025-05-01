@@ -6,6 +6,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'websocket_service.dart';
 import '../models/message.dart';
+import '../models/client_info.dart';
 
 /// Creates a client WebSocket implementation for IO platforms (mobile/desktop)
 ClientWebSocketService createWebSocketClient() => IOClientWebSocketService();
@@ -85,10 +86,20 @@ class IOClientWebSocketService implements ClientWebSocketService {
 class IOServerWebSocketService implements ServerWebSocketService {
   HttpServer? _server;
   final List<WebSocket> _clients = [];
+  final Map<WebSocket, ClientInfo> _clientInfo = {};
   final _messageController = StreamController<Message>.broadcast();
+  final _clientConnectionController =
+      StreamController<ClientConnectionEvent>.broadcast();
 
   @override
   Stream<Message> get messageStream => _messageController.stream;
+
+  @override
+  Stream<ClientConnectionEvent> get clientConnectionStream =>
+      _clientConnectionController.stream;
+
+  @override
+  List<ClientInfo> get connectedClients => _clientInfo.values.toList();
 
   @override
   Future<bool> start(int port) async {
@@ -99,7 +110,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
       _server!.listen((HttpRequest request) {
         if (WebSocketTransformer.isUpgradeRequest(request)) {
           WebSocketTransformer.upgrade(request).then((WebSocket socket) {
-            _handleClientConnection(socket);
+            _handleClientConnection(socket, request);
           });
         } else {
           request.response.statusCode = HttpStatus.badRequest;
@@ -114,9 +125,18 @@ class IOServerWebSocketService implements ServerWebSocketService {
     }
   }
 
-  void _handleClientConnection(WebSocket client) {
+  void _handleClientConnection(WebSocket client, [HttpRequest? request]) {
     debugPrint('Client connected');
     _clients.add(client);
+
+    // Create and store client info
+    final clientInfo = ClientInfo.fromWebSocket(client, request);
+    _clientInfo[client] = clientInfo;
+
+    // Emit client connected event
+    _clientConnectionController.add(
+      ClientConnectionEvent(clientInfo: clientInfo, connected: true),
+    );
 
     client.listen(
       (dynamic data) {
@@ -131,13 +151,29 @@ class IOServerWebSocketService implements ServerWebSocketService {
       },
       onDone: () {
         debugPrint('Client disconnected');
-        _clients.remove(client);
+        _handleClientDisconnection(client);
       },
       onError: (error) {
         debugPrint('Error from client: $error');
-        _clients.remove(client);
+        _handleClientDisconnection(client);
       },
     );
+  }
+
+  void _handleClientDisconnection(WebSocket client) {
+    // Get client info before removing from map
+    final clientInfo = _clientInfo[client];
+
+    // Remove client
+    _clients.remove(client);
+    _clientInfo.remove(client);
+
+    // Emit client disconnected event if we had info about this client
+    if (clientInfo != null) {
+      _clientConnectionController.add(
+        ClientConnectionEvent(clientInfo: clientInfo, connected: false),
+      );
+    }
   }
 
   @override
@@ -159,7 +195,8 @@ class IOServerWebSocketService implements ServerWebSocketService {
       await client.close();
     }
     _clients.clear();
+    _clientInfo.clear();
+
     await _server?.close();
-    await _messageController.close();
   }
 }

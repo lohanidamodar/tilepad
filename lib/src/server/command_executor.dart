@@ -4,11 +4,24 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:process_run/process_run.dart';
 
+import '../models/button.dart';
 import '../utils/win32_keyboard.dart';
 import '../utils/win32_commands.dart';
 
 /// Service responsible for executing shell commands and keystrokes
 class CommandExecutor {
+  /// Executes a button action based on its type
+  Future<CommandResult> execute(Button button) async {
+    switch (button.type) {
+      case ButtonType.command:
+      case ButtonType.commandPreset:
+        return await executeCommand(button.command);
+
+      case ButtonType.keystroke:
+        return await executeKeystroke(button.key, button.modifiers);
+    }
+  }
+
   /// Executes a shell command and returns the result
   Future<CommandResult> executeCommand(String command) async {
     try {

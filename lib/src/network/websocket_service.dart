@@ -6,6 +6,7 @@ import 'websocket_service_io.dart'
     if (dart.library.html) 'websocket_service_web.dart';
 
 import '../models/message.dart';
+import '../models/client_info.dart';
 
 /// A service for handling WebSocket communications
 abstract class WebSocketService {
@@ -41,4 +42,22 @@ abstract class ServerWebSocketService implements WebSocketService {
 
   /// Sends a message to all clients
   void broadcast(Message message);
+
+  /// Gets a list of connected clients
+  List<ClientInfo> get connectedClients;
+
+  /// Stream of client connection events (connect/disconnect)
+  Stream<ClientConnectionEvent> get clientConnectionStream;
+}
+
+/// Event for client connections and disconnections
+class ClientConnectionEvent {
+  /// The client info
+  final ClientInfo clientInfo;
+
+  /// Whether the client connected (true) or disconnected (false)
+  final bool connected;
+
+  /// Creates a new client connection event
+  ClientConnectionEvent({required this.clientInfo, required this.connected});
 }

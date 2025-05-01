@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart'; // Add Flutter foundation import
 
 import '../models/button.dart';
 import '../models/message.dart';
+import '../models/client_info.dart';
 import '../network/websocket_service.dart';
 import 'button_manager.dart';
 import 'command_executor.dart';
@@ -17,11 +19,17 @@ class MarcoServer {
   /// The command executor
   final CommandExecutor _commandExecutor = CommandExecutor();
 
+  /// Stream controller for client connection events
+  final _clientsController = StreamController<List<ClientInfo>>.broadcast();
+
   /// The port to listen on
   final int _port;
 
   /// Whether the server is running
   bool _isRunning = false;
+
+  /// List of connected clients
+  List<ClientInfo> _connectedClients = [];
 
   /// Creates a new server
   MarcoServer({int port = 8080}) : _port = port;
@@ -40,6 +48,12 @@ class MarcoServer {
   /// Gets the list of all configured buttons
   List<Button> get buttons => _buttonManager.buttons;
 
+  /// Gets the list of connected clients
+  List<ClientInfo> get connectedClients => _connectedClients;
+
+  /// Stream of connected clients updates
+  Stream<List<ClientInfo>> get clientsStream => _clientsController.stream;
+
   /// Starts the server
   Future<bool> start() async {
     try {
@@ -57,6 +71,12 @@ class MarcoServer {
       // Listen for client messages
       _webSocketService.messageStream.listen(_handleClientMessage);
 
+      // Listen for client connections and disconnections
+      _webSocketService.clientConnectionStream.listen(_handleClientConnection);
+
+      // Initialize connected clients list
+      _updateConnectedClients();
+
       return true;
     } catch (e) {
       debugPrint('Failed to start server: $e');
@@ -64,134 +84,155 @@ class MarcoServer {
     }
   }
 
+  /// Updates the connected clients list and notifies listeners
+  void _updateConnectedClients() {
+    _connectedClients = _webSocketService.connectedClients;
+    _clientsController.add(_connectedClients);
+  }
+
+  /// Handles client connection and disconnection events
+  void _handleClientConnection(ClientConnectionEvent event) {
+    debugPrint(
+      'Client ${event.connected ? 'connected' : 'disconnected'}: ${event.clientInfo.ipAddress}',
+    );
+
+    // Update the connected clients list
+    _updateConnectedClients();
+  }
+
   /// Stops the server
   Future<void> stop() async {
     if (_isRunning) {
       await _webSocketService.close();
       _isRunning = false;
+      _connectedClients = [];
+      _clientsController.add(_connectedClients);
     }
   }
 
   /// Handles a message from a client
   void _handleClientMessage(Message message) async {
-    debugPrint('Received message: ${message.type}');
-
     switch (message.type) {
       case MessageType.connect:
-        _handleClientConnect();
+        // Send connect acknowledgment
+        _webSocketService.sendMessage(Message(type: MessageType.connectAck));
+
+        // Send buttons to the newly connected client
+        _webSocketService.sendMessage(
+          Message(
+            type: MessageType.buttonsResponse,
+            payload: _buttonManager.buttons.map((b) => b.toJson()).toList(),
+          ),
+        );
         break;
+
       case MessageType.getButtons:
-        _handleGetButtons();
+        // Send list of buttons
+        _webSocketService.sendMessage(
+          Message(
+            type: MessageType.buttonsResponse,
+            payload: _buttonManager.buttons.map((b) => b.toJson()).toList(),
+          ),
+        );
         break;
+
       case MessageType.buttonPress:
-        await _handleButtonPress(message.payload);
+        _handleButtonPress(message.payload);
         break;
-      case MessageType.updateButton:
-        _handleUpdateButton(message.payload);
-        break;
+
       default:
         // Unknown message type
+        debugPrint('Unknown message type: ${message.type}');
         break;
     }
   }
 
-  /// Handles a client connect message
-  void _handleClientConnect() {
-    _webSocketService.sendMessage(
-      Message(type: MessageType.connectAck, payload: {'status': 'connected'}),
-    );
-
-    // After connecting, send the buttons to the client
-    _handleGetButtons();
-  }
-
-  /// Handles a get buttons message
-  void _handleGetButtons() {
-    final buttonsJson = _buttonManager.buttons.map((b) => b.toJson()).toList();
-    _webSocketService.sendMessage(
-      Message(type: MessageType.buttonsResponse, payload: buttonsJson),
-    );
-  }
-
   /// Handles a button press message
-  Future<void> _handleButtonPress(dynamic payload) async {
-    try {
-      final String buttonId = payload['buttonId'];
-      final button = _buttonManager.buttons.firstWhere(
-        (b) => b.id == buttonId,
-        orElse: () => throw Exception('Button not found'),
+  void _handleButtonPress(dynamic payload) async {
+    if (payload == null || !payload.containsKey('buttonId')) {
+      return;
+    }
+
+    final buttonId = payload['buttonId'];
+    final button = _buttonManager.getButton(buttonId);
+
+    if (button == null) {
+      _webSocketService.sendMessage(
+        Message(
+          type: MessageType.error,
+          payload: {'error': 'Button not found'},
+        ),
       );
+      return;
+    }
 
-      CommandResult result;
-
-      // Process the button based on its type
-      switch (button.type) {
-        case ButtonType.command:
-          debugPrint('Executing command: ${button.command}');
-          result = await _commandExecutor.executeCommand(button.command);
-          break;
-
-        case ButtonType.keystroke:
-          debugPrint(
-            'Executing keystroke: ${button.key} with modifiers ${button.modifiers}',
-          );
-          result = await _commandExecutor.executeKeystroke(
-            button.key,
-            button.modifiers,
-          );
-          break;
-
-        default:
-          throw Exception('Unsupported button type: ${button.type}');
-      }
-
+    try {
+      final result = await _commandExecutor.execute(button);
       _webSocketService.sendMessage(
         Message(
           type: MessageType.commandResult,
-          payload: {'buttonId': buttonId, ...result.toJson()},
+          payload: {
+            'buttonId': buttonId,
+            'success': result.success,
+            'output': result.output,
+            'error': result.error,
+          },
         ),
       );
     } catch (e) {
       _webSocketService.sendMessage(
-        Message(type: MessageType.error, payload: {'error': e.toString()}),
+        Message(
+          type: MessageType.commandResult,
+          payload: {
+            'buttonId': buttonId,
+            'success': false,
+            'output': '',
+            'error': 'Error executing command: $e',
+          },
+        ),
       );
     }
   }
 
-  /// Handles an update button message
-  void _handleUpdateButton(dynamic payload) {
-    try {
-      final button = Button.fromJson(payload);
-      final success = _buttonManager.updateButton(button);
-
-      if (!success) {
-        _buttonManager.addButton(button);
-      }
-
-      // Send updated buttons list to all clients
-      _handleGetButtons();
-    } catch (e) {
-      _webSocketService.sendMessage(
-        Message(type: MessageType.error, payload: {'error': e.toString()}),
-      );
-    }
-  }
-
-  /// Adds a button
+  /// Adds a new button
   void addButton(Button button) {
     _buttonManager.addButton(button);
-    _handleGetButtons();
+
+    // Notify clients of the button change
+    _broadcastButtons();
   }
 
-  /// Updates a button
+  /// Updates an existing button
   void updateButton(Button button) {
     _buttonManager.updateButton(button);
-    _handleGetButtons();
+
+    // Notify clients of the button change
+    _broadcastButtons();
   }
 
   /// Deletes a button
   void deleteButton(String id) {
     _buttonManager.deleteButton(id);
-    _handleGetButtons();
+
+    // Notify clients of the button change
+    _broadcastButtons();
+  }
+
+  /// Broadcasts the button list to all connected clients
+  void _broadcastButtons() {
+    if (_isRunning) {
+      _webSocketService.broadcast(
+        Message(
+          type: MessageType.buttonsResponse,
+          payload: _buttonManager.buttons.map((b) => b.toJson()).toList(),
+        ),
+      );
+    }
+  }
+
+  /// Disposes the server resources
+  void dispose() async {
+    await stop();
+    await _clientsController.close();
   }
 }

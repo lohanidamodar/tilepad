@@ -82,6 +82,15 @@ class ButtonManager {
     return marcoDeckDir;
   }
 
+  /// Gets a button by its ID
+  Button? getButton(String id) {
+    try {
+      return _buttons.firstWhere((button) => button.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Adds a new button
   void addButton(Button button) {
     _buttons.add(button);
