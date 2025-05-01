@@ -10,8 +10,60 @@ import '../utils/win32_commands.dart';
 
 /// Service responsible for executing shell commands and keystrokes
 class CommandExecutor {
-  /// Executes a button action based on its type
+  /// Executes a button with all of its actions in sequence
   Future<CommandResult> execute(Button button) async {
+    // If there are no actions, return an error
+    if (button.actions.isEmpty) {
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'Button has no actions to execute',
+      );
+    }
+
+    // For a single action button, use simple execution
+    if (button.actions.length == 1) {
+      return await executeAction(button.actions.first);
+    }
+
+    // For multiple actions, execute them in sequence and combine results
+    final results = <CommandResult>[];
+    for (final action in button.actions) {
+      final result = await executeAction(action);
+      results.add(result);
+
+      // Add a small delay between actions to ensure they complete in order
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    // Combine results from all actions
+    final success = results.every((result) => result.success);
+    final output = results
+        .map((r) => r.output)
+        .where((o) => o.isNotEmpty)
+        .join('\n');
+    final error = results
+        .map((r) => r.error)
+        .where((e) => e.isNotEmpty)
+        .join('\n');
+
+    return CommandResult(success: success, output: output, error: error);
+  }
+
+  /// Executes a single button action based on its type
+  Future<CommandResult> executeAction(ButtonAction action) async {
+    switch (action.type) {
+      case ActionType.command:
+      case ActionType.commandPreset:
+        return await executeCommand(action.command);
+
+      case ActionType.keystroke:
+        return await executeKeystroke(action.key, action.modifiers);
+    }
+  }
+
+  /// Legacy method for backward compatibility
+  Future<CommandResult> executeLegacy(Button button) async {
     switch (button.type) {
       case ButtonType.command:
       case ButtonType.commandPreset:

@@ -172,10 +172,16 @@ class ButtonEditorDialog extends StatefulWidget {
 class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _commandController = TextEditingController();
   String _selectedIcon = FontAwesomeIcons.lightbulb.codePoint.toString();
   String _selectedColor = '#4285F4';
-  ButtonType _selectedType = ButtonType.command;
+
+  // List of actions for this button
+  List<ButtonAction> _actions = [];
+
+  // Variables for the action being edited
+  int _editingActionIndex = -1; // -1 means creating a new action
+  final _commandController = TextEditingController();
+  ActionType _selectedType = ActionType.command;
   String _selectedKey = 'a';
   final Set<String> _selectedModifiers = <String>{};
 
@@ -305,6 +311,9 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     ),
   ];
 
+  // UI States
+  bool _showActionEditor = false;
+
   @override
   void initState() {
     super.initState();
@@ -312,15 +321,22 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     // Initialize form with existing button data if editing
     if (widget.button != null) {
       _nameController.text = widget.button!.name;
-      _commandController.text = widget.button!.command;
       _selectedIcon = widget.button!.iconName;
       _selectedColor = widget.button!.color;
-      _selectedType = widget.button!.type;
 
-      if (_selectedType == ButtonType.keystroke) {
-        _selectedKey = widget.button!.key.isNotEmpty ? widget.button!.key : 'a';
-        _selectedModifiers.addAll(widget.button!.modifiers);
-      }
+      // Copy actions
+      _actions =
+          widget.button!.actions
+              .map(
+                (action) => ButtonAction(
+                  id: action.id,
+                  type: action.type,
+                  command: action.command,
+                  key: action.key,
+                  modifiers: List<String>.from(action.modifiers),
+                ),
+              )
+              .toList();
     }
   }
 
@@ -334,21 +350,22 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
   /// Saves the button and returns it
   void _saveButton() {
     if (_formKey.currentState!.validate()) {
+      if (_actions.isEmpty) {
+        // Show error if no actions are defined
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please add at least one action to the button'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final button = Button(
         id: widget.button?.id,
         name: _nameController.text,
         iconName: _selectedIcon,
-        type: _selectedType,
-        command:
-            _selectedType == ButtonType.command ||
-                    _selectedType == ButtonType.commandPreset
-                ? _commandController.text
-                : '',
-        key: _selectedType == ButtonType.keystroke ? _selectedKey : '',
-        modifiers:
-            _selectedType == ButtonType.keystroke
-                ? _selectedModifiers.toList()
-                : const [],
+        actions: _actions,
         color: _selectedColor,
       );
 
@@ -387,155 +404,119 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     }
   }
 
-  /// Builds the type selection section
-  Widget _buildTypeSelection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Button Type', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        SegmentedButton<ButtonType>(
-          segments: const [
-            ButtonSegment<ButtonType>(
-              value: ButtonType.command,
-              label: Text('Custom'),
-              icon: Icon(Icons.terminal),
-            ),
-            ButtonSegment<ButtonType>(
-              value: ButtonType.commandPreset,
-              label: Text('Preset'),
-              icon: Icon(Icons.list_alt),
-            ),
-            ButtonSegment<ButtonType>(
-              value: ButtonType.keystroke,
-              label: Text('Keystroke'),
-              icon: Icon(Icons.keyboard),
-            ),
-          ],
-          selected: {_selectedType},
-          onSelectionChanged: (Set<ButtonType> newSelection) {
-            setState(() {
-              _selectedType = newSelection.first;
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-      ],
+  /// Creates a new action based on current form values
+  ButtonAction _createActionFromForm() {
+    return ButtonAction(
+      type: _selectedType,
+      command:
+          _selectedType == ActionType.command ||
+                  _selectedType == ActionType.commandPreset
+              ? _commandController.text
+              : '',
+      key: _selectedType == ActionType.keystroke ? _selectedKey : '',
+      modifiers:
+          _selectedType == ActionType.keystroke
+              ? List<String>.from(_selectedModifiers)
+              : const [],
     );
   }
 
-  /// Builds the command input section
-  Widget _buildCommandSection() {
-    if (_selectedType != ButtonType.command) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextFormField(
-          controller: _commandController,
-          decoration: const InputDecoration(
-            labelText: 'Command',
-            hintText: 'e.g., notepad.exe or python script.py',
-            border: OutlineInputBorder(),
-          ),
-          validator: (value) {
-            if (_selectedType == ButtonType.command &&
-                (value == null || value.isEmpty)) {
-              return 'Please enter a command';
-            }
-            return null;
-          },
-          maxLines: 3,
+  /// Saves the current action being edited
+  void _saveAction() {
+    if (_commandController.text.isEmpty &&
+        (_selectedType == ActionType.command ||
+            _selectedType == ActionType.commandPreset)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a command'),
+          backgroundColor: Colors.red,
         ),
-        const SizedBox(height: 16),
-      ],
-    );
+      );
+      return;
+    }
+
+    final action = _createActionFromForm();
+
+    setState(() {
+      if (_editingActionIndex >= 0 && _editingActionIndex < _actions.length) {
+        // Update existing action
+        _actions[_editingActionIndex] = action;
+      } else {
+        // Add new action
+        _actions.add(action);
+      }
+
+      // Reset UI and form
+      _showActionEditor = false;
+      _editingActionIndex = -1;
+      _resetActionForm();
+    });
   }
 
-  /// Builds the keystroke configuration section
-  Widget _buildKeystrokeSection() {
-    if (_selectedType != ButtonType.keystroke) return const SizedBox.shrink();
+  /// Cancels the current action editing
+  void _cancelActionEdit() {
+    setState(() {
+      _showActionEditor = false;
+      _editingActionIndex = -1;
+      _resetActionForm();
+    });
+  }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Select Keystroke',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
+  /// Resets the action form to default values
+  void _resetActionForm() {
+    _commandController.text = '';
+    _selectedType = ActionType.command;
+    _selectedKey = 'a';
+    _selectedModifiers.clear();
+  }
 
-        // Modifiers selection
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children:
-              _modifierKeys.map((modifier) {
-                final isSelected = _selectedModifiers.contains(modifier.value);
-                return FilterChip(
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        modifier.icon,
-                        size: 16,
-                        color: isSelected ? Colors.white : null,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(modifier.name),
-                    ],
-                  ),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedModifiers.add(modifier.value);
-                      } else {
-                        _selectedModifiers.remove(modifier.value);
-                      }
-                    });
-                  },
-                  backgroundColor: Colors.grey[200],
-                  selectedColor: _hexToColor(_selectedColor),
-                  checkmarkColor: Colors.white,
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : null,
-                  ),
-                );
-              }).toList(),
-        ),
-        const SizedBox(height: 16),
+  /// Starts editing an existing action
+  void _editAction(int index) {
+    final action = _actions[index];
 
-        // Key selection
-        DropdownButtonFormField<String>(
-          decoration: const InputDecoration(
-            labelText: 'Key',
-            border: OutlineInputBorder(),
-          ),
-          value: _selectedKey,
-          items:
-              _commonKeys.map((key) {
-                return DropdownMenuItem<String>(
-                  value: key,
-                  child: Text(key.toUpperCase()),
-                );
-              }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              setState(() {
-                _selectedKey = value;
-              });
-            }
-          },
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'This will simulate pressing ${_getKeystrokeDescription()}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
+    setState(() {
+      _editingActionIndex = index;
+      _selectedType = action.type;
+      _commandController.text = action.command;
+      _selectedKey = action.key.isEmpty ? 'a' : action.key;
+      _selectedModifiers.clear();
+      _selectedModifiers.addAll(action.modifiers);
+      _showActionEditor = true;
+    });
+  }
+
+  /// Starts adding a new action
+  void _addAction() {
+    setState(() {
+      _editingActionIndex = -1;
+      _resetActionForm();
+      _showActionEditor = true;
+    });
+  }
+
+  /// Deletes an action
+  void _deleteAction(int index) {
+    setState(() {
+      _actions.removeAt(index);
+    });
+  }
+
+  /// Moves an action up in the list
+  void _moveActionUp(int index) {
+    if (index <= 0) return;
+    setState(() {
+      final action = _actions.removeAt(index);
+      _actions.insert(index - 1, action);
+    });
+  }
+
+  /// Moves an action down in the list
+  void _moveActionDown(int index) {
+    if (index >= _actions.length - 1) return;
+    setState(() {
+      final action = _actions.removeAt(index);
+      _actions.insert(index + 1, action);
+    });
   }
 
   /// Gets a human-readable description of the keystroke
@@ -551,44 +532,346 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     return modifierNames.isNotEmpty ? '$modifierNames + $keyName' : keyName;
   }
 
-  /// Builds the predefined command selection section
-  Widget _buildPredefinedCommandSection() {
-    if (_selectedType != ButtonType.commandPreset) {
+  /// Describes an action for display
+  String _getActionDescription(ButtonAction action) {
+    switch (action.type) {
+      case ActionType.command:
+        return 'Command: ${action.command}';
+      case ActionType.commandPreset:
+        return 'Preset: ${action.command}';
+      case ActionType.keystroke:
+        final modifierText =
+            action.modifiers.isNotEmpty
+                ? '${action.modifiers.map((m) => m.toUpperCase()).join('+')}+'
+                : '';
+        return 'Keystroke: $modifierText${action.key.toUpperCase()}';
+    }
+  }
+
+  /// Builds the action list section
+  Widget _buildActionsList() {
+    if (_showActionEditor) {
       return const SizedBox.shrink();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Predefined Commands',
-          style: Theme.of(context).textTheme.titleMedium,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Actions (${_actions.length})',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            ElevatedButton.icon(
+              onPressed: _addAction,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Action'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children:
-              predefinedCommands.map((command) {
-                return ChoiceChip(
-                  label: Row(
+        if (_actions.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'No actions defined yet. Add your first action.',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          )
+        else
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _actions.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final action = _actions[index];
+                return ListTile(
+                  title: Text(
+                    _getActionTypeString(action.type),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(_getActionDescription(action)),
+                  leading: Icon(_getActionTypeIcon(action.type)),
+                  trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(command.icon, size: 16),
-                      const SizedBox(width: 4),
-                      Text(command.name),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_upward, size: 20),
+                        onPressed:
+                            index > 0 ? () => _moveActionUp(index) : null,
+                        tooltip: 'Move Up',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_downward, size: 20),
+                        onPressed:
+                            index < _actions.length - 1
+                                ? () => _moveActionDown(index)
+                                : null,
+                        tooltip: 'Move Down',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: () => _editAction(index),
+                        tooltip: 'Edit',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 20),
+                        onPressed: () => _deleteAction(index),
+                        tooltip: 'Delete',
+                      ),
                     ],
                   ),
-                  selected: _commandController.text == command.getCommand(),
-                  onSelected: (selected) {
-                    setState(() {
-                      _commandController.text = command.getCommand();
-                    });
-                  },
                 );
-              }).toList(),
+              },
+            ),
+          ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  /// Gets the name of an action type
+  String _getActionTypeString(ActionType type) {
+    switch (type) {
+      case ActionType.command:
+        return 'Custom Command';
+      case ActionType.commandPreset:
+        return 'Preset Command';
+      case ActionType.keystroke:
+        return 'Keystroke';
+    }
+  }
+
+  /// Gets an icon for an action type
+  IconData _getActionTypeIcon(ActionType type) {
+    switch (type) {
+      case ActionType.command:
+        return Icons.terminal;
+      case ActionType.commandPreset:
+        return Icons.list_alt;
+      case ActionType.keystroke:
+        return Icons.keyboard;
+    }
+  }
+
+  /// Builds the action editor section
+  Widget _buildActionEditor() {
+    if (!_showActionEditor) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _editingActionIndex >= 0 ? 'Edit Action' : 'Add New Action',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: _cancelActionEdit,
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _saveAction,
+                  child: const Text('Save Action'),
+                ),
+              ],
+            ),
+          ],
         ),
         const SizedBox(height: 16),
+
+        // Action type selection
+        Text('Action Type', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        SegmentedButton<ActionType>(
+          segments: const [
+            ButtonSegment<ActionType>(
+              value: ActionType.command,
+              label: Text('Custom'),
+              icon: Icon(Icons.terminal),
+            ),
+            ButtonSegment<ActionType>(
+              value: ActionType.commandPreset,
+              label: Text('Preset'),
+              icon: Icon(Icons.list_alt),
+            ),
+            ButtonSegment<ActionType>(
+              value: ActionType.keystroke,
+              label: Text('Keystroke'),
+              icon: Icon(Icons.keyboard),
+            ),
+          ],
+          selected: {_selectedType},
+          onSelectionChanged: (Set<ActionType> newSelection) {
+            setState(() {
+              _selectedType = newSelection.first;
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+
+        // Custom command section
+        if (_selectedType == ActionType.command)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _commandController,
+                decoration: const InputDecoration(
+                  labelText: 'Command',
+                  hintText: 'e.g., notepad.exe or python script.py',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+
+        // Predefined command section
+        if (_selectedType == ActionType.commandPreset)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Predefined Commands',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    predefinedCommands.map((command) {
+                      return ChoiceChip(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(command.icon, size: 16),
+                            const SizedBox(width: 4),
+                            Text(command.name),
+                          ],
+                        ),
+                        selected:
+                            _commandController.text == command.getCommand(),
+                        onSelected: (selected) {
+                          setState(() {
+                            _commandController.text = command.getCommand();
+                          });
+                        },
+                      );
+                    }).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+
+        // Keystroke section
+        if (_selectedType == ActionType.keystroke)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select Keystroke',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+
+              // Modifiers selection
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    _modifierKeys.map((modifier) {
+                      final isSelected = _selectedModifiers.contains(
+                        modifier.value,
+                      );
+                      return FilterChip(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              modifier.icon,
+                              size: 16,
+                              color: isSelected ? Colors.white : null,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(modifier.name),
+                          ],
+                        ),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedModifiers.add(modifier.value);
+                            } else {
+                              _selectedModifiers.remove(modifier.value);
+                            }
+                          });
+                        },
+                        backgroundColor: Colors.grey[200],
+                        selectedColor: _hexToColor(_selectedColor),
+                        checkmarkColor: Colors.white,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : null,
+                        ),
+                      );
+                    }).toList(),
+              ),
+              const SizedBox(height: 16),
+
+              // Key selection
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Key',
+                  border: OutlineInputBorder(),
+                ),
+                value: _selectedKey,
+                items:
+                    _commonKeys.map((key) {
+                      return DropdownMenuItem<String>(
+                        value: key,
+                        child: Text(key.toUpperCase()),
+                      );
+                    }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedKey = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This will simulate pressing ${_getKeystrokeDescription()}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+
+        const SizedBox(height: 16),
+        const Divider(),
       ],
     );
   }
@@ -631,13 +914,9 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Button type selection
-                    _buildTypeSelection(),
-
-                    // Conditional sections based on button type
-                    _buildCommandSection(),
-                    _buildPredefinedCommandSection(),
-                    _buildKeystrokeSection(),
+                    // Actions list and editor
+                    _buildActionsList(),
+                    _buildActionEditor(),
 
                     Text(
                       'Button Color',
