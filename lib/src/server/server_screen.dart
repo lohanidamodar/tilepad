@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../models/button.dart';
@@ -26,10 +27,16 @@ class _ServerScreenState extends State<ServerScreen> {
   List<Button> _buttons = [];
   List<ClientInfo> _connectedClients = [];
   late StreamSubscription<List<ClientInfo>> _clientsSubscription;
+  late StreamSubscription<ServerStatus> _serverStatusSubscription;
+
+  // Text controller for the port input field
+  final _portController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _serverPort = widget.server.serverPort;
+    _portController.text = _serverPort.toString();
     _initializeServer();
 
     // Subscribe to client connection updates
@@ -38,11 +45,49 @@ class _ServerScreenState extends State<ServerScreen> {
         _connectedClients = clients;
       });
     });
+
+    // Subscribe to server status updates
+    _serverStatusSubscription = widget.server.serverStatusStream.listen((
+      status,
+    ) {
+      setState(() {
+        _statusMessage = status.message;
+        if (mounted) {
+          _showStatusMessage(status);
+        }
+      });
+    });
+  }
+
+  /// Shows a status message based on the server status
+  void _showStatusMessage(ServerStatus status) {
+    Color backgroundColor;
+
+    switch (status.type) {
+      case ServerStatusType.started:
+        backgroundColor = Colors.green;
+        break;
+      case ServerStatusType.stopped:
+        backgroundColor = Colors.orange;
+        break;
+      case ServerStatusType.restarting:
+        backgroundColor = Colors.blue;
+        break;
+      case ServerStatusType.error:
+        backgroundColor = Colors.red;
+        break;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(status.message), backgroundColor: backgroundColor),
+    );
   }
 
   @override
   void dispose() {
     _clientsSubscription.cancel();
+    _serverStatusSubscription.cancel();
+    _portController.dispose();
     super.dispose();
   }
 
@@ -55,6 +100,7 @@ class _ServerScreenState extends State<ServerScreen> {
       setState(() {
         _serverIp = ip;
         _serverPort = widget.server.serverPort;
+        _portController.text = _serverPort.toString();
       });
 
       // Start the server
@@ -86,6 +132,93 @@ class _ServerScreenState extends State<ServerScreen> {
         );
       }
     }
+  }
+
+  /// Restarts the server with the current port
+  Future<void> _restartServer() async {
+    final success = await widget.server.restart();
+    setState(() {
+      _isRunning = success;
+    });
+    _refreshButtons();
+  }
+
+  /// Shows a dialog to change the server port
+  Future<void> _showChangePortDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Change Server Port'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter a new port number between 1024 and 65535.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _portController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Port',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final newPort =
+                      int.tryParse(_portController.text) ?? _serverPort;
+
+                  // Validate port range
+                  if (newPort < 1024 || newPort > 65535) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Port must be between 1024 and 65535'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  Navigator.of(context).pop();
+
+                  if (newPort != _serverPort) {
+                    if (_isRunning) {
+                      // Restart server with the new port
+                      final success = await widget.server.restart(
+                        newPort: newPort,
+                      );
+                      setState(() {
+                        _isRunning = success;
+                        _serverPort = newPort;
+                      });
+                    } else {
+                      // Just update the port if server is not running
+                      await widget.server.setPort(newPort);
+                      setState(() {
+                        _serverPort = newPort;
+                      });
+                    }
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+    );
   }
 
   /// Refreshes the list of buttons
@@ -240,7 +373,23 @@ class _ServerScreenState extends State<ServerScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text('IP Address: $_serverIp'),
-                  Text('Port: $_serverPort'),
+                  Row(
+                    children: [
+                      Text('Port: $_serverPort'),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 16),
+                        onPressed: _showChangePortDialog,
+                        tooltip: 'Change Port',
+                        constraints: const BoxConstraints(
+                          minWidth: 24,
+                          minHeight: 24,
+                        ),
+                        padding: EdgeInsets.zero,
+                        iconSize: 16,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Connect your client to: ws://$_serverIp:$_serverPort',
@@ -250,6 +399,49 @@ class _ServerScreenState extends State<ServerScreen> {
                   const Text(
                     'Keep this application running while clients are connected.',
                     style: TextStyle(fontStyle: FontStyle.italic),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _isRunning ? _restartServer : null,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Restart Server'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed:
+                            _isRunning
+                                ? () async {
+                                  await widget.server.stop();
+                                  setState(() {
+                                    _isRunning = false;
+                                  });
+                                }
+                                : () async {
+                                  final success = await widget.server.start();
+                                  setState(() {
+                                    _isRunning = success;
+                                  });
+                                  if (success) {
+                                    _refreshButtons();
+                                  }
+                                },
+                        icon: Icon(_isRunning ? Icons.stop : Icons.play_arrow),
+                        label: Text(
+                          _isRunning ? 'Stop Server' : 'Start Server',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              _isRunning ? Colors.red : Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
