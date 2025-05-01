@@ -121,7 +121,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
         SnackBar(
           content: const Text('No default server set'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: colorScheme.surfaceVariant,
+          backgroundColor: colorScheme.surface,
           showCloseIcon: true,
         ),
       );
@@ -320,7 +320,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                       color: colorScheme.surface,
                       boxShadow: [
                         BoxShadow(
-                          color: colorScheme.shadow.withOpacity(0.1),
+                          color: colorScheme.shadow.withAlpha(30),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -365,7 +365,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                 dotHeight: 8,
                                 dotWidth: 8,
                                 activeDotColor: colorScheme.primary,
-                                dotColor: colorScheme.surfaceVariant,
+                                dotColor: colorScheme.surface,
                                 spacing: 8,
                                 radius: 4,
                               ),
@@ -391,9 +391,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                               padding: const EdgeInsets.all(24),
                               margin: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
-                                color: colorScheme.surfaceVariant.withOpacity(
-                                  0.5,
-                                ),
+                                color: colorScheme.surface.withAlpha(127),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: colorScheme.outlineVariant,
@@ -414,7 +412,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSurface,
+                                      color: colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
@@ -465,7 +463,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           if (connectionState.status == ConnectionStatus.connecting ||
               connectionState.status == ConnectionStatus.error)
             Container(
-              color: colorScheme.scrim.withOpacity(0.7),
+              color: colorScheme.scrim.withAlpha(200),
               alignment: Alignment.center,
               child: Container(
                 margin: const EdgeInsets.all(32),
@@ -475,7 +473,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: colorScheme.shadow.withOpacity(0.2),
+                      color: colorScheme.shadow.withAlpha(50),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
@@ -557,7 +555,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                color: colorScheme.surfaceVariant,
+                color: colorScheme.surface,
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -575,7 +573,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                 : colorScheme.errorContainer,
                         boxShadow: [
                           BoxShadow(
-                            color: colorScheme.shadow.withOpacity(0.1),
+                            color: colorScheme.shadow.withAlpha(30),
                             blurRadius: 4,
                             offset: const Offset(0, 1),
                           ),
@@ -651,7 +649,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                   : 'Error: ${commandResult.error}',
                               style: TextStyle(
                                 fontFamily: 'monospace',
-                                color: colorScheme.onSurface,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -676,7 +674,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
         padding: const EdgeInsets.all(32),
         margin: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.5),
+          color: colorScheme.surface.withAlpha(127),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: colorScheme.outlineVariant, width: 1),
         ),
@@ -690,7 +688,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.15),
+                    color: colorScheme.shadow.withAlpha(305),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -714,7 +712,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 16),

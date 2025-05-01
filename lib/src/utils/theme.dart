@@ -207,8 +207,8 @@ ThemeData lightTheme = ThemeData(
     contentPadding: EdgeInsets.symmetric(horizontal: 16),
   ),
   switchTheme: SwitchThemeData(
-    thumbIcon: MaterialStateProperty.resolveWith((states) {
-      if (states.contains(MaterialState.selected)) {
+    thumbIcon: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
         return const Icon(Icons.check, color: Colors.white, size: 10);
       }
       return const Icon(Icons.close, color: Colors.white, size: 10);
@@ -274,8 +274,8 @@ ThemeData darkTheme = ThemeData(
     contentPadding: EdgeInsets.symmetric(horizontal: 16),
   ),
   switchTheme: SwitchThemeData(
-    thumbIcon: MaterialStateProperty.resolveWith((states) {
-      if (states.contains(MaterialState.selected)) {
+    thumbIcon: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
         return const Icon(Icons.check, color: Colors.white, size: 10);
       }
       return const Icon(Icons.close, color: Colors.white, size: 10);

@@ -6,7 +6,6 @@ import '../models/server_connection.dart';
 import '../utils/theme.dart';
 import 'client_providers.dart' as providers;
 import 'connection_screen.dart';
-import 'main.dart';
 
 /// Screen for managing server connections
 class ServerListScreen extends ConsumerWidget {
@@ -18,7 +17,6 @@ class ServerListScreen extends ConsumerWidget {
     final connections = ref.watch(providers.serverConnectionsProvider);
     final connectionState = ref.watch(providers.connectionStateProvider);
     final themeMode = ref.watch(themeModeProvider);
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -94,7 +92,7 @@ class ServerListScreen extends ConsumerWidget {
         iconData = Icons.error;
         break;
       default:
-        backgroundColor = colorScheme.surfaceVariant;
+        backgroundColor = colorScheme.surface;
         foregroundColor = colorScheme.onSurfaceVariant;
         statusText = 'Not connected';
         iconData = Icons.info;
@@ -122,7 +120,7 @@ class ServerListScreen extends ConsumerWidget {
             if (connectionState.status == providers.ConnectionStatus.connected)
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.primary.withOpacity(0.2),
+                  backgroundColor: colorScheme.primary.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -145,7 +143,7 @@ class ServerListScreen extends ConsumerWidget {
             if (connectionState.status == providers.ConnectionStatus.connecting)
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.tertiary.withOpacity(0.2),
+                  backgroundColor: colorScheme.tertiary.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -168,7 +166,7 @@ class ServerListScreen extends ConsumerWidget {
             if (connectionState.status == providers.ConnectionStatus.error)
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.error.withOpacity(0.2),
+                  backgroundColor: colorScheme.error.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -218,7 +216,7 @@ class ServerListScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(24),
         margin: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.5),
+          color: colorScheme.surface.withAlpha(127),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colorScheme.outlineVariant, width: 1),
         ),
@@ -232,7 +230,7 @@ class ServerListScreen extends ConsumerWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.1),
+                    color: colorScheme.shadow.withAlpha(30),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -255,7 +253,7 @@ class ServerListScreen extends ConsumerWidget {
               'No Saved Servers',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 12),
@@ -331,7 +329,7 @@ class ServerListScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color:
                           isConnected
-                              ? colorScheme.primaryContainer.withOpacity(0.5)
+                              ? colorScheme.primaryContainer.withAlpha(127)
                               : null,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -349,8 +347,8 @@ class ServerListScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color:
                                     isConnected
-                                        ? colorScheme.primary.withOpacity(0.1)
-                                        : colorScheme.surfaceVariant,
+                                        ? colorScheme.primary.withAlpha(30)
+                                        : colorScheme.surface,
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -408,7 +406,7 @@ class ServerListScreen extends ConsumerWidget {
                                         color:
                                             isConnected
                                                 ? colorScheme.primary
-                                                : colorScheme.onSurface,
+                                                : colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ),
@@ -585,7 +583,7 @@ class ServerListScreen extends ConsumerWidget {
                   height: 4,
                   margin: const EdgeInsets.only(top: 8),
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                    color: colorScheme.onSurfaceVariant.withAlpha(120),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -614,7 +612,7 @@ class ServerListScreen extends ConsumerWidget {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                             Text(

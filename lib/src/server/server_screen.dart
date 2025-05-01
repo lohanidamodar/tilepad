@@ -706,7 +706,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                   padding: EdgeInsets.zero,
                                   style: IconButton.styleFrom(
                                     backgroundColor: colorScheme.primary
-                                        .withOpacity(0.1),
+                                        .withAlpha(30),
                                     minimumSize: const Size(32, 32),
                                   ),
                                   icon: Icon(
@@ -731,7 +731,7 @@ class _ServerScreenState extends State<ServerScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: colorScheme.primaryContainer.withOpacity(0.5),
+                          color: colorScheme.primaryContainer.withAlpha(127),
                         ),
                         child: Row(
                           children: [
@@ -766,6 +766,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                     text: 'ws://$_serverIp:$_serverPort',
                                   ),
                                 ).then((_) {
+                                  if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
@@ -829,12 +830,11 @@ class _ServerScreenState extends State<ServerScreen> {
                             style: FilledButton.styleFrom(
                               backgroundColor: colorScheme.secondaryContainer,
                               foregroundColor: colorScheme.onSecondaryContainer,
-                              disabledBackgroundColor: colorScheme
-                                  .surfaceVariant
-                                  .withOpacity(0.3),
+                              disabledBackgroundColor: colorScheme.surface
+                                  .withAlpha(60),
                               disabledForegroundColor: colorScheme
                                   .onSurfaceVariant
-                                  .withOpacity(0.5),
+                                  .withAlpha(127),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -972,8 +972,9 @@ class _ServerScreenState extends State<ServerScreen> {
                               icon: const Icon(Icons.add),
                               label: const Text('New Page'),
                               style: FilledButton.styleFrom(
-                                backgroundColor: colorScheme.tertiary
-                                    .withOpacity(0.7),
+                                backgroundColor: colorScheme.tertiary.withAlpha(
+                                  200,
+                                ),
                                 foregroundColor:
                                     colorScheme.onTertiaryContainer,
                               ),
@@ -1027,9 +1028,7 @@ class _ServerScreenState extends State<ServerScreen> {
                               color:
                                   isSelected
                                       ? colorScheme.primaryContainer
-                                      : colorScheme.surfaceVariant.withOpacity(
-                                        0.5,
-                                      ),
+                                      : colorScheme.surface.withAlpha(127),
                               borderRadius: BorderRadius.circular(16),
                               clipBehavior: Clip.antiAlias,
                               child: InkWell(
@@ -1048,8 +1047,8 @@ class _ServerScreenState extends State<ServerScreen> {
                                       color:
                                           isSelected
                                               ? colorScheme.primary
-                                              : colorScheme.outline.withOpacity(
-                                                0.3,
+                                              : colorScheme.outline.withAlpha(
+                                                70,
                                               ),
                                       width: isSelected ? 2 : 1,
                                     ),
@@ -1091,7 +1090,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                           color:
                                               isSelected
                                                   ? colorScheme.primary
-                                                  : colorScheme.surfaceVariant,
+                                                  : colorScheme.surface,
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
@@ -1150,7 +1149,7 @@ class _ServerScreenState extends State<ServerScreen> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -1179,9 +1178,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
-                                  color: colorScheme.surfaceVariant.withOpacity(
-                                    0.5,
-                                  ),
+                                  color: colorScheme.surface.withAlpha(127),
                                   border: Border.all(
                                     color: colorScheme.outlineVariant,
                                   ),
@@ -1194,9 +1191,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                           ? Icons.dashboard_customize
                                           : Icons.touch_app,
                                       size: 48,
-                                      color: colorScheme.primary.withOpacity(
-                                        0.7,
-                                      ),
+                                      color: colorScheme.primary.withAlpha(200),
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
@@ -1290,7 +1285,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                                   boxShadow: [
                                                     BoxShadow(
                                                       color: Colors.black
-                                                          .withOpacity(0.1),
+                                                          .withAlpha(30),
                                                       blurRadius: 2,
                                                       offset: const Offset(
                                                         0,
@@ -1311,7 +1306,8 @@ class _ServerScreenState extends State<ServerScreen> {
                                             button.name,
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              color: colorScheme.onSurface,
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                           subtitle: Column(
@@ -1401,9 +1397,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                                 ),
                                             ],
                                           ),
-                                          trailing: ButtonBar(
-                                            mainAxisSize: MainAxisSize.min,
-                                            buttonPadding: EdgeInsets.zero,
+                                          trailing: OverflowBar(
                                             children: [
                                               IconButton(
                                                 icon: Icon(
@@ -1480,7 +1474,7 @@ class _ServerScreenState extends State<ServerScreen> {
         padding: const EdgeInsets.all(16),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.3),
+          color: colorScheme.surface.withAlpha(60),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
@@ -1489,7 +1483,7 @@ class _ServerScreenState extends State<ServerScreen> {
             Icon(
               Icons.devices_other,
               size: 32,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+              color: colorScheme.onSurfaceVariant.withAlpha(127),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1515,7 +1509,7 @@ class _ServerScreenState extends State<ServerScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           elevation: 0,
-          color: colorScheme.surfaceVariant.withOpacity(0.3),
+          color: colorScheme.surface.withAlpha(60),
           child: Padding(
             padding: const EdgeInsets.all(12.0),
             child: Row(
@@ -1542,7 +1536,7 @@ class _ServerScreenState extends State<ServerScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: colorScheme.onSurface,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -1567,8 +1561,8 @@ class _ServerScreenState extends State<ServerScreen> {
                             height: 4,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: colorScheme.onSurfaceVariant.withOpacity(
-                                0.5,
+                              color: colorScheme.onSurfaceVariant.withAlpha(
+                                127,
                               ),
                             ),
                           ),
