@@ -30,12 +30,14 @@ class MarcoDeckClientApp extends ConsumerWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4285F4)),
         useMaterial3: true,
+        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
       ),
       darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF4285F4),
           brightness: Brightness.dark,
         ),
+        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
       ),
       themeMode: ThemeMode.system,
       home: const SplashScreen(),

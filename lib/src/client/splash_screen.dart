@@ -4,7 +4,6 @@ import 'package:marco_deck/src/models/server_connection.dart';
 
 import 'buttons_screen.dart';
 import 'client_providers.dart' as providers;
-import 'server_list_screen.dart';
 
 /// Splash screen that handles automatic connection to the default server
 class SplashScreen extends ConsumerStatefulWidget {
@@ -59,7 +58,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       final success = await connectionNotifier.connect(defaultServer);
 
       if (success && mounted) {
-        // If connection successful, navigate to buttons screen
+        // If connection successful, navigate to buttons screen as the home screen
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const ButtonsScreen()),
         );
@@ -67,10 +66,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       }
     }
 
-    // If no default server or connection failed, go to server list
+    // If no default server or connection failed, still go to buttons screen
+    // but it will show a disconnected state with options to connect
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const ServerListScreen()),
+        MaterialPageRoute(
+          builder:
+              (context) => const ButtonsScreen(showNoConnectionMessage: true),
+        ),
       );
     }
   }

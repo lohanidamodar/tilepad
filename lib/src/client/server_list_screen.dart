@@ -7,9 +7,9 @@ import 'buttons_screen.dart';
 import 'client_providers.dart' as providers;
 import 'connection_screen.dart';
 
-/// Screen for selecting a server from the saved list
+/// Screen for managing server connections
 class ServerListScreen extends ConsumerWidget {
-  /// Creates a new server list screen
+  /// Creates a new server management screen
   const ServerListScreen({super.key});
 
   @override
@@ -19,26 +19,11 @@ class ServerListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MarcoDeck'),
-        centerTitle: true,
-        actions: [
-          if (connectionState.status == providers.ConnectionStatus.connected)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh Connection',
-              onPressed: () {
-                ref
-                    .read(providers.connectionStateProvider.notifier)
-                    .refreshConnection();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Connection refreshed'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
-        ],
+        title: const Text('Manage Servers'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Column(
         children: [
@@ -116,10 +101,10 @@ class ServerListScreen extends ConsumerWidget {
               TextButton.icon(
                 style: TextButton.styleFrom(foregroundColor: Colors.white),
                 onPressed: () {
-                  final ref = ProviderScope.containerOf(
+                  final notifier = ProviderScope.containerOf(
                     context,
                   ).read(providers.connectionStateProvider.notifier);
-                  ref.disconnect();
+                  notifier.disconnect();
                 },
                 icon: const Icon(Icons.link_off, size: 16),
                 label: const Text('Disconnect'),
@@ -128,10 +113,10 @@ class ServerListScreen extends ConsumerWidget {
               TextButton.icon(
                 style: TextButton.styleFrom(foregroundColor: Colors.white),
                 onPressed: () {
-                  final ref = ProviderScope.containerOf(
+                  final notifier = ProviderScope.containerOf(
                     context,
                   ).read(providers.connectionStateProvider.notifier);
-                  ref.cancelConnection();
+                  notifier.cancelConnection();
                 },
                 icon: const Icon(Icons.cancel, size: 16),
                 label: const Text('Cancel'),
@@ -140,10 +125,10 @@ class ServerListScreen extends ConsumerWidget {
               TextButton.icon(
                 style: TextButton.styleFrom(foregroundColor: Colors.white),
                 onPressed: () {
-                  final ref = ProviderScope.containerOf(
+                  final notifier = ProviderScope.containerOf(
                     context,
                   ).read(providers.connectionStateProvider.notifier);
-                  ref.resetErrorState();
+                  notifier.resetErrorState();
                 },
                 icon: const Icon(Icons.refresh, size: 16),
                 label: const Text('Dismiss'),
@@ -151,13 +136,10 @@ class ServerListScreen extends ConsumerWidget {
             if (connectionState.status == providers.ConnectionStatus.connected)
               IconButton(
                 icon: const Icon(Icons.open_in_new, color: Colors.white),
-                tooltip: 'Open Buttons',
+                tooltip: 'Go to Buttons',
                 onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const ButtonsScreen(),
-                    ),
-                  );
+                  // Navigate back to ButtonsScreen
+                  Navigator.of(context).pop();
                 },
               ),
           ],
@@ -267,9 +249,8 @@ class ServerListScreen extends ConsumerWidget {
     final success = await notifier.connect(connection);
 
     if (success && context.mounted) {
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (context) => const ButtonsScreen()));
+      // On success, return to the ButtonsScreen
+      Navigator.of(context).pop();
     }
   }
 
@@ -280,10 +261,7 @@ class ServerListScreen extends ConsumerWidget {
   ) {
     // Check if this server is the default
     final isDefault =
-        ref
-            .read(providers.serverConnectionsProvider.notifier)
-            .defaultServerId ==
-        connection.id;
+        ref.read(providers.defaultServerIdProvider) == connection.id;
 
     showModalBottomSheet(
       context: context,
