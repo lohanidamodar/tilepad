@@ -21,7 +21,7 @@ class MarcoServer {
 
   /// Stream controller for client connection events
   final _clientsController = StreamController<List<ClientInfo>>.broadcast();
-  
+
   /// Stream controller for server status events
   final _serverStatusController = StreamController<ServerStatus>.broadcast();
 
@@ -44,7 +44,7 @@ class MarcoServer {
 
   /// Gets the server's port
   int get serverPort => _port;
-  
+
   /// Sets the server port
   Future<void> setPort(int port) async {
     if (_isRunning) {
@@ -64,7 +64,7 @@ class MarcoServer {
 
   /// Stream of connected clients updates
   Stream<List<ClientInfo>> get clientsStream => _clientsController.stream;
-  
+
   /// Stream of server status updates
   Stream<ServerStatus> get serverStatusStream => _serverStatusController.stream;
 
@@ -75,19 +75,25 @@ class MarcoServer {
       if (_isRunning) {
         return true;
       }
-      
+
       // Initialize button manager
       await _buttonManager.initialize();
 
       // Start WebSocket server
       final success = await _webSocketService.start(_port);
       if (!success) {
-        _notifyServerStatus(ServerStatusType.error, 'Failed to start server on port $_port');
+        _notifyServerStatus(
+          ServerStatusType.error,
+          'Failed to start server on port $_port',
+        );
         return false;
       }
 
       _isRunning = true;
-      _notifyServerStatus(ServerStatusType.started, 'Server started on port $_port');
+      _notifyServerStatus(
+        ServerStatusType.started,
+        'Server started on port $_port',
+      );
 
       // Listen for client messages
       _webSocketService.messageStream.listen(_handleClientMessage);
@@ -105,29 +111,32 @@ class MarcoServer {
       return false;
     }
   }
-  
+
   /// Restarts the server, optionally with a new port
   Future<bool> restart({int? newPort}) async {
     try {
       _notifyServerStatus(ServerStatusType.restarting, 'Restarting server...');
-      
+
       // Stop the server if it's running
       await stop();
-      
+
       // Update port if a new one is provided
       if (newPort != null) {
         _port = newPort;
       }
-      
+
       // Start the server again
       return await start();
     } catch (e) {
       debugPrint('Failed to restart server: $e');
-      _notifyServerStatus(ServerStatusType.error, 'Error restarting server: $e');
+      _notifyServerStatus(
+        ServerStatusType.error,
+        'Error restarting server: $e',
+      );
       return false;
     }
   }
-  
+
   /// Notifies listeners about server status changes
   void _notifyServerStatus(ServerStatusType type, String message) {
     _serverStatusController.add(ServerStatus(type: type, message: message));
@@ -292,28 +301,25 @@ class MarcoServer {
 enum ServerStatusType {
   /// Server has started
   started,
-  
+
   /// Server is stopping
   stopped,
-  
+
   /// Server is restarting
   restarting,
-  
+
   /// Server encountered an error
-  error
+  error,
 }
 
 /// Class representing server status
 class ServerStatus {
   /// The status type
   final ServerStatusType type;
-  
+
   /// Status message
   final String message;
-  
+
   /// Creates a new server status
-  ServerStatus({
-    required this.type,
-    required this.message,
-  });
+  ServerStatus({required this.type, required this.message});
 }
