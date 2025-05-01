@@ -18,9 +18,13 @@ ServerWebSocketService createWebSocketServer() => WebServerWebSocketService();
 class WebClientWebSocketService implements ClientWebSocketService {
   WebSocketChannel? _channel;
   final _messageController = StreamController<Message>.broadcast();
+  bool _isConnected = false;
 
   @override
   WebSocketChannel? get channel => _channel;
+
+  @override
+  bool get isConnected => _isConnected;
 
   @override
   Stream<Message> get messageStream => _messageController.stream;
@@ -34,10 +38,13 @@ class WebClientWebSocketService implements ClientWebSocketService {
       await close();
 
       // Create a web socket connection
-      _channel = HtmlWebSocketChannel.connect(address);
-
-      // Wait a short time to ensure connection is established
-      await Future.delayed(const Duration(milliseconds: 500));
+      try {
+        _channel = HtmlWebSocketChannel.connect(address);
+      } catch (e) {
+        debugPrint('Web: Immediate connection failure: $e');
+        _isConnected = false;
+        return false;
+      }
 
       // Set up the connection listener
       _channel!.stream.listen(
@@ -53,15 +60,34 @@ class WebClientWebSocketService implements ClientWebSocketService {
         },
         onDone: () {
           debugPrint('Web: WebSocket connection closed');
+          _isConnected = false;
         },
         onError: (error) {
           debugPrint('Web: WebSocket error: $error');
+          _isConnected = false;
         },
       );
 
+      // Wait a short time to ensure connection is established
+      try {
+        await Future.delayed(const Duration(milliseconds: 500));
+        // Check if the connection was dropped during the delay
+        if (_channel == null) {
+          debugPrint('Web: Connection was closed during initial delay');
+          _isConnected = false;
+          return false;
+        }
+      } catch (e) {
+        debugPrint('Web: Error during connection verification: $e');
+        _isConnected = false;
+        return false;
+      }
+
+      _isConnected = true;
       debugPrint('Web: Connection established');
       return true;
     } catch (e) {
+      _isConnected = false;
       debugPrint('Web: Failed to connect: $e');
       return false;
     }
@@ -69,14 +95,21 @@ class WebClientWebSocketService implements ClientWebSocketService {
 
   @override
   void sendMessage(Message message) {
-    if (_channel != null) {
-      _channel!.sink.add(message.encode());
+    if (_channel != null && _isConnected) {
+      try {
+        _channel!.sink.add(message.encode());
+      } catch (e) {
+        debugPrint('Web: Error sending message: $e');
+        _isConnected = false;
+      }
     }
   }
 
   @override
   Future<void> close() async {
+    _isConnected = false;
     await _channel?.sink.close();
+    _channel = null;
   }
 }
 

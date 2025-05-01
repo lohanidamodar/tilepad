@@ -196,6 +196,7 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
   final Ref _ref;
   final ClientWebSocketService _webSocketService = ClientWebSocketService();
   late StreamSubscription<Message> _messageSubscription;
+  Timer? _connectionTimeoutTimer;
 
   /// Creates a new connection state notifier
   ConnectionStateNotifier(this._ref)
@@ -208,6 +209,7 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
 
   @override
   void dispose() {
+    _cancelConnectionTimeout();
     _messageSubscription.cancel();
     _webSocketService.close();
     super.dispose();
@@ -223,11 +225,18 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
       );
 
       // Close existing connection if connected
-      if (state.status == ConnectionStatus.connected) {
+      if (_webSocketService.isConnected) {
         await disconnect();
       }
 
+      // Set a connection timeout
+      _setConnectionTimeout();
+
+      // Attempt to connect
       final success = await _webSocketService.connect(connection.address);
+
+      // Cancel the timeout timer
+      _cancelConnectionTimeout();
 
       if (success) {
         // Send connect message
@@ -238,31 +247,102 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
             .read(serverConnectionsProvider.notifier)
             .updateLastConnected(connection.id);
 
+        // We don't set connected state here - we wait for the connectAck message
+        // But we should set a timeout for the acknowledgment
+        _setAckTimeout(connection);
+
         return true;
       } else {
-        // Update state to error
+        // If the connect call returned false, update state to error immediately
         state = ConnectionState(
           status: ConnectionStatus.error,
           errorMessage: 'Failed to connect to server',
+          connection: connection,
         );
 
         return false;
       }
     } catch (e) {
+      // Cancel the timeout timer
+      _cancelConnectionTimeout();
+
       debugPrint('Error connecting to server: $e');
 
       // Update state to error
       state = ConnectionState(
         status: ConnectionStatus.error,
         errorMessage: 'Error: $e',
+        connection: connection,
       );
 
       return false;
     }
   }
 
+  /// Sets a timeout for waiting for the server to acknowledge the connection
+  Timer? _ackTimeoutTimer;
+
+  void _setAckTimeout(ServerConnection connection) {
+    _cancelAckTimeout();
+
+    // Set a timeout for receiving the connection acknowledgment
+    _ackTimeoutTimer = Timer(const Duration(seconds: 5), () {
+      if (state.status == ConnectionStatus.connecting) {
+        // We didn't receive an acknowledgment within timeout period
+        _webSocketService.close();
+
+        state = ConnectionState(
+          status: ConnectionStatus.error,
+          errorMessage: 'Server did not respond',
+          connection: connection,
+        );
+      }
+    });
+  }
+
+  void _cancelAckTimeout() {
+    _ackTimeoutTimer?.cancel();
+    _ackTimeoutTimer = null;
+  }
+
+  /// Sets a timeout for connection attempts
+  void _setConnectionTimeout() {
+    // Cancel any existing timeout
+    _cancelConnectionTimeout();
+
+    // Set a new timeout (10 seconds)
+    _connectionTimeoutTimer = Timer(const Duration(seconds: 10), () {
+      if (state.status == ConnectionStatus.connecting) {
+        // Connection attempt has timed out
+        _webSocketService.close();
+
+        state = ConnectionState(
+          status: ConnectionStatus.error,
+          errorMessage: 'Connection timed out',
+          connection: state.connection,
+        );
+      }
+    });
+  }
+
+  /// Cancels the connection timeout timer if it exists
+  void _cancelConnectionTimeout() {
+    _connectionTimeoutTimer?.cancel();
+    _connectionTimeoutTimer = null;
+  }
+
+  /// Cancels an ongoing connection attempt
+  void cancelConnection() {
+    if (state.status == ConnectionStatus.connecting) {
+      _cancelConnectionTimeout();
+      _webSocketService.close();
+      state = const ConnectionState(status: ConnectionStatus.disconnected);
+    }
+  }
+
   /// Disconnects from the server
   Future<void> disconnect() async {
+    _cancelConnectionTimeout();
     await _webSocketService.close();
 
     // Update state to disconnected
@@ -270,6 +350,13 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
 
     // Clear buttons
     _ref.read(buttonsProvider.notifier).state = [];
+  }
+
+  /// Resets error state back to disconnected
+  void resetErrorState() {
+    if (state.status == ConnectionStatus.error) {
+      state = const ConnectionState(status: ConnectionStatus.disconnected);
+    }
   }
 
   /// Refreshes the current connection

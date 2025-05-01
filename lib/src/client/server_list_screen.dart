@@ -124,6 +124,30 @@ class ServerListScreen extends ConsumerWidget {
                 icon: const Icon(Icons.link_off, size: 16),
                 label: const Text('Disconnect'),
               ),
+            if (connectionState.status == providers.ConnectionStatus.connecting)
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                onPressed: () {
+                  final ref = ProviderScope.containerOf(
+                    context,
+                  ).read(providers.connectionStateProvider.notifier);
+                  ref.cancelConnection();
+                },
+                icon: const Icon(Icons.cancel, size: 16),
+                label: const Text('Cancel'),
+              ),
+            if (connectionState.status == providers.ConnectionStatus.error)
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                onPressed: () {
+                  final ref = ProviderScope.containerOf(
+                    context,
+                  ).read(providers.connectionStateProvider.notifier);
+                  ref.resetErrorState();
+                },
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Dismiss'),
+              ),
             if (connectionState.status == providers.ConnectionStatus.connected)
               IconButton(
                 icon: const Icon(Icons.open_in_new, color: Colors.white),

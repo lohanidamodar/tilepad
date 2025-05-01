@@ -18,9 +18,13 @@ ServerWebSocketService createWebSocketServer() => IOServerWebSocketService();
 class IOClientWebSocketService implements ClientWebSocketService {
   WebSocketChannel? _channel;
   final _messageController = StreamController<Message>.broadcast();
+  bool _isConnected = false;
 
   @override
   WebSocketChannel? get channel => _channel;
+
+  @override
+  bool get isConnected => _isConnected;
 
   @override
   Stream<Message> get messageStream => _messageController.stream;
@@ -33,13 +37,18 @@ class IOClientWebSocketService implements ClientWebSocketService {
       // Close existing connection if any
       await close();
 
-      _channel = IOWebSocketChannel.connect(
-        Uri.parse(address),
-        pingInterval: const Duration(seconds: 5),
-      );
-
-      // Wait a short time to ensure connection is established
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Create the connection
+      try {
+        _channel = IOWebSocketChannel.connect(
+          Uri.parse(address),
+          pingInterval: const Duration(seconds: 5),
+        );
+      } catch (e) {
+        // Handle immediate connection failures
+        debugPrint('Immediate connection failure: $e');
+        _isConnected = false;
+        return false;
+      }
 
       // Set up the connection listener
       _channel!.stream.listen(
@@ -55,15 +64,35 @@ class IOClientWebSocketService implements ClientWebSocketService {
         },
         onDone: () {
           debugPrint('WebSocket connection closed');
+          _isConnected = false;
         },
         onError: (error) {
           debugPrint('WebSocket error: $error');
+          _isConnected = false;
         },
       );
 
+      // Wait a short time to ensure connection is established
+      // Try to get an initial message or response to validate the connection
+      try {
+        await Future.delayed(const Duration(milliseconds: 500));
+        // Check if the connection was dropped during the delay
+        if (_channel == null) {
+          debugPrint('Connection was closed during initial delay');
+          _isConnected = false;
+          return false;
+        }
+      } catch (e) {
+        debugPrint('Error during connection verification: $e');
+        _isConnected = false;
+        return false;
+      }
+
+      _isConnected = true;
       debugPrint('Connection established');
       return true;
     } catch (e) {
+      _isConnected = false;
       debugPrint('Failed to connect: $e');
       return false;
     }
@@ -71,14 +100,21 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
   @override
   void sendMessage(Message message) {
-    if (_channel != null) {
-      _channel!.sink.add(message.encode());
+    if (_channel != null && _isConnected) {
+      try {
+        _channel!.sink.add(message.encode());
+      } catch (e) {
+        debugPrint('Error sending message: $e');
+        _isConnected = false;
+      }
     }
   }
 
   @override
   Future<void> close() async {
+    _isConnected = false;
     await _channel?.sink.close();
+    _channel = null;
   }
 }
 

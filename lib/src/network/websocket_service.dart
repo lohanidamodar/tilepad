@@ -30,6 +30,9 @@ abstract class ClientWebSocketService implements WebSocketService {
 
   /// Connects to a WebSocket server at the given address
   Future<bool> connect(String address);
+
+  /// Whether the client is currently connected to a server
+  bool get isConnected;
 }
 
 /// A server implementation of [WebSocketService]
