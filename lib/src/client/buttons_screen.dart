@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../models/server_connection.dart';
+import '../utils/theme.dart';
 import 'client_providers.dart';
 import 'button_grid.dart';
 import 'server_list_screen.dart';
@@ -61,6 +62,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   }
 
   void _connectToDefault(BuildContext context) async {
+    final colorScheme = Theme.of(context).colorScheme;
+
     // Get the default server ID using the provider
     final connectionsNotifier = ref.read(serverConnectionsProvider.notifier);
     final defaultServerId = connectionsNotifier.defaultServerId;
@@ -96,22 +99,30 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           SnackBar(
             content: Text('Connected to ${defaultServer.name}'),
             behavior: SnackBarBehavior.floating,
+            backgroundColor: colorScheme.primaryContainer,
+            showCloseIcon: true,
+            closeIconColor: colorScheme.onPrimaryContainer,
           ),
         );
       } else {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to connect to default server'),
+          SnackBar(
+            content: const Text('Failed to connect to default server'),
             behavior: SnackBarBehavior.floating,
+            backgroundColor: colorScheme.errorContainer,
+            showCloseIcon: true,
+            closeIconColor: colorScheme.onErrorContainer,
           ),
         );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No default server set'),
+        SnackBar(
+          content: const Text('No default server set'),
           behavior: SnackBarBehavior.floating,
+          backgroundColor: colorScheme.surfaceVariant,
+          showCloseIcon: true,
         ),
       );
     }
@@ -123,6 +134,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     final pages = ref.watch(pagesProvider);
     final selectedPageIndex = ref.watch(selectedPageIndexProvider);
     final commandResult = ref.watch(commandResultProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     final isConnected = connectionState.status == ConnectionStatus.connected;
 
@@ -141,24 +154,92 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(connectionState.connection?.name ?? 'MarcoDeck'),
+        title: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Image.asset(
+                  'assets/logo.png',
+                  errorBuilder:
+                      (context, error, stackTrace) => Icon(
+                        Icons.devices,
+                        color: colorScheme.onPrimaryContainer,
+                      ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              connectionState.connection?.name ?? 'MarcoDeck',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            if (isConnected)
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 12,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Connected',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
         actions: [
+          // Theme mode selector
+          ThemeModeSelector(
+            currentThemeMode: themeMode,
+            onThemeModeChanged: (mode) {
+              ref.read(themeModeProvider.notifier).setThemeMode(mode);
+            },
+          ),
+
           if (isConnected)
             IconButton(
               icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh buttons',
+              style: IconButton.styleFrom(foregroundColor: colorScheme.primary),
               onPressed: () {
                 ref.read(connectionStateProvider.notifier).requestButtons();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Buttons refreshed'),
+                  SnackBar(
+                    content: const Text('Buttons refreshed'),
                     behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 1),
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: colorScheme.primaryContainer,
+                    showCloseIcon: true,
                   ),
                 );
               },
-              tooltip: 'Refresh buttons',
             ),
           PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: colorScheme.onSurfaceVariant),
+            position: PopupMenuPosition.under,
             onSelected: (value) {
               switch (value) {
                 case 'servers':
@@ -177,40 +258,46 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
             },
             itemBuilder:
                 (BuildContext context) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'servers',
                     child: ListTile(
-                      leading: Icon(Icons.computer),
-                      title: Text('Manage Servers'),
+                      leading: Icon(Icons.computer, color: colorScheme.primary),
+                      title: const Text('Manage Servers'),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                     ),
                   ),
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'add_server',
                     child: ListTile(
-                      leading: Icon(Icons.add_circle_outline),
-                      title: Text('Add New Server'),
+                      leading: Icon(
+                        Icons.add_circle_outline,
+                        color: colorScheme.primary,
+                      ),
+                      title: const Text('Add New Server'),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                     ),
                   ),
                   if (!isConnected)
-                    const PopupMenuItem<String>(
+                    PopupMenuItem<String>(
                       value: 'connect_default',
                       child: ListTile(
-                        leading: Icon(Icons.link),
-                        title: Text('Connect to Default'),
+                        leading: Icon(Icons.link, color: colorScheme.primary),
+                        title: const Text('Connect to Default'),
                         contentPadding: EdgeInsets.zero,
                         dense: true,
                       ),
                     ),
                   if (isConnected)
-                    const PopupMenuItem<String>(
+                    PopupMenuItem<String>(
                       value: 'disconnect',
                       child: ListTile(
-                        leading: Icon(Icons.link_off),
-                        title: Text('Disconnect'),
+                        leading: Icon(Icons.link_off, color: colorScheme.error),
+                        title: Text(
+                          'Disconnect',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
                         contentPadding: EdgeInsets.zero,
                         dense: true,
                       ),
@@ -228,12 +315,12 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 // Page name and indicator container
                 if (pages.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
+                      color: colorScheme.surface,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha(20),
+                          color: colorScheme.shadow.withOpacity(0.1),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -244,35 +331,43 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                         // Page name
                         if (pages.isNotEmpty &&
                             selectedPageIndex < pages.length)
-                          Padding(
+                          Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 24.0,
+                            ),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16.0,
+                              vertical: 6.0,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               pages[selectedPageIndex].name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
+                                color: colorScheme.onPrimaryContainer,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
 
                         // Page indicator dots
                         if (pages.length > 1)
                           Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
+                            padding: const EdgeInsets.only(top: 12.0),
                             child: SmoothPageIndicator(
                               controller: _pageController,
                               count: pages.length,
                               effect: WormEffect(
                                 dotHeight: 8,
                                 dotWidth: 8,
-                                activeDotColor:
-                                    Theme.of(context).colorScheme.primary,
-                                dotColor:
-                                    Theme.of(
-                                      context,
-                                    ).colorScheme.surface,
+                                activeDotColor: colorScheme.primary,
+                                dotColor: colorScheme.surfaceVariant,
+                                spacing: 8,
+                                radius: 4,
                               ),
                               onDotClicked: (index) {
                                 _pageController.animateToPage(
@@ -291,8 +386,48 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 Expanded(
                   child:
                       pages.isEmpty
-                          ? const Center(
-                            child: Text('No buttons configured on the server'),
+                          ? Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(24),
+                              margin: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceVariant.withOpacity(
+                                  0.5,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.grid_view_rounded,
+                                    size: 48,
+                                    color: colorScheme.primary,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No buttons configured',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Configure buttons in the server application',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
                           )
                           : PageView.builder(
                             controller: _pageController,
@@ -330,57 +465,82 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           if (connectionState.status == ConnectionStatus.connecting ||
               connectionState.status == ConnectionStatus.error)
             Container(
-              color: Colors.black54,
+              color: colorScheme.scrim.withOpacity(0.7),
               alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    connectionState.status == ConnectionStatus.connecting
-                        ? 'Connecting...'
-                        : 'Connection Error',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleLarge?.copyWith(color: Colors.white),
-                  ),
-                  if (connectionState.errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        connectionState.errorMessage!,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                        textAlign: TextAlign.center,
+              child: Container(
+                margin: const EdgeInsets.all(32),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withOpacity(0.2),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(
+                      color:
+                          connectionState.status == ConnectionStatus.connecting
+                              ? colorScheme.primary
+                              : colorScheme.error,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      connectionState.status == ConnectionStatus.connecting
+                          ? 'Connecting...'
+                          : 'Connection Error',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            connectionState.status ==
+                                    ConnectionStatus.connecting
+                                ? colorScheme.primary
+                                : colorScheme.error,
                       ),
                     ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (connectionState.status == ConnectionStatus.error)
-                        ElevatedButton(
+                    if (connectionState.errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Text(
+                          connectionState.errorMessage!,
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (connectionState.status == ConnectionStatus.error)
+                          FilledButton.icon(
+                            onPressed: () {
+                              ref
+                                  .read(connectionStateProvider.notifier)
+                                  .refreshConnection();
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                        const SizedBox(width: 12),
+                        OutlinedButton(
                           onPressed: () {
                             ref
                                 .read(connectionStateProvider.notifier)
-                                .refreshConnection();
+                                .resetErrorState();
                           },
-                          child: const Text('Retry'),
+                          child: const Text('Dismiss'),
                         ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          ref
-                              .read(connectionStateProvider.notifier)
-                              .resetErrorState();
-                        },
-                        child: const Text('Dismiss'),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -391,44 +551,110 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
               bottom: 0,
               left: 0,
               right: 0,
-              child: Container(
-                color: Colors.black87,
-                padding: const EdgeInsets.all(16),
+              child: Card(
+                margin: const EdgeInsets.all(12),
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                color: colorScheme.surfaceVariant,
+                clipBehavior: Clip.antiAlias,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Result',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () {
-                            setState(() {
-                              _showResult = false;
-                            });
-                          },
-                          iconSize: 20,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
                     Container(
-                      constraints: const BoxConstraints(maxHeight: 150),
-                      child: SingleChildScrollView(
-                        child: Text(
-                          commandResult.success
-                              ? commandResult.output
-                              : 'Error: ${commandResult.error}',
-                          style: const TextStyle(color: Colors.white),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            commandResult.success
+                                ? colorScheme.primaryContainer
+                                : colorScheme.errorContainer,
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.shadow.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                commandResult.success
+                                    ? Icons.check_circle
+                                    : Icons.error,
+                                color:
+                                    commandResult.success
+                                        ? colorScheme.onPrimaryContainer
+                                        : colorScheme.onErrorContainer,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                commandResult.success
+                                    ? 'Command Result'
+                                    : 'Command Error',
+                                style: TextStyle(
+                                  color:
+                                      commandResult.success
+                                          ? colorScheme.onPrimaryContainer
+                                          : colorScheme.onErrorContainer,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.close,
+                              color:
+                                  commandResult.success
+                                      ? colorScheme.onPrimaryContainer
+                                      : colorScheme.onErrorContainer,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _showResult = false;
+                              });
+                            },
+                            iconSize: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 150),
+                        child: SingleChildScrollView(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: colorScheme.outlineVariant,
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              commandResult.success
+                                  ? commandResult.output
+                                  : 'Error: ${commandResult.error}',
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -442,55 +668,109 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   }
 
   Widget _buildNoConnectionView(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(
-            'assets/logo.png',
-            height: 120,
-            errorBuilder:
-                (context, error, stackTrace) =>
-                    const Icon(Icons.devices, size: 100, color: Colors.blue),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Not Connected to a Server',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Connect to a server to view and use your buttons',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.computer),
-            label: const Text('Choose Server'),
-            onPressed: () => _showServerManager(context),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 360),
+        padding: const EdgeInsets.all(32),
+        margin: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceVariant.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colorScheme.outlineVariant, width: 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: colorScheme.shadow.withOpacity(0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(24),
+              margin: const EdgeInsets.only(bottom: 24),
+              child: Image.asset(
+                'assets/logo.png',
+                height: 100,
+                errorBuilder:
+                    (context, error, stackTrace) => Icon(
+                      Icons.devices,
+                      size: 80,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Add New Server'),
-            onPressed: () => _showAddServerDialog(context),
-          ),
-          if (ref.read(serverConnectionsProvider.notifier).defaultServerId !=
-              null) ...[
-            const SizedBox(height: 24),
-            TextButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('Connect to Default Server'),
-              onPressed: () => _connectToDefault(context),
+            Text(
+              'Not Connected',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
             ),
+            const SizedBox(height: 16),
+            Text(
+              'Connect to a server to view and use your macro buttons',
+              style: TextStyle(
+                fontSize: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              icon: const Icon(Icons.computer),
+              label: const Text('Choose Server'),
+              onPressed: () => _showServerManager(context),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                minimumSize: const Size(240, 0),
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Add New Server'),
+              onPressed: () => _showAddServerDialog(context),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                minimumSize: const Size(240, 0),
+              ),
+            ),
+            if (ref.read(serverConnectionsProvider.notifier).defaultServerId !=
+                null) ...[
+              const SizedBox(height: 24),
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.link),
+                label: const Text('Connect to Default Server'),
+                onPressed: () => _connectToDefault(context),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  backgroundColor: colorScheme.secondaryContainer,
+                  foregroundColor: colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

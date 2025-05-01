@@ -6,6 +6,7 @@ import 'package:marco_deck/src/models/button.dart';
 
 import '../models/button.dart' as models;
 import '../models/client_info.dart';
+import '../utils/theme.dart';
 import 'button_editor_page.dart';
 import 'server.dart';
 import 'page_editor_dialog.dart';
@@ -15,8 +16,19 @@ class ServerScreen extends StatefulWidget {
   /// The server instance
   final MarcoServer server;
 
+  /// Current theme mode
+  final ThemeMode themeMode;
+
+  /// Callback for when theme mode is changed
+  final ValueChanged<ThemeMode>? onThemeModeChanged;
+
   /// Creates a server screen
-  const ServerScreen({super.key, required this.server});
+  const ServerScreen({
+    super.key,
+    required this.server,
+    this.themeMode = ThemeMode.system,
+    this.onThemeModeChanged,
+  });
 
   @override
   State<ServerScreen> createState() => _ServerScreenState();
@@ -64,24 +76,39 @@ class _ServerScreenState extends State<ServerScreen> {
   /// Shows a status message based on the server status
   void _showStatusMessage(ServerStatus status) {
     Color backgroundColor;
+    final colorScheme = Theme.of(context).colorScheme;
 
     switch (status.type) {
       case ServerStatusType.started:
-        backgroundColor = Colors.green;
+        backgroundColor = colorScheme.primaryContainer;
         break;
       case ServerStatusType.stopped:
-        backgroundColor = Colors.orange;
+        backgroundColor = colorScheme.errorContainer;
         break;
       case ServerStatusType.restarting:
-        backgroundColor = Colors.blue;
+        backgroundColor = colorScheme.secondaryContainer;
         break;
       case ServerStatusType.error:
-        backgroundColor = Colors.red;
+        backgroundColor = colorScheme.error;
         break;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(status.message), backgroundColor: backgroundColor),
+      SnackBar(
+        content: Text(
+          status.message,
+          style: TextStyle(
+            color:
+                backgroundColor.computeLuminance() > 0.5
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onErrorContainer,
+          ),
+        ),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
     );
   }
 
@@ -543,10 +570,18 @@ class _ServerScreenState extends State<ServerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('MarcoDeck Server'),
         actions: [
+          // Theme mode selector
+          if (widget.onThemeModeChanged != null)
+            ThemeModeSelector(
+              currentThemeMode: widget.themeMode,
+              onThemeModeChanged: widget.onThemeModeChanged!,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshPages,
@@ -559,12 +594,22 @@ class _ServerScreenState extends State<ServerScreen> {
           // Server status card
           Card(
             margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            clipBehavior: Clip.antiAlias,
+            elevation: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Server status header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  color:
+                      _isRunning
+                          ? colorScheme.primaryContainer
+                          : colorScheme.errorContainer,
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
@@ -577,389 +622,837 @@ class _ServerScreenState extends State<ServerScreen> {
                       Row(
                         children: [
                           Container(
-                            width: 10,
-                            height: 10,
+                            width: 12,
+                            height: 12,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _isRunning ? Colors.green : Colors.red,
+                              color:
+                                  _isRunning
+                                      ? colorScheme.primary
+                                      : colorScheme.error,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(_isRunning ? 'Running' : 'Stopped'),
+                          Text(
+                            _isRunning ? 'Running' : 'Stopped',
+                            style: TextStyle(
+                              color:
+                                  _isRunning
+                                      ? colorScheme.onPrimaryContainer
+                                      : colorScheme.onErrorContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Text('IP Address: $_serverIp'),
-                  Row(
+                ),
+
+                // Server info content
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Port: $_serverPort'),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 16),
-                        onPressed: _showChangePortDialog,
-                        tooltip: 'Change Port',
-                        constraints: const BoxConstraints(
-                          minWidth: 24,
-                          minHeight: 24,
+                      // Connection info
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: colorScheme.surface.withAlpha(120),
+                          border: Border.all(color: colorScheme.outlineVariant),
                         ),
-                        padding: EdgeInsets.zero,
-                        iconSize: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.computer,
+                                  size: 20,
+                                  color: colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'IP Address: $_serverIp',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.router,
+                                  size: 20,
+                                  color: colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Port: $_serverPort',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton.filled(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: colorScheme.primary
+                                        .withOpacity(0.1),
+                                    minimumSize: const Size(32, 32),
+                                  ),
+                                  icon: Icon(
+                                    Icons.edit,
+                                    size: 16,
+                                    color: colorScheme.primary,
+                                  ),
+                                  onPressed: _showChangePortDialog,
+                                  tooltip: 'Change Port',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Connection URL
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: colorScheme.primaryContainer.withOpacity(0.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.link, color: colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Connect your client to:',
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'ws://$_serverIp:$_serverPort',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(
+                                    text: 'ws://$_serverIp:$_serverPort',
+                                  ),
+                                ).then((_) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Connection URL copied to clipboard',
+                                      ),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                });
+                              },
+                              icon: Icon(
+                                Icons.copy,
+                                color: colorScheme.primary,
+                              ),
+                              tooltip: 'Copy to clipboard',
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Note text
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Keep this application running while clients are connected.',
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 12,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Server control buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: _isRunning ? _restartServer : null,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Restart Server'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: colorScheme.secondaryContainer,
+                              foregroundColor: colorScheme.onSecondaryContainer,
+                              disabledBackgroundColor: colorScheme
+                                  .surfaceVariant
+                                  .withOpacity(0.3),
+                              disabledForegroundColor: colorScheme
+                                  .onSurfaceVariant
+                                  .withOpacity(0.5),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          FilledButton.icon(
+                            onPressed:
+                                _isRunning
+                                    ? () async {
+                                      await widget.server.stop();
+                                      setState(() {
+                                        _isRunning = false;
+                                      });
+                                    }
+                                    : () async {
+                                      final success =
+                                          await widget.server.start();
+                                      setState(() {
+                                        _isRunning = success;
+                                      });
+                                      if (success) {
+                                        _refreshPages();
+                                      }
+                                    },
+                            icon: Icon(
+                              _isRunning ? Icons.stop : Icons.play_arrow,
+                            ),
+                            label: Text(
+                              _isRunning ? 'Stop Server' : 'Start Server',
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor:
+                                  _isRunning
+                                      ? colorScheme.errorContainer
+                                      : colorScheme.primaryContainer,
+                              foregroundColor:
+                                  _isRunning
+                                      ? colorScheme.onErrorContainer
+                                      : colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Connect your client to: ws://$_serverIp:$_serverPort',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Keep this application running while clients are connected.',
-                    style: TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: _isRunning ? _restartServer : null,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Restart Server'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed:
-                            _isRunning
-                                ? () async {
-                                  await widget.server.stop();
-                                  setState(() {
-                                    _isRunning = false;
-                                  });
-                                }
-                                : () async {
-                                  final success = await widget.server.start();
-                                  setState(() {
-                                    _isRunning = success;
-                                  });
-                                  if (success) {
-                                    _refreshPages();
-                                  }
-                                },
-                        icon: Icon(_isRunning ? Icons.stop : Icons.play_arrow),
-                        label: Text(
-                          _isRunning ? 'Stop Server' : 'Start Server',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              _isRunning ? Colors.red : Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
           // Connected clients card
           if (_isRunning)
             Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    color: colorScheme.secondaryContainer,
+                    child: Row(
                       children: [
+                        Icon(
+                          Icons.devices,
+                          color: colorScheme.onSecondaryContainer,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
                         Text(
                           'Connected Clients (${_connectedClients.length})',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: colorScheme.onSecondaryContainer,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    _buildConnectedClientsList(),
-                  ],
-                ),
+                  ),
+
+                  // Clients list
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildConnectedClientsList(),
+                  ),
+                ],
               ),
             ),
 
-          // Pages tabs and management
-          Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Pages (${_pages.length})',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Row(
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () => _showPageEditor(null),
-                      icon: const Icon(Icons.add),
-                      label: const Text('New Page'),
-                    ),
-                    if (_selectedPage != null)
-                      Row(
-                        children: [
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () => _showPageEditor(_selectedPage),
-                            tooltip: 'Edit Page',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _deletePage(_selectedPage!.id),
-                            tooltip: 'Delete Page',
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Page tabs
-          if (_pages.isNotEmpty)
-            Container(
-              height: 48,
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _pages.length,
-                itemBuilder: (context, index) {
-                  final page = _pages[index];
-                  final isSelected = _selectedPage?.id == page.id;
-
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        _selectedPage = page;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color:
-                            isSelected
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color:
-                              isSelected
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.outline,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            page.name,
-                            style: TextStyle(
-                              color:
-                                  isSelected
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : Theme.of(context).colorScheme.onSurface,
-                              fontWeight:
-                                  isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  isSelected
-                                      ? Theme.of(
-                                        context,
-                                      ).colorScheme.primaryContainer
-                                      : Theme.of(context).colorScheme.surface,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${page.buttons.length}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color:
-                                    isSelected
-                                        ? Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimaryContainer
-                                        : Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-          // Buttons list header
-          Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _selectedPage != null
-                      ? '${_selectedPage!.name} Buttons'
-                      : 'Buttons',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed:
-                      _selectedPage != null
-                          ? () => _navigateToButtonEditor(null)
-                          : null,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Button'),
-                ),
-              ],
-            ),
-          ),
-
-          // Buttons list
+          // Pages and buttons section
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child:
-                  _selectedPage == null || _selectedPage!.buttons.isEmpty
-                      ? Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            _selectedPage == null
-                                ? 'No page selected. Please create or select a page.'
-                                : 'No buttons on this page yet. Click "Add Button" to create your first button.',
-                            textAlign: TextAlign.center,
-                          ),
+            child: Card(
+              margin: const EdgeInsets.all(16),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Pages section header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    color: colorScheme.tertiaryContainer,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.dashboard,
+                              color: colorScheme.onTertiaryContainer,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Pages (${_pages.length})',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onTertiaryContainer,
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                      : ReorderableListView.builder(
-                        onReorder: _reorderButtons,
-                        itemCount: _selectedPage!.buttons.length,
-                        itemBuilder: (context, index) {
-                          final button = _selectedPage!.buttons[index];
-                          return Card(
-                            key: ValueKey(button.id),
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: Row(
-                                mainAxisSize: MainAxisSize.min,
+                        Row(
+                          children: [
+                            FilledButton.tonalIcon(
+                              onPressed: () => _showPageEditor(null),
+                              icon: const Icon(Icons.add),
+                              label: const Text('New Page'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: colorScheme.tertiary
+                                    .withOpacity(0.7),
+                                foregroundColor:
+                                    colorScheme.onTertiaryContainer,
+                              ),
+                            ),
+                            if (_selectedPage != null)
+                              Row(
                                 children: [
-                                  Icon(
-                                    Icons.drag_handle,
-                                    color: Colors.grey,
-                                    size: 20,
-                                  ),
                                   const SizedBox(width: 8),
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: _hexToColor(button.color),
-                                      borderRadius: BorderRadius.circular(8),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.edit,
+                                      color: colorScheme.onTertiaryContainer,
                                     ),
-                                    child: Icon(
-                                      _getIconData(button.iconName),
-                                      color: Colors.white,
+                                    onPressed:
+                                        () => _showPageEditor(_selectedPage),
+                                    tooltip: 'Edit Page',
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.delete,
+                                      color: colorScheme.onTertiaryContainer,
                                     ),
+                                    onPressed:
+                                        () => _deletePage(_selectedPage!.id),
+                                    tooltip: 'Delete Page',
                                   ),
                                 ],
                               ),
-                              title: Text(button.name),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Actions: ${button.actions.length}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  if (button.actions.isNotEmpty)
-                                    Text(
-                                      _getActionDescription(
-                                        button.actions.first,
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Page tabs
+                  if (_pages.isNotEmpty)
+                    Container(
+                      height: 48,
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _pages.length,
+                        itemBuilder: (context, index) {
+                          final page = _pages[index];
+                          final isSelected = _selectedPage?.id == page.id;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Material(
+                              color:
+                                  isSelected
+                                      ? colorScheme.primaryContainer
+                                      : colorScheme.surfaceVariant.withOpacity(
+                                        0.5,
                                       ),
+                              borderRadius: BorderRadius.circular(16),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedPage = page;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color:
+                                          isSelected
+                                              ? colorScheme.primary
+                                              : colorScheme.outline.withOpacity(
+                                                0.3,
+                                              ),
+                                      width: isSelected ? 2 : 1,
                                     ),
-                                  if (button.actions.length > 1)
-                                    Text(
-                                      '+ ${button.actions.length - 1} more ${button.actions.length == 2 ? 'action' : 'actions'}',
-                                      style: TextStyle(
-                                        fontStyle: FontStyle.italic,
-                                        fontSize: 12,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.grid_view,
+                                        size: 16,
                                         color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
+                                            isSelected
+                                                ? colorScheme.primary
+                                                : colorScheme.onSurfaceVariant,
                                       ),
-                                    ),
-                                ],
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        page.name,
+                                        style: TextStyle(
+                                          color:
+                                              isSelected
+                                                  ? colorScheme
+                                                      .onPrimaryContainer
+                                                  : colorScheme
+                                                      .onSurfaceVariant,
+                                          fontWeight:
+                                              isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              isSelected
+                                                  ? colorScheme.primary
+                                                  : colorScheme.surfaceVariant,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '${page.buttons.length}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color:
+                                                isSelected
+                                                    ? colorScheme.onPrimary
+                                                    : colorScheme
+                                                        .onSurfaceVariant,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit),
-                                    onPressed:
-                                        () => _navigateToButtonEditor(button),
-                                    tooltip: 'Edit',
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete),
-                                    onPressed: () => _deleteButton(button.id),
-                                    tooltip: 'Delete',
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.play_arrow),
-                                    onPressed:
-                                        () => _executeButtonAction(button),
-                                    tooltip: 'Execute',
-                                  ),
-                                ],
-                              ),
-                              onTap: () => _navigateToButtonEditor(button),
                             ),
                           );
                         },
                       ),
+                    ),
+
+                  // Buttons header
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: colorScheme.outlineVariant),
+                        bottom: BorderSide(color: colorScheme.outlineVariant),
+                      ),
+                      color: colorScheme.surface,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.touch_app,
+                              color: colorScheme.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _selectedPage != null
+                                  ? '${_selectedPage!.name} Buttons'
+                                  : 'Buttons',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        FilledButton.icon(
+                          onPressed:
+                              _selectedPage != null
+                                  ? () => _navigateToButtonEditor(null)
+                                  : null,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Button'),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Buttons list
+                  Expanded(
+                    child:
+                        _selectedPage == null || _selectedPage!.buttons.isEmpty
+                            ? Center(
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 300,
+                                ),
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  color: colorScheme.surfaceVariant.withOpacity(
+                                    0.5,
+                                  ),
+                                  border: Border.all(
+                                    color: colorScheme.outlineVariant,
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _selectedPage == null
+                                          ? Icons.dashboard_customize
+                                          : Icons.touch_app,
+                                      size: 48,
+                                      color: colorScheme.primary.withOpacity(
+                                        0.7,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _selectedPage == null
+                                          ? 'No page selected'
+                                          : 'No buttons on this page yet',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _selectedPage == null
+                                          ? 'Please create or select a page first'
+                                          : 'Click "Add Button" to create your first button',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    FilledButton.icon(
+                                      onPressed:
+                                          _selectedPage == null
+                                              ? () => _showPageEditor(null)
+                                              : () =>
+                                                  _navigateToButtonEditor(null),
+                                      icon: Icon(
+                                        _selectedPage == null
+                                            ? Icons.add_circle
+                                            : Icons.add,
+                                      ),
+                                      label: Text(
+                                        _selectedPage == null
+                                            ? 'Create Page'
+                                            : 'Add Button',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                            : ReorderableListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 16,
+                              ),
+                              onReorder: _reorderButtons,
+                              itemCount: _selectedPage!.buttons.length,
+                              itemBuilder: (context, index) {
+                                final button = _selectedPage!.buttons[index];
+                                return Card(
+                                  key: ValueKey(button.id),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  elevation: 1,
+                                  clipBehavior: Clip.antiAlias,
+                                  child: InkWell(
+                                    onTap:
+                                        () => _navigateToButtonEditor(button),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ListTile(
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                vertical: 4,
+                                                horizontal: 16,
+                                              ),
+                                          leading: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.drag_handle,
+                                                color:
+                                                    colorScheme.outlineVariant,
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Container(
+                                                width: 48,
+                                                height: 48,
+                                                decoration: BoxDecoration(
+                                                  color: _hexToColor(
+                                                    button.color,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withOpacity(0.1),
+                                                      blurRadius: 2,
+                                                      offset: const Offset(
+                                                        0,
+                                                        1,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Icon(
+                                                  _getIconData(button.iconName),
+                                                  color: Colors.white,
+                                                  size: 24,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          title: Text(
+                                            button.name,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: colorScheme.onSurface,
+                                            ),
+                                          ),
+                                          subtitle: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const SizedBox(height: 4),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      colorScheme
+                                                          .primaryContainer,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  'Actions: ${button.actions.length}',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                    color:
+                                                        colorScheme
+                                                            .onPrimaryContainer,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (button
+                                                  .actions
+                                                  .isNotEmpty) ...[
+                                                const SizedBox(height: 8),
+                                                Row(
+                                                  children: [
+                                                    Icon(
+                                                      _getActionTypeIcon(
+                                                        button
+                                                            .actions
+                                                            .first
+                                                            .type,
+                                                      ),
+                                                      size: 14,
+                                                      color:
+                                                          colorScheme
+                                                              .onSurfaceVariant,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Expanded(
+                                                      child: Text(
+                                                        _getActionDescription(
+                                                          button.actions.first,
+                                                        ),
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          color:
+                                                              colorScheme
+                                                                  .onSurfaceVariant,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow:
+                                                            TextOverflow
+                                                                .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                              if (button.actions.length > 1)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 4,
+                                                      ),
+                                                  child: Text(
+                                                    '+ ${button.actions.length - 1} more ${button.actions.length == 2 ? 'action' : 'actions'}',
+                                                    style: TextStyle(
+                                                      fontStyle:
+                                                          FontStyle.italic,
+                                                      fontSize: 12,
+                                                      color:
+                                                          colorScheme.primary,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          trailing: ButtonBar(
+                                            mainAxisSize: MainAxisSize.min,
+                                            buttonPadding: EdgeInsets.zero,
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.play_arrow,
+                                                  color: colorScheme.primary,
+                                                ),
+                                                onPressed:
+                                                    () => _executeButtonAction(
+                                                      button,
+                                                    ),
+                                                tooltip: 'Execute',
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.edit,
+                                                  color:
+                                                      colorScheme
+                                                          .onSurfaceVariant,
+                                                ),
+                                                onPressed:
+                                                    () =>
+                                                        _navigateToButtonEditor(
+                                                          button,
+                                                        ),
+                                                tooltip: 'Edit',
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.delete,
+                                                  color: colorScheme.error,
+                                                ),
+                                                onPressed:
+                                                    () => _deleteButton(
+                                                      button.id,
+                                                    ),
+                                                tooltip: 'Delete',
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -967,11 +1460,47 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
+  /// Returns an icon for the action type
+  IconData _getActionTypeIcon(models.ActionType type) {
+    switch (type) {
+      case models.ActionType.command:
+        return Icons.terminal;
+      case models.ActionType.commandPreset:
+        return Icons.playlist_play;
+      case models.ActionType.keystroke:
+        return Icons.keyboard;
+    }
+  }
+
   Widget _buildConnectedClientsList() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (_connectedClients.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8.0),
-        child: Text('No clients connected'),
+      return Container(
+        padding: const EdgeInsets.all(16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceVariant.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.devices_other,
+              size: 32,
+              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No clients connected',
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -983,31 +1512,87 @@ class _ServerScreenState extends State<ServerScreen> {
       itemCount: _connectedClients.length,
       itemBuilder: (context, index) {
         final client = _connectedClients[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4.0),
-          child: Row(
-            children: [
-              const Icon(Icons.smartphone, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      client.deviceName ?? 'Unknown Device',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'IP: ${client.ipAddress} • Connected at: ${dateFormat.format(client.connectedAt)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                    ),
-                  ],
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          elevation: 0,
+          color: colorScheme.surfaceVariant.withOpacity(0.3),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.smartphone,
+                    size: 24,
+                    color: colorScheme.onSecondaryContainer,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        client.deviceName ?? 'Unknown Device',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.wifi,
+                            size: 14,
+                            color: colorScheme.secondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            client.ipAddress,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: colorScheme.onSurfaceVariant.withOpacity(
+                                0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: colorScheme.secondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Connected at: ${dateFormat.format(client.connectedAt)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

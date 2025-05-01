@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'server.dart';
 import 'server_screen.dart';
 import '../utils/system_tray_manager.dart';
+import '../utils/theme.dart';
 
 /// Main entry point for the server app
 void main() async {
@@ -30,12 +32,33 @@ class _MarcoDeckServerAppState extends State<MarcoDeckServerApp>
     with WindowListener {
   final _server = MarcoServer();
   final _trayManager = SystemTrayManager();
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
     super.initState();
     // Register window manager listener
     windowManager.addListener(this);
+    // Load saved theme mode
+    _loadThemeMode();
+  }
+
+  /// Loads the theme mode from shared preferences
+  Future<void> _loadThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeModeIndex = prefs.getInt('themeMode') ?? 0;
+    setState(() {
+      _themeMode = ThemeMode.values[themeModeIndex];
+    });
+  }
+
+  /// Saves the theme mode to shared preferences
+  Future<void> _saveThemeMode(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('themeMode', mode.index);
+    setState(() {
+      _themeMode = mode;
+    });
   }
 
   @override
@@ -83,18 +106,14 @@ class _MarcoDeckServerAppState extends State<MarcoDeckServerApp>
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MarcoDeck Server',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4285F4)),
-        useMaterial3: true,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: _themeMode,
+      home: ServerScreen(
+        server: _server,
+        themeMode: _themeMode,
+        onThemeModeChanged: _saveThemeMode,
       ),
-      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4285F4),
-          brightness: Brightness.dark,
-        ),
-      ),
-      themeMode: ThemeMode.system,
-      home: ServerScreen(server: _server),
     );
   }
 }

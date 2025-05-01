@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'splash_screen.dart';
 import 'client_providers.dart' as providers;
+import '../utils/theme.dart';
 
 /// Main entry point for the client app
 void main() {
@@ -25,23 +27,15 @@ class MarcoDeckClientApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
     return _EagerInitialization(
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'MarcoDeck Client',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4285F4)),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
-        ),
-        darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF4285F4),
-            brightness: Brightness.dark,
-          ),
-          appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
-        ),
-        themeMode: ThemeMode.system,
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        themeMode: themeMode,
         home: const SplashScreen(),
       ),
     );
