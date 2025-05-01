@@ -2,15 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../models/button.dart';
-import 'client.dart';
 
 /// Widget that displays a grid of macro buttons
 class ButtonGrid extends StatelessWidget {
   /// The list of buttons to display
   final List<Button> buttons;
-
-  /// The client instance
-  final MarcoClient client;
 
   /// Called when a button is pressed
   final Function(String buttonId)? onButtonPressed;
@@ -43,12 +39,7 @@ class ButtonGrid extends StatelessWidget {
   }
 
   /// Creates a new button grid
-  const ButtonGrid({
-    super.key,
-    required this.buttons,
-    required this.client,
-    this.onButtonPressed,
-  });
+  const ButtonGrid({super.key, required this.buttons, this.onButtonPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +72,6 @@ class ButtonGrid extends StatelessWidget {
       elevation: 3,
       child: InkWell(
         onTap: () {
-          client.pressButton(button.id);
           if (onButtonPressed != null) {
             onButtonPressed!(button.id);
           }

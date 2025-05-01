@@ -1,89 +1,63 @@
 import 'package:flutter/material.dart';
-import 'client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'client_providers.dart';
 import 'button_grid.dart';
-import '../models/button.dart';
 
 /// Screen for displaying and interacting with buttons
-class ButtonsScreen extends StatefulWidget {
-  /// Client instance
-  final MarcoClient client;
-
+class ButtonsScreen extends ConsumerStatefulWidget {
   /// Creates a buttons screen
-  const ButtonsScreen({super.key, required this.client});
+  const ButtonsScreen({super.key});
 
   @override
-  State<ButtonsScreen> createState() => _ButtonsScreenState();
+  ConsumerState<ButtonsScreen> createState() => _ButtonsScreenState();
 }
 
-class _ButtonsScreenState extends State<ButtonsScreen> {
-  List<Button> _buttons = [];
-  bool _isConnected = false;
-  String? _lastResultOutput;
+class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   bool _showResult = false;
 
   @override
   void initState() {
     super.initState();
 
-    _isConnected = widget.client.isConnected;
-    _buttons = widget.client.buttons;
-
-    // Listen for button updates
-    widget.client.buttonsStream.listen((buttons) {
-      setState(() {
-        _buttons = buttons;
-      });
+    // Request buttons from server when screen is first shown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(connectionStateProvider.notifier).requestButtons();
     });
-
-    // Listen for connection status updates
-    widget.client.connectionStream.listen((connected) {
-      setState(() {
-        _isConnected = connected;
-      });
-
-      if (connected) {
-        // Request buttons when connected
-        widget.client.requestButtons();
-      }
-    });
-
-    // Listen for command results
-    widget.client.resultStream.listen((event) {
-      setState(() {
-        _lastResultOutput =
-            event.success ? event.output : 'Error: ${event.error}';
-        _showResult = true;
-      });
-    });
-
-    if (_isConnected) {
-      // Initial request for buttons
-      widget.client.requestButtons();
-    }
-  }
-
-  /// Disconnect from the server and go back to the connection screen
-  void _disconnect() async {
-    await widget.client.disconnect();
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final connectionState = ref.watch(connectionStateProvider);
+    final buttons = ref.watch(buttonsProvider);
+    final commandResult = ref.watch(commandResultProvider);
+
+    final isConnected = connectionState.status == ConnectionStatus.connected;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MarcoDeck'),
+        title: Text(connectionState.connection?.name ?? 'MarcoDeck'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: widget.client.requestButtons,
+            onPressed: () {
+              ref.read(connectionStateProvider.notifier).requestButtons();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Buttons refreshed'),
+                  behavior: SnackBarBehavior.floating,
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
             tooltip: 'Refresh buttons',
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: _disconnect,
+            onPressed: () {
+              ref.read(connectionStateProvider.notifier).disconnect();
+              Navigator.of(context).pop();
+            },
             tooltip: 'Disconnect',
           ),
         ],
@@ -92,9 +66,11 @@ class _ButtonsScreenState extends State<ButtonsScreen> {
         children: [
           // Button grid
           ButtonGrid(
-            buttons: _buttons,
-            client: widget.client,
+            buttons: buttons,
             onButtonPressed: (buttonId) {
+              // Press the button via the connection state notifier
+              ref.read(connectionStateProvider.notifier).pressButton(buttonId);
+
               // Clear any previous results when a button is pressed
               setState(() {
                 _showResult = false;
@@ -103,7 +79,7 @@ class _ButtonsScreenState extends State<ButtonsScreen> {
           ),
 
           // Connection status indicator
-          if (!_isConnected)
+          if (!isConnected)
             Container(
               color: Colors.black54,
               alignment: Alignment.center,
@@ -113,22 +89,40 @@ class _ButtonsScreenState extends State<ButtonsScreen> {
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
                   Text(
-                    'Reconnecting...',
+                    connectionState.status == ConnectionStatus.connecting
+                        ? 'Connecting...'
+                        : 'Disconnected',
                     style: Theme.of(
                       context,
                     ).textTheme.titleLarge?.copyWith(color: Colors.white),
                   ),
                   const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _disconnect,
-                    child: const Text('Back to Connection Screen'),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (connectionState.status == ConnectionStatus.error)
+                        ElevatedButton(
+                          onPressed: () {
+                            ref
+                                .read(connectionStateProvider.notifier)
+                                .refreshConnection();
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Back'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
           // Command result display
-          if (_showResult && _lastResultOutput != null)
+          if (_showResult && commandResult != null ||
+              commandResult != null && !_showResult)
             Positioned(
               bottom: 0,
               left: 0,
@@ -167,7 +161,9 @@ class _ButtonsScreenState extends State<ButtonsScreen> {
                       constraints: const BoxConstraints(maxHeight: 150),
                       child: SingleChildScrollView(
                         child: Text(
-                          _lastResultOutput!,
+                          commandResult.success
+                              ? commandResult.output
+                              : 'Error: ${commandResult.error}',
                           style: const TextStyle(color: Colors.white),
                         ),
                       ),

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'client.dart';
-import 'connection_screen.dart';
-import 'buttons_screen.dart';
+import 'server_list_screen.dart';
 
 /// Main entry point for the client app
 void main() {
@@ -15,30 +14,16 @@ void main() {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const MarcoDeckClientApp());
+  runApp(const ProviderScope(child: MarcoDeckClientApp()));
 }
 
 /// The MarcoDeck client application
-class MarcoDeckClientApp extends StatefulWidget {
+class MarcoDeckClientApp extends ConsumerWidget {
   /// Creates a new MarcoDeck client app
   const MarcoDeckClientApp({super.key});
 
   @override
-  State<MarcoDeckClientApp> createState() => _MarcoDeckClientAppState();
-}
-
-class _MarcoDeckClientAppState extends State<MarcoDeckClientApp> {
-  final _client = MarcoClient();
-  bool _isConnected = false;
-
-  @override
-  void dispose() {
-    _client.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MarcoDeck Client',
@@ -53,17 +38,7 @@ class _MarcoDeckClientAppState extends State<MarcoDeckClientApp> {
         ),
       ),
       themeMode: ThemeMode.system,
-      home:
-          _isConnected
-              ? ButtonsScreen(client: _client)
-              : ConnectionScreen(
-                client: _client,
-                onConnected: () {
-                  setState(() {
-                    _isConnected = true;
-                  });
-                },
-              ),
+      home: const ServerListScreen(),
     );
   }
 }
