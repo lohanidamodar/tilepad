@@ -256,6 +256,22 @@ class MarcoServer {
     }
   }
 
+  /// Executes a button's actions directly on the server (for testing)
+  Future<CommandResult> executeButtonLocally(Button button) async {
+    try {
+      // Use the command executor to execute the button's actions
+      final result = await _commandExecutor.execute(button);
+      return result;
+    } catch (e) {
+      // If an exception occurs, return a failed result
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'Error executing command: $e',
+      );
+    }
+  }
+
   /// Adds a new page
   void addPage(Page page) {
     _buttonManager.addPage(page);

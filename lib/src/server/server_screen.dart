@@ -447,6 +447,100 @@ class _ServerScreenState extends State<ServerScreen> {
     });
   }
 
+  /// Executes the actions of a button directly from the server interface
+  Future<void> _executeButtonAction(models.Button button) async {
+    try {
+      // Show a loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Executing action...'),
+            ],
+          ),
+          duration: Duration(
+            seconds: 60,
+          ), // Long duration, will be closed manually
+        ),
+      );
+
+      // Execute the actions
+      final result = await widget.server.executeButtonLocally(button);
+
+      // Close the loading indicator
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Show the result
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    result.success ? Icons.check_circle : Icons.error,
+                    color:
+                        result.success
+                            ? Colors.green.shade300
+                            : Colors.red.shade300,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    result.success
+                        ? 'Action executed successfully'
+                        : 'Error executing action',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (result.output.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Output: ${result.output}',
+                    style: TextStyle(fontSize: 12),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              if (result.error.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Error: ${result.error}',
+                    style: TextStyle(fontSize: 12, color: Colors.red.shade300),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+          backgroundColor:
+              result.success ? Colors.green.shade800 : Colors.red.shade800,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      // Show error message
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -852,6 +946,12 @@ class _ServerScreenState extends State<ServerScreen> {
                                     icon: const Icon(Icons.delete),
                                     onPressed: () => _deleteButton(button.id),
                                     tooltip: 'Delete',
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.play_arrow),
+                                    onPressed:
+                                        () => _executeButtonAction(button),
+                                    tooltip: 'Execute',
                                   ),
                                 ],
                               ),
