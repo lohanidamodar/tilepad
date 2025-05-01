@@ -589,7 +589,7 @@ class _ServerScreenState extends State<ServerScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: ListView(
         children: [
           // Server status card
           Card(
@@ -929,524 +929,478 @@ class _ServerScreenState extends State<ServerScreen> {
             ),
 
           // Pages and buttons section
-          Expanded(
-            child: Card(
-              margin: const EdgeInsets.all(16),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Pages section header
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    color: colorScheme.tertiaryContainer,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.dashboard,
-                              color: colorScheme.onTertiaryContainer,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Pages (${_pages.length})',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onTertiaryContainer,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            FilledButton.tonalIcon(
-                              onPressed: () => _showPageEditor(null),
-                              icon: const Icon(Icons.add),
-                              label: const Text('New Page'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: colorScheme.tertiary.withAlpha(
-                                  200,
-                                ),
-                                foregroundColor:
-                                    colorScheme.onTertiaryContainer,
-                              ),
-                            ),
-                            if (_selectedPage != null)
-                              Row(
-                                children: [
-                                  const SizedBox(width: 8),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.edit,
-                                      color: colorScheme.onTertiaryContainer,
-                                    ),
-                                    onPressed:
-                                        () => _showPageEditor(_selectedPage),
-                                    tooltip: 'Edit Page',
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.delete,
-                                      color: colorScheme.onTertiaryContainer,
-                                    ),
-                                    onPressed:
-                                        () => _deletePage(_selectedPage!.id),
-                                    tooltip: 'Delete Page',
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
+          Card(
+            margin: const EdgeInsets.all(16),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Pages section header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-
-                  // Page tabs
-                  if (_pages.isNotEmpty)
-                    Container(
-                      height: 48,
-                      margin: const EdgeInsets.only(top: 12, bottom: 8),
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _pages.length,
-                        itemBuilder: (context, index) {
-                          final page = _pages[index];
-                          final isSelected = _selectedPage?.id == page.id;
-
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Material(
-                              color:
-                                  isSelected
-                                      ? colorScheme.primaryContainer
-                                      : colorScheme.surface.withAlpha(127),
-                              borderRadius: BorderRadius.circular(16),
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedPage = page;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
+                  color: colorScheme.tertiaryContainer,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.dashboard,
+                            color: colorScheme.onTertiaryContainer,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Pages (${_pages.length})',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onTertiaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          FilledButton.tonalIcon(
+                            onPressed: () => _showPageEditor(null),
+                            icon: const Icon(Icons.add),
+                            label: const Text('New Page'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: colorScheme.tertiary.withAlpha(
+                                200,
+                              ),
+                              foregroundColor: colorScheme.onTertiaryContainer,
+                            ),
+                          ),
+                          if (_selectedPage != null)
+                            Row(
+                              children: [
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.edit,
+                                    color: colorScheme.onTertiaryContainer,
                                   ),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
+                                  onPressed:
+                                      () => _showPageEditor(_selectedPage),
+                                  tooltip: 'Edit Page',
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete,
+                                    color: colorScheme.onTertiaryContainer,
+                                  ),
+                                  onPressed:
+                                      () => _deletePage(_selectedPage!.id),
+                                  tooltip: 'Delete Page',
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Page tabs
+                if (_pages.isNotEmpty)
+                  Container(
+                    height: 48,
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _pages.length,
+                      itemBuilder: (context, index) {
+                        final page = _pages[index];
+                        final isSelected = _selectedPage?.id == page.id;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Material(
+                            color:
+                                isSelected
+                                    ? colorScheme.primaryContainer
+                                    : colorScheme.surface.withAlpha(127),
+                            borderRadius: BorderRadius.circular(16),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedPage = page;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color:
+                                        isSelected
+                                            ? colorScheme.primary
+                                            : colorScheme.outline.withAlpha(70),
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.grid_view,
+                                      size: 16,
                                       color:
                                           isSelected
                                               ? colorScheme.primary
-                                              : colorScheme.outline.withAlpha(
-                                                70,
-                                              ),
-                                      width: isSelected ? 2 : 1,
+                                              : colorScheme.onSurfaceVariant,
                                     ),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.grid_view,
-                                        size: 16,
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      page.name,
+                                      style: TextStyle(
+                                        color:
+                                            isSelected
+                                                ? colorScheme.onPrimaryContainer
+                                                : colorScheme.onSurfaceVariant,
+                                        fontWeight:
+                                            isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
                                         color:
                                             isSelected
                                                 ? colorScheme.primary
-                                                : colorScheme.onSurfaceVariant,
+                                                : colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        page.name,
+                                      child: Text(
+                                        '${page.buttons.length}',
                                         style: TextStyle(
+                                          fontSize: 12,
                                           color:
                                               isSelected
-                                                  ? colorScheme
-                                                      .onPrimaryContainer
+                                                  ? colorScheme.onPrimary
                                                   : colorScheme
                                                       .onSurfaceVariant,
-                                          fontWeight:
-                                              isSelected
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                // Buttons header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: colorScheme.outlineVariant),
+                      bottom: BorderSide(color: colorScheme.outlineVariant),
+                    ),
+                    color: colorScheme.surface,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.touch_app,
+                            color: colorScheme.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _selectedPage != null
+                                ? '${_selectedPage!.name} Buttons'
+                                : 'Buttons',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      FilledButton.icon(
+                        onPressed:
+                            _selectedPage != null
+                                ? () => _navigateToButtonEditor(null)
+                                : null,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Button'),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Buttons list
+                _selectedPage == null || _selectedPage!.buttons.isEmpty
+                    ? Center(
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 300),
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: colorScheme.surface.withAlpha(127),
+                          border: Border.all(color: colorScheme.outlineVariant),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _selectedPage == null
+                                  ? Icons.dashboard_customize
+                                  : Icons.touch_app,
+                              size: 48,
+                              color: colorScheme.primary.withAlpha(200),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _selectedPage == null
+                                  ? 'No page selected'
+                                  : 'No buttons on this page yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _selectedPage == null
+                                  ? 'Please create or select a page first'
+                                  : 'Click "Add Button" to create your first button',
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed:
+                                  _selectedPage == null
+                                      ? () => _showPageEditor(null)
+                                      : () => _navigateToButtonEditor(null),
+                              icon: Icon(
+                                _selectedPage == null
+                                    ? Icons.add_circle
+                                    : Icons.add,
+                              ),
+                              label: Text(
+                                _selectedPage == null
+                                    ? 'Create Page'
+                                    : 'Add Button',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    : ReorderableListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 16,
+                      ),
+                      onReorder: _reorderButtons,
+                      itemCount: _selectedPage!.buttons.length,
+                      itemBuilder: (context, index) {
+                        final button = _selectedPage!.buttons[index];
+                        return Card(
+                          key: ValueKey(button.id),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          elevation: 1,
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => _navigateToButtonEditor(button),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                    horizontal: 16,
+                                  ),
+                                  leading: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.drag_handle,
+                                        color: colorScheme.outlineVariant,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: _hexToColor(button.color),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withAlpha(30),
+                                              blurRadius: 2,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          _getIconData(button.iconName),
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  title: Text(
+                                    button.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 4),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 8,
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color:
-                                              isSelected
-                                                  ? colorScheme.primary
-                                                  : colorScheme.surface,
+                                          color: colorScheme.primaryContainer,
                                           borderRadius: BorderRadius.circular(
-                                            12,
+                                            4,
                                           ),
                                         ),
                                         child: Text(
-                                          '${page.buttons.length}',
+                                          'Actions: ${button.actions.length}',
                                           style: TextStyle(
+                                            fontWeight: FontWeight.bold,
                                             fontSize: 12,
                                             color:
-                                                isSelected
-                                                    ? colorScheme.onPrimary
-                                                    : colorScheme
-                                                        .onSurfaceVariant,
-                                            fontWeight: FontWeight.bold,
+                                                colorScheme.onPrimaryContainer,
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-                  // Buttons header
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: colorScheme.outlineVariant),
-                        bottom: BorderSide(color: colorScheme.outlineVariant),
-                      ),
-                      color: colorScheme.surface,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.touch_app,
-                              color: colorScheme.primary,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _selectedPage != null
-                                  ? '${_selectedPage!.name} Buttons'
-                                  : 'Buttons',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                        FilledButton.icon(
-                          onPressed:
-                              _selectedPage != null
-                                  ? () => _navigateToButtonEditor(null)
-                                  : null,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Button'),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Buttons list
-                  Expanded(
-                    child:
-                        _selectedPage == null || _selectedPage!.buttons.isEmpty
-                            ? Center(
-                              child: Container(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 300,
-                                ),
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  color: colorScheme.surface.withAlpha(127),
-                                  border: Border.all(
-                                    color: colorScheme.outlineVariant,
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _selectedPage == null
-                                          ? Icons.dashboard_customize
-                                          : Icons.touch_app,
-                                      size: 48,
-                                      color: colorScheme.primary.withAlpha(200),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      _selectedPage == null
-                                          ? 'No page selected'
-                                          : 'No buttons on this page yet',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _selectedPage == null
-                                          ? 'Please create or select a page first'
-                                          : 'Click "Add Button" to create your first button',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    FilledButton.icon(
-                                      onPressed:
-                                          _selectedPage == null
-                                              ? () => _showPageEditor(null)
-                                              : () =>
-                                                  _navigateToButtonEditor(null),
-                                      icon: Icon(
-                                        _selectedPage == null
-                                            ? Icons.add_circle
-                                            : Icons.add,
-                                      ),
-                                      label: Text(
-                                        _selectedPage == null
-                                            ? 'Create Page'
-                                            : 'Add Button',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                            : ReorderableListView.builder(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 16,
-                              ),
-                              onReorder: _reorderButtons,
-                              itemCount: _selectedPage!.buttons.length,
-                              itemBuilder: (context, index) {
-                                final button = _selectedPage!.buttons[index];
-                                return Card(
-                                  key: ValueKey(button.id),
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  elevation: 1,
-                                  clipBehavior: Clip.antiAlias,
-                                  child: InkWell(
-                                    onTap:
-                                        () => _navigateToButtonEditor(button),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ListTile(
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                vertical: 4,
-                                                horizontal: 16,
+                                      if (button.actions.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              _getActionTypeIcon(
+                                                button.actions.first.type,
                                               ),
-                                          leading: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                Icons.drag_handle,
-                                                color:
-                                                    colorScheme.outlineVariant,
-                                                size: 20,
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Container(
-                                                width: 48,
-                                                height: 48,
-                                                decoration: BoxDecoration(
-                                                  color: _hexToColor(
-                                                    button.color,
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withAlpha(30),
-                                                      blurRadius: 2,
-                                                      offset: const Offset(
-                                                        0,
-                                                        1,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Icon(
-                                                  _getIconData(button.iconName),
-                                                  color: Colors.white,
-                                                  size: 24,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          title: Text(
-                                            button.name,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                              size: 14,
                                               color:
                                                   colorScheme.onSurfaceVariant,
                                             ),
-                                          ),
-                                          subtitle: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const SizedBox(height: 4),
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color:
-                                                      colorScheme
-                                                          .primaryContainer,
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                _getActionDescription(
+                                                  button.actions.first,
                                                 ),
-                                                child: Text(
-                                                  'Actions: ${button.actions.length}',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                    color:
-                                                        colorScheme
-                                                            .onPrimaryContainer,
-                                                  ),
-                                                ),
-                                              ),
-                                              if (button
-                                                  .actions
-                                                  .isNotEmpty) ...[
-                                                const SizedBox(height: 8),
-                                                Row(
-                                                  children: [
-                                                    Icon(
-                                                      _getActionTypeIcon(
-                                                        button
-                                                            .actions
-                                                            .first
-                                                            .type,
-                                                      ),
-                                                      size: 14,
-                                                      color:
-                                                          colorScheme
-                                                              .onSurfaceVariant,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Expanded(
-                                                      child: Text(
-                                                        _getActionDescription(
-                                                          button.actions.first,
-                                                        ),
-                                                        style: TextStyle(
-                                                          fontSize: 13,
-                                                          color:
-                                                              colorScheme
-                                                                  .onSurfaceVariant,
-                                                        ),
-                                                        maxLines: 1,
-                                                        overflow:
-                                                            TextOverflow
-                                                                .ellipsis,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                              if (button.actions.length > 1)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 4,
-                                                      ),
-                                                  child: Text(
-                                                    '+ ${button.actions.length - 1} more ${button.actions.length == 2 ? 'action' : 'actions'}',
-                                                    style: TextStyle(
-                                                      fontStyle:
-                                                          FontStyle.italic,
-                                                      fontSize: 12,
-                                                      color:
-                                                          colorScheme.primary,
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                          trailing: OverflowBar(
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.play_arrow,
-                                                  color: colorScheme.primary,
-                                                ),
-                                                onPressed:
-                                                    () => _executeButtonAction(
-                                                      button,
-                                                    ),
-                                                tooltip: 'Execute',
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.edit,
+                                                style: TextStyle(
+                                                  fontSize: 13,
                                                   color:
                                                       colorScheme
                                                           .onSurfaceVariant,
                                                 ),
-                                                onPressed:
-                                                    () =>
-                                                        _navigateToButtonEditor(
-                                                          button,
-                                                        ),
-                                                tooltip: 'Edit',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.delete,
-                                                  color: colorScheme.error,
-                                                ),
-                                                onPressed:
-                                                    () => _deleteButton(
-                                                      button.id,
-                                                    ),
-                                                tooltip: 'Delete',
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
                                       ],
-                                    ),
+                                      if (button.actions.length > 1)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 4,
+                                          ),
+                                          child: Text(
+                                            '+ ${button.actions.length - 1} more ${button.actions.length == 2 ? 'action' : 'actions'}',
+                                            style: TextStyle(
+                                              fontStyle: FontStyle.italic,
+                                              fontSize: 12,
+                                              color: colorScheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                                );
-                              },
+                                  trailing: OverflowBar(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.play_arrow,
+                                          color: colorScheme.primary,
+                                        ),
+                                        onPressed:
+                                            () => _executeButtonAction(button),
+                                        tooltip: 'Execute',
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.edit,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                        onPressed:
+                                            () =>
+                                                _navigateToButtonEditor(button),
+                                        tooltip: 'Edit',
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: colorScheme.error,
+                                        ),
+                                        onPressed:
+                                            () => _deleteButton(button.id),
+                                        tooltip: 'Delete',
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                  ),
-                ],
-              ),
+                          ),
+                        );
+                      },
+                    ),
+              ],
             ),
           ),
         ],
