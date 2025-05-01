@@ -51,7 +51,6 @@ class _ServerScreenState extends State<ServerScreen> {
       status,
     ) {
       setState(() {
-        _statusMessage = status.message;
         if (mounted) {
           _showStatusMessage(status);
         }
