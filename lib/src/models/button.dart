@@ -210,6 +210,56 @@ class Button {
   }
 }
 
+/// Represents a page of buttons for organization
+class Page {
+  /// Unique identifier for the page
+  final String id;
+
+  /// Display name of the page
+  String name;
+
+  /// Order of the page (for sorting)
+  int order;
+
+  /// List of buttons on this page
+  List<Button> buttons;
+
+  /// Creates a new page with the given properties
+  Page({String? id, required this.name, this.order = 0, List<Button>? buttons})
+    : id = id ?? const Uuid().v4(),
+      buttons = buttons ?? [];
+
+  /// Creates a page from a JSON map
+  factory Page.fromJson(Map<String, dynamic> json) {
+    final buttonsList = json['buttons'] as List<dynamic>?;
+
+    return Page(
+      id: json['id'] as String? ?? const Uuid().v4(),
+      name: json['name'] as String? ?? 'Untitled',
+      order: json['order'] as int? ?? 0,
+      buttons:
+          buttonsList != null
+              ? buttonsList
+                  .map(
+                    (buttonJson) =>
+                        Button.fromJson(buttonJson as Map<String, dynamic>),
+                  )
+                  .toList()
+              : [],
+    );
+  }
+
+  /// Converts this page to a JSON map
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'order': order,
+      'buttons': buttons.map((button) => button.toJson()).toList(),
+    };
+  }
+}
+
 /// Legacy enum type - kept for backward compatibility
 enum ButtonType {
   /// Execute a custom shell command

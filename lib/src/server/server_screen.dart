@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:marco_deck/src/models/button.dart';
 
-import '../models/button.dart';
+import '../models/button.dart' as models;
 import '../models/client_info.dart';
 import 'button_editor_page.dart';
 import 'server.dart';
+import 'page_editor_dialog.dart';
 
 /// The main screen for the server application
 class ServerScreen extends StatefulWidget {
@@ -24,7 +26,8 @@ class _ServerScreenState extends State<ServerScreen> {
   String _serverIp = 'Loading...';
   int _serverPort = 8080;
   bool _isRunning = false;
-  List<Button> _buttons = [];
+  List<models.Page> _pages = [];
+  models.Page? _selectedPage;
   List<ClientInfo> _connectedClients = [];
   late StreamSubscription<List<ClientInfo>> _clientsSubscription;
   late StreamSubscription<ServerStatus> _serverStatusSubscription;
@@ -121,7 +124,7 @@ class _ServerScreenState extends State<ServerScreen> {
         }
       } else {
         // Immediately load buttons after server start
-        _refreshButtons();
+        _refreshPages();
       }
     } catch (e) {
       debugPrint('Error initializing server: $e');
@@ -139,7 +142,7 @@ class _ServerScreenState extends State<ServerScreen> {
     setState(() {
       _isRunning = success;
     });
-    _refreshButtons();
+    _refreshPages();
   }
 
   /// Shows a dialog to change the server port
@@ -220,18 +223,107 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
-  /// Refreshes the list of buttons
-  void _refreshButtons() {
+  /// Refreshes the list of pages and buttons
+  void _refreshPages() {
     if (widget.server.isRunning) {
       setState(() {
-        // Get the buttons from the server
-        _buttons = widget.server.buttons;
+        // Get the pages from the server
+        _pages = widget.server.pages;
+
+        // Select the first page if no page is selected or if the selected page no longer exists
+        if (_selectedPage == null ||
+            !_pages.any((p) => p.id == _selectedPage!.id)) {
+          _selectedPage = _pages.isNotEmpty ? _pages.first : null;
+        } else {
+          // Update the selected page with the latest data
+          _selectedPage = _pages.firstWhere((p) => p.id == _selectedPage!.id);
+        }
       });
     }
   }
 
+  /// Shows a dialog to add or edit a page
+  Future<void> _showPageEditor(models.Page? page) async {
+    final result = await showDialog<models.Page>(
+      context: context,
+      builder: (context) => PageEditorDialog(page: page),
+    );
+
+    if (result != null) {
+      if (page == null) {
+        // Add new page
+        widget.server.addPage(result);
+      } else {
+        // Update existing page
+        widget.server.updatePage(result);
+      }
+      _refreshPages();
+    }
+  }
+
+  /// Deletes a page
+  void _deletePage(String id) {
+    // Don't allow deleting the last page
+    if (_pages.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cannot delete the last page. Create a new page first.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Page'),
+            content: const Text(
+              'Are you sure you want to delete this page? All buttons on this page will be deleted as well.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  widget.server.deletePage(id);
+
+                  // If we're deleting the currently selected page, select another one
+                  if (_selectedPage?.id == id) {
+                    _selectedPage = null;
+                  }
+
+                  _refreshPages();
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+  }
+
   /// Navigate to the button editor page to add or edit a button
   Future<void> _navigateToButtonEditor(Button? button) async {
+    if (_selectedPage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a page first'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final result = await Navigator.push<Button>(
       context,
       MaterialPageRoute(
@@ -240,13 +332,13 @@ class _ServerScreenState extends State<ServerScreen> {
               button: button,
               onSave: (updatedButton) {
                 if (button == null) {
-                  // Add new button
-                  widget.server.addButton(updatedButton);
+                  // Add new button to the selected page
+                  widget.server.addButton(updatedButton, _selectedPage!.id);
                 } else {
                   // Update existing button
                   widget.server.updateButton(updatedButton);
                 }
-                _refreshButtons();
+                _refreshPages();
               },
             ),
       ),
@@ -255,13 +347,13 @@ class _ServerScreenState extends State<ServerScreen> {
     // If the page returns a result directly (though we use the onSave callback normally)
     if (result != null) {
       if (button == null) {
-        // Add new button
-        widget.server.addButton(result);
+        // Add new button to the selected page
+        widget.server.addButton(result, _selectedPage!.id);
       } else {
         // Update existing button
         widget.server.updateButton(result);
       }
-      _refreshButtons();
+      _refreshPages();
     }
   }
 
@@ -281,7 +373,7 @@ class _ServerScreenState extends State<ServerScreen> {
               ElevatedButton(
                 onPressed: () {
                   widget.server.deleteButton(id);
-                  _refreshButtons();
+                  _refreshPages();
                   Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
@@ -344,8 +436,8 @@ class _ServerScreenState extends State<ServerScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _refreshButtons,
-            tooltip: 'Refresh buttons',
+            onPressed: _refreshPages,
+            tooltip: 'Refresh',
           ),
         ],
       ),
@@ -442,7 +534,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                     _isRunning = success;
                                   });
                                   if (success) {
-                                    _refreshButtons();
+                                    _refreshPages();
                                   }
                                 },
                         icon: Icon(_isRunning ? Icons.stop : Icons.play_arrow),
@@ -490,20 +582,162 @@ class _ServerScreenState extends State<ServerScreen> {
               ),
             ),
 
-          // Buttons list header
+          // Pages tabs and management
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, top: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Configured Buttons',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  'Pages (${_pages.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => _showPageEditor(null),
+                      icon: const Icon(Icons.add),
+                      label: const Text('New Page'),
+                    ),
+                    if (_selectedPage != null)
+                      Row(
+                        children: [
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _showPageEditor(_selectedPage),
+                            tooltip: 'Edit Page',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => _deletePage(_selectedPage!.id),
+                            tooltip: 'Delete Page',
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Page tabs
+          if (_pages.isNotEmpty)
+            Container(
+              height: 48,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _pages.length,
+                itemBuilder: (context, index) {
+                  final page = _pages[index];
+                  final isSelected = _selectedPage?.id == page.id;
+
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedPage = page;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color:
+                              isSelected
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            page.name,
+                            style: TextStyle(
+                              color:
+                                  isSelected
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurface,
+                              fontWeight:
+                                  isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  isSelected
+                                      ? Theme.of(
+                                        context,
+                                      ).colorScheme.primaryContainer
+                                      : Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${page.buttons.length}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    isSelected
+                                        ? Theme.of(
+                                          context,
+                                        ).colorScheme.onPrimaryContainer
+                                        : Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          // Buttons list header
+          Padding(
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _selectedPage != null
+                      ? '${_selectedPage!.name} Buttons'
+                      : 'Buttons',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () => _navigateToButtonEditor(null),
+                  onPressed:
+                      _selectedPage != null
+                          ? () => _navigateToButtonEditor(null)
+                          : null,
                   icon: const Icon(Icons.add),
-                  label: const Text('Add New'),
+                  label: const Text('Add Button'),
                 ),
               ],
             ),
@@ -513,78 +747,89 @@ class _ServerScreenState extends State<ServerScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: ListView.builder(
-                itemCount: _buttons.isEmpty ? 1 : _buttons.length,
-                itemBuilder: (context, index) {
-                  if (_buttons.isEmpty) {
-                    return const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          'No buttons configured yet. Click "Add New" to create your first button.',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    );
-                  }
-
-                  final button = _buttons[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: _hexToColor(button.color),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          _getIconData(button.iconName),
-                          color: Colors.white,
-                        ),
-                      ),
-                      title: Text(button.name),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Actions: ${button.actions.length}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+              child:
+                  _selectedPage == null || _selectedPage!.buttons.isEmpty
+                      ? Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Text(
+                            _selectedPage == null
+                                ? 'No page selected. Please create or select a page.'
+                                : 'No buttons on this page yet. Click "Add Button" to create your first button.',
+                            textAlign: TextAlign.center,
                           ),
-                          if (button.actions.isNotEmpty)
-                            Text(_getActionDescription(button.actions.first)),
-                          if (button.actions.length > 1)
-                            Text(
-                              '+ ${button.actions.length - 1} more ${button.actions.length == 2 ? 'action' : 'actions'}',
-                              style: TextStyle(
-                                fontStyle: FontStyle.italic,
-                                fontSize: 12,
-                                color: Theme.of(context).colorScheme.primary,
+                        ),
+                      )
+                      : ListView.builder(
+                        itemCount: _selectedPage!.buttons.length,
+                        itemBuilder: (context, index) {
+                          final button = _selectedPage!.buttons[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: _hexToColor(button.color),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  _getIconData(button.iconName),
+                                  color: Colors.white,
+                                ),
                               ),
+                              title: Text(button.name),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Actions: ${button.actions.length}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (button.actions.isNotEmpty)
+                                    Text(
+                                      _getActionDescription(
+                                        button.actions.first,
+                                      ),
+                                    ),
+                                  if (button.actions.length > 1)
+                                    Text(
+                                      '+ ${button.actions.length - 1} more ${button.actions.length == 2 ? 'action' : 'actions'}',
+                                      style: TextStyle(
+                                        fontStyle: FontStyle.italic,
+                                        fontSize: 12,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed:
+                                        () => _navigateToButtonEditor(button),
+                                    tooltip: 'Edit',
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () => _deleteButton(button.id),
+                                    tooltip: 'Delete',
+                                  ),
+                                ],
+                              ),
+                              onTap: () => _navigateToButtonEditor(button),
                             ),
-                        ],
+                          );
+                        },
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () => _navigateToButtonEditor(button),
-                            tooltip: 'Edit',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteButton(button.id),
-                            tooltip: 'Delete',
-                          ),
-                        ],
-                      ),
-                      onTap: () => _navigateToButtonEditor(button),
-                    ),
-                  );
-                },
-              ),
             ),
           ),
         ],

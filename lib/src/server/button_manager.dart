@@ -8,58 +8,85 @@ import '../models/button.dart';
 
 /// Service responsible for managing button configurations on the server
 class ButtonManager {
-  /// List of all available buttons
-  List<Button> _buttons = [];
+  /// List of all available pages with buttons
+  List<Page> _pages = [];
 
-  /// Path to the buttons configuration file
+  /// Path to the configuration file
   String? _configPath;
 
-  /// Getter for the buttons
-  List<Button> get buttons => List.unmodifiable(_buttons);
+  /// Getter for all pages
+  List<Page> get pages => List.unmodifiable(_pages);
+
+  /// Getter for all buttons (flattened from all pages)
+  List<Button> get buttons {
+    final allButtons = <Button>[];
+    for (final page in _pages) {
+      allButtons.addAll(page.buttons);
+    }
+    return List.unmodifiable(allButtons);
+  }
 
   /// Initializes the button manager
   Future<void> initialize() async {
     await _loadConfig();
 
-    // If no buttons were loaded, create some default ones
-    if (_buttons.isEmpty) {
-      _createDefaultButtons();
+    // If no pages were loaded, create a default page with some buttons
+    if (_pages.isEmpty) {
+      _createDefaultPages();
       await saveConfig();
     }
   }
 
-  /// Loads button configurations from disk
+  /// Loads configuration from disk
   Future<void> _loadConfig() async {
     try {
       final directory = await _getConfigDirectory();
-      final file = File('${directory.path}/buttons.json');
+      final file = File('${directory.path}/pages.json');
       _configPath = file.path;
 
       if (await file.exists()) {
         final String contents = await file.readAsString();
         final List<dynamic> jsonList = jsonDecode(contents);
 
-        _buttons = jsonList.map((json) => Button.fromJson(json)).toList();
+        _pages = jsonList.map((json) => Page.fromJson(json)).toList();
+      } else {
+        // Try to load from the old format (buttons.json) for backward compatibility
+        final oldConfigFile = File('${directory.path}/buttons.json');
+        if (await oldConfigFile.exists()) {
+          final String contents = await oldConfigFile.readAsString();
+          final List<dynamic> jsonList = jsonDecode(contents);
+
+          final buttons =
+              jsonList.map((json) => Button.fromJson(json)).toList();
+
+          // Convert old format to new format by creating a default page with the buttons
+          if (buttons.isNotEmpty) {
+            _pages = [Page(name: 'Main Page', buttons: buttons)];
+            // Save in the new format and delete the old file
+            await saveConfig();
+            await oldConfigFile.delete();
+          }
+        }
       }
     } catch (e) {
-      debugPrint('Error loading button configuration: $e');
-      _buttons = [];
+      debugPrint('Error loading configuration: $e');
+      _pages = [];
     }
   }
 
-  /// Saves button configurations to disk
+  /// Saves configuration to disk
   Future<void> saveConfig() async {
     try {
       if (_configPath == null) {
         final directory = await _getConfigDirectory();
-        _configPath = '${directory.path}/buttons.json';
+        _configPath = '${directory.path}/pages.json';
       }
 
       final file = File(_configPath!);
-      final jsonList = _buttons.map((button) => button.toJson()).toList();
+      final jsonList = _pages.map((page) => page.toJson()).toList();
       await file.writeAsString(jsonEncode(jsonList));
     } catch (e) {
-      debugPrint('Error saving button configuration: $e');
+      debugPrint('Error saving configuration: $e');
     }
   }
 
@@ -82,46 +109,156 @@ class ButtonManager {
     return marcoDeckDir;
   }
 
-  /// Gets a button by its ID
-  Button? getButton(String id) {
+  /// Gets a page by its ID
+  Page? getPage(String id) {
     try {
-      return _buttons.firstWhere((button) => button.id == id);
+      return _pages.firstWhere((page) => page.id == id);
     } catch (e) {
       return null;
     }
   }
 
-  /// Adds a new button
-  void addButton(Button button) {
-    _buttons.add(button);
+  /// Gets a button by its ID (searches all pages)
+  Button? getButton(String id) {
+    for (final page in _pages) {
+      try {
+        final button = page.buttons.firstWhere((button) => button.id == id);
+        return button;
+      } catch (e) {
+        // Button not found in this page, continue to next page
+      }
+    }
+    return null;
+  }
+
+  /// Gets the page that contains a specific button
+  Page? getPageContainingButton(String buttonId) {
+    for (final page in _pages) {
+      if (page.buttons.any((button) => button.id == buttonId)) {
+        return page;
+      }
+    }
+    return null;
+  }
+
+  /// Adds a new page
+  void addPage(Page page) {
+    _pages.add(page);
     saveConfig();
   }
 
-  /// Updates an existing button
-  bool updateButton(Button updatedButton) {
-    final index = _buttons.indexWhere((b) => b.id == updatedButton.id);
+  /// Updates an existing page
+  bool updatePage(Page updatedPage) {
+    final index = _pages.indexWhere((p) => p.id == updatedPage.id);
     if (index != -1) {
-      _buttons[index] = updatedButton;
+      _pages[index] = updatedPage;
       saveConfig();
       return true;
     }
     return false;
   }
 
-  /// Deletes a button
-  bool deleteButton(String id) {
-    final previousLength = _buttons.length;
-    _buttons.removeWhere((button) => button.id == id);
-    final deleted = _buttons.length < previousLength;
+  /// Deletes a page
+  bool deletePage(String id) {
+    final previousLength = _pages.length;
+    _pages.removeWhere((page) => page.id == id);
+    final deleted = _pages.length < previousLength;
     if (deleted) {
       saveConfig();
     }
     return deleted;
   }
 
-  /// Creates default buttons
-  void _createDefaultButtons() {
-    _buttons = [
+  /// Reorders pages
+  void reorderPages(List<Page> newOrder) {
+    // Update the order property of each page based on its position in the new order
+    for (int i = 0; i < newOrder.length; i++) {
+      newOrder[i].order = i;
+    }
+
+    // Replace the current pages list with the new ordered list
+    _pages = List.from(newOrder);
+    saveConfig();
+  }
+
+  /// Adds a new button to a specific page
+  bool addButton(Button button, String pageId) {
+    final page = getPage(pageId);
+    if (page != null) {
+      page.buttons.add(button);
+      saveConfig();
+      return true;
+    }
+    return false;
+  }
+
+  /// Updates an existing button
+  bool updateButton(Button updatedButton) {
+    for (final page in _pages) {
+      final index = page.buttons.indexWhere((b) => b.id == updatedButton.id);
+      if (index != -1) {
+        page.buttons[index] = updatedButton;
+        saveConfig();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Deletes a button
+  bool deleteButton(String id) {
+    bool deleted = false;
+    for (final page in _pages) {
+      final previousLength = page.buttons.length;
+      page.buttons.removeWhere((button) => button.id == id);
+      if (page.buttons.length < previousLength) {
+        deleted = true;
+        break;
+      }
+    }
+
+    if (deleted) {
+      saveConfig();
+    }
+    return deleted;
+  }
+
+  /// Moves a button from one page to another
+  bool moveButton(String buttonId, String targetPageId) {
+    // Find the button and its current page
+    Button? button;
+    Page? sourcePage;
+
+    for (final page in _pages) {
+      final index = page.buttons.indexWhere((b) => b.id == buttonId);
+      if (index != -1) {
+        button = page.buttons[index];
+        sourcePage = page;
+        page.buttons.removeAt(index);
+        break;
+      }
+    }
+
+    if (button == null || sourcePage == null) {
+      return false;
+    }
+
+    // Find the target page and add the button
+    final targetPage = getPage(targetPageId);
+    if (targetPage != null) {
+      targetPage.buttons.add(button);
+      saveConfig();
+      return true;
+    }
+
+    // If target page not found, put the button back in its original page
+    sourcePage.buttons.add(button);
+    return false;
+  }
+
+  /// Creates default pages with buttons
+  void _createDefaultPages() {
+    final defaultButtons = [
       Button(
         name: 'Open Browser',
         iconName: FontAwesomeIcons.globe.codePoint.toString(),
@@ -141,6 +278,9 @@ class ButtonManager {
                 : (Platform.isMacOS ? 'open -a TextEdit' : 'gedit'),
         color: '#4CAF50',
       ),
+    ];
+
+    final systemButtons = [
       Button(
         name: 'System Info',
         iconName: FontAwesomeIcons.computer.codePoint.toString(),
@@ -148,6 +288,23 @@ class ButtonManager {
             Platform.isWindows ? 'systeminfo' : 'uname -a && lsb_release -a',
         color: '#FFC107',
       ),
+      Button(
+        name: 'Power Options',
+        iconName: FontAwesomeIcons.powerOff.codePoint.toString(),
+        type: ButtonType.commandPreset,
+        command:
+            Platform.isWindows
+                ? 'shutdown /s /t 0'
+                : (Platform.isMacOS
+                    ? 'sudo shutdown -h now'
+                    : 'sudo shutdown -h now'),
+        color: '#F44336',
+      ),
+    ];
+
+    _pages = [
+      Page(name: 'Applications', order: 0, buttons: defaultButtons),
+      Page(name: 'System', order: 1, buttons: systemButtons),
     ];
   }
 }

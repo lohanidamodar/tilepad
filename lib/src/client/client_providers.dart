@@ -34,9 +34,25 @@ final connectionStateProvider =
       return ConnectionStateNotifier(ref);
     });
 
-/// Provider for the buttons from the server
-final buttonsProvider = StateProvider<List<Button>>((ref) {
+/// Provider for pages from the server
+final pagesProvider = StateProvider<List<Page>>((ref) {
   return [];
+});
+
+/// Provider for the currently selected page index
+final selectedPageIndexProvider = StateProvider<int>((ref) {
+  return 0;
+});
+
+/// Provider for the buttons from the server (for backward compatibility)
+final buttonsProvider = StateProvider<List<Button>>((ref) {
+  // Get all buttons from all pages
+  final pages = ref.watch(pagesProvider);
+  final allButtons = <Button>[];
+  for (final page in pages) {
+    allButtons.addAll(page.buttons);
+  }
+  return allButtons;
 });
 
 /// Provider for command results
@@ -445,6 +461,10 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
         _handleButtonsResponse(message.payload);
         break;
 
+      case MessageType.pagesResponse:
+        _handlePagesResponse(message.payload);
+        break;
+
       case MessageType.commandResult:
         _handleCommandResult(message.payload);
         break;
@@ -459,14 +479,41 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
     }
   }
 
-  /// Handles a buttons response message
+  /// Handles a buttons response message (for backward compatibility)
   void _handleButtonsResponse(dynamic payload) {
     try {
       final List<dynamic> buttonsJson = payload;
       final buttons = buttonsJson.map((json) => Button.fromJson(json)).toList();
-      _ref.read(buttonsProvider.notifier).state = buttons;
+
+      // Create a single page with these buttons
+      final page = Page(name: 'All Buttons', buttons: buttons);
+
+      _ref.read(pagesProvider.notifier).state = [page];
+      _ref.read(selectedPageIndexProvider.notifier).state = 0;
     } catch (e) {
       debugPrint('Error handling buttons response: $e');
+    }
+  }
+
+  /// Handles a pages response message
+  void _handlePagesResponse(dynamic payload) {
+    try {
+      final List<dynamic> pagesJson = payload;
+      final List<Page> pages =
+          pagesJson.map((json) => Page.fromJson(json)).toList();
+
+      // Sort pages by their order property
+      pages.sort((a, b) => a.order.compareTo(b.order));
+
+      _ref.read(pagesProvider.notifier).state = pages;
+
+      // Preserve selected page index if possible, otherwise reset to 0
+      final currentIndex = _ref.read(selectedPageIndexProvider);
+      if (currentIndex >= pages.length) {
+        _ref.read(selectedPageIndexProvider.notifier).state = 0;
+      }
+    } catch (e) {
+      debugPrint('Error handling pages response: $e');
     }
   }
 

@@ -25,6 +25,7 @@ dependencies:
   system_tray: ^2.0.3  # For system tray integration
   window_manager: ^0.4.3  # For window management integration
   intl: ^0.19.0  # For date formatting
+  smooth_page_indicator: ^1.1.0  # For page indicators in multi-page view
 
 dev_dependencies:
   flutter_test:

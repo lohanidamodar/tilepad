@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../models/server_connection.dart';
 import 'client_providers.dart';
@@ -24,6 +25,7 @@ class ButtonsScreen extends ConsumerStatefulWidget {
 
 class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   bool _showResult = false;
+  final PageController _pageController = PageController();
 
   @override
   void initState() {
@@ -38,6 +40,12 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
         ref.read(connectionStateProvider.notifier).requestButtons();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _showServerManager(BuildContext context) {
@@ -112,10 +120,24 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   @override
   Widget build(BuildContext context) {
     final connectionState = ref.watch(connectionStateProvider);
-    final buttons = ref.watch(buttonsProvider);
+    final pages = ref.watch(pagesProvider);
+    final selectedPageIndex = ref.watch(selectedPageIndexProvider);
     final commandResult = ref.watch(commandResultProvider);
 
     final isConnected = connectionState.status == ConnectionStatus.connected;
+
+    // Synchronize page controller with the selected index from provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients &&
+          _pageController.page?.round() != selectedPageIndex &&
+          selectedPageIndex < pages.length) {
+        _pageController.animateToPage(
+          selectedPageIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -201,19 +223,105 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
         children: [
           // Button grid or no connection message
           if (isConnected)
-            ButtonGrid(
-              buttons: buttons,
-              onButtonPressed: (buttonId) {
-                // Press the button via the connection state notifier
-                ref
-                    .read(connectionStateProvider.notifier)
-                    .pressButton(buttonId);
+            Column(
+              children: [
+                // Page name and indicator container
+                if (pages.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(20),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Page name
+                        if (pages.isNotEmpty &&
+                            selectedPageIndex < pages.length)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                            ),
+                            child: Text(
+                              pages[selectedPageIndex].name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
 
-                // Clear any previous results when a button is pressed
-                setState(() {
-                  _showResult = false;
-                });
-              },
+                        // Page indicator dots
+                        if (pages.length > 1)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: SmoothPageIndicator(
+                              controller: _pageController,
+                              count: pages.length,
+                              effect: WormEffect(
+                                dotHeight: 8,
+                                dotWidth: 8,
+                                activeDotColor:
+                                    Theme.of(context).colorScheme.primary,
+                                dotColor:
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                              ),
+                              onDotClicked: (index) {
+                                _pageController.animateToPage(
+                                  index,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                // Page view with button grids
+                Expanded(
+                  child:
+                      pages.isEmpty
+                          ? const Center(
+                            child: Text('No buttons configured on the server'),
+                          )
+                          : PageView.builder(
+                            controller: _pageController,
+                            itemCount: pages.length,
+                            onPageChanged: (index) {
+                              ref
+                                  .read(selectedPageIndexProvider.notifier)
+                                  .state = index;
+                            },
+                            itemBuilder: (context, index) {
+                              final page = pages[index];
+                              return ButtonGrid(
+                                buttons: page.buttons,
+                                onButtonPressed: (buttonId) {
+                                  // Press the button via the connection state notifier
+                                  ref
+                                      .read(connectionStateProvider.notifier)
+                                      .pressButton(buttonId);
+
+                                  // Clear any previous results when a button is pressed
+                                  setState(() {
+                                    _showResult = false;
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                ),
+              ],
             )
           else
             _buildNoConnectionView(context),

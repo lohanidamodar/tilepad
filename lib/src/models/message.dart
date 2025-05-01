@@ -14,6 +14,9 @@ enum MessageType {
   /// Response with available buttons
   buttonsResponse,
 
+  /// Response with available pages and their buttons
+  pagesResponse,
+
   /// Button press event
   buttonPress,
 

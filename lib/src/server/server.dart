@@ -56,7 +56,10 @@ class MarcoServer {
   /// Gets whether the server is running
   bool get isRunning => _isRunning;
 
-  /// Gets the list of all configured buttons
+  /// Gets the list of all configured pages
+  List<Page> get pages => _buttonManager.pages;
+
+  /// Gets the list of all configured buttons (from all pages)
   List<Button> get buttons => _buttonManager.buttons;
 
   /// Gets the list of connected clients
@@ -176,23 +179,13 @@ class MarcoServer {
         // Send connect acknowledgment
         _webSocketService.sendMessage(Message(type: MessageType.connectAck));
 
-        // Send buttons to the newly connected client
-        _webSocketService.sendMessage(
-          Message(
-            type: MessageType.buttonsResponse,
-            payload: _buttonManager.buttons.map((b) => b.toJson()).toList(),
-          ),
-        );
+        // Send pages with buttons to the newly connected client
+        _sendPagesToClient();
         break;
 
       case MessageType.getButtons:
-        // Send list of buttons
-        _webSocketService.sendMessage(
-          Message(
-            type: MessageType.buttonsResponse,
-            payload: _buttonManager.buttons.map((b) => b.toJson()).toList(),
-          ),
-        );
+        // Send pages with buttons
+        _sendPagesToClient();
         break;
 
       case MessageType.buttonPress:
@@ -204,6 +197,16 @@ class MarcoServer {
         debugPrint('Unknown message type: ${message.type}');
         break;
     }
+  }
+
+  /// Sends all pages with their buttons to the client
+  void _sendPagesToClient() {
+    _webSocketService.sendMessage(
+      Message(
+        type: MessageType.pagesResponse,
+        payload: _buttonManager.pages.map((p) => p.toJson()).toList(),
+      ),
+    );
   }
 
   /// Handles a button press message
@@ -253,37 +256,73 @@ class MarcoServer {
     }
   }
 
-  /// Adds a new button
-  void addButton(Button button) {
-    _buttonManager.addButton(button);
+  /// Adds a new page
+  void addPage(Page page) {
+    _buttonManager.addPage(page);
+    _broadcastPages();
+  }
 
-    // Notify clients of the button change
-    _broadcastButtons();
+  /// Updates an existing page
+  bool updatePage(Page page) {
+    final result = _buttonManager.updatePage(page);
+    if (result) {
+      _broadcastPages();
+    }
+    return result;
+  }
+
+  /// Deletes a page
+  bool deletePage(String id) {
+    final result = _buttonManager.deletePage(id);
+    if (result) {
+      _broadcastPages();
+    }
+    return result;
+  }
+
+  /// Reorders pages
+  void reorderPages(List<Page> newOrder) {
+    _buttonManager.reorderPages(newOrder);
+    _broadcastPages();
+  }
+
+  /// Adds a new button to a specific page
+  bool addButton(Button button, String pageId) {
+    final result = _buttonManager.addButton(button, pageId);
+    if (result) {
+      _broadcastPages();
+    }
+    return result;
   }
 
   /// Updates an existing button
   void updateButton(Button button) {
     _buttonManager.updateButton(button);
-
-    // Notify clients of the button change
-    _broadcastButtons();
+    _broadcastPages();
   }
 
   /// Deletes a button
   void deleteButton(String id) {
     _buttonManager.deleteButton(id);
-
-    // Notify clients of the button change
-    _broadcastButtons();
+    _broadcastPages();
   }
 
-  /// Broadcasts the button list to all connected clients
-  void _broadcastButtons() {
+  /// Moves a button to another page
+  bool moveButton(String buttonId, String targetPageId) {
+    final result = _buttonManager.moveButton(buttonId, targetPageId);
+    if (result) {
+      _broadcastPages();
+    }
+    return result;
+  }
+
+  /// Broadcasts the pages and buttons to all connected clients
+  void _broadcastPages() {
     if (_isRunning) {
       _webSocketService.broadcast(
         Message(
-          type: MessageType.buttonsResponse,
-          payload: _buttonManager.buttons.map((b) => b.toJson()).toList(),
+          type: MessageType.pagesResponse,
+          payload: _buttonManager.pages.map((p) => p.toJson()).toList(),
         ),
       );
     }
