@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'splash_screen.dart';
+import 'client_providers.dart' as providers;
 
 /// Main entry point for the client app
 void main() {
@@ -24,23 +25,37 @@ class MarcoDeckClientApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'MarcoDeck Client',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4285F4)),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
-      ),
-      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4285F4),
-          brightness: Brightness.dark,
+    return _EagerInitialization(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'MarcoDeck Client',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4285F4)),
+          useMaterial3: true,
+          appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
         ),
-        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
+        darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF4285F4),
+            brightness: Brightness.dark,
+          ),
+          appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
+        ),
+        themeMode: ThemeMode.system,
+        home: const SplashScreen(),
       ),
-      themeMode: ThemeMode.system,
-      home: const SplashScreen(),
     );
+  }
+}
+
+class _EagerInitialization extends ConsumerWidget {
+  /// Creates a new eager initialization widget
+  const _EagerInitialization({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(providers.serverConnectionsProvider.notifier);
+    return child;
   }
 }

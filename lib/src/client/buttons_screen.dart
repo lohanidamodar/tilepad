@@ -33,6 +33,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final connectionState = ref.read(connectionStateProvider);
       if (connectionState.status == ConnectionStatus.connected) {
+        // If already connected (e.g., from splash screen), request buttons
+        debugPrint('ButtonsScreen: Already connected, requesting buttons');
         ref.read(connectionStateProvider.notifier).requestButtons();
       }
     });
@@ -52,7 +54,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
 
   void _connectToDefault(BuildContext context) async {
     // Get the default server ID using the provider
-    final defaultServerId = ref.read(defaultServerIdProvider);
+    final connectionsNotifier = ref.read(serverConnectionsProvider.notifier);
+    final defaultServerId = connectionsNotifier.defaultServerId;
     final serverConnections = ref.read(serverConnectionsProvider);
 
     // Find the default server by ID
@@ -71,11 +74,30 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     if (defaultServer != null) {
       // Try to connect to the default server
       final connectionNotifier = ref.read(connectionStateProvider.notifier);
-      final success = await connectionNotifier.connect(defaultServer);
 
+      // First ensure we're disconnected
+      await connectionNotifier.disconnect();
+
+      // Now attempt to connect
+      final success = await connectionNotifier.connect(defaultServer);
       if (success) {
         // Request buttons from server after successful connection
         connectionNotifier.requestButtons();
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connected to ${defaultServer.name}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to connect to default server'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -351,7 +373,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
             label: const Text('Add New Server'),
             onPressed: () => _showAddServerDialog(context),
           ),
-          if (ref.read(defaultServerIdProvider) != null) ...[
+          if (ref.read(serverConnectionsProvider.notifier).defaultServerId !=
+              null) ...[
             const SizedBox(height: 24),
             TextButton.icon(
               icon: const Icon(Icons.refresh),
