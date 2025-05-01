@@ -313,7 +313,7 @@ class _ServerScreenState extends State<ServerScreen> {
   }
 
   /// Navigate to the button editor page to add or edit a button
-  Future<void> _navigateToButtonEditor(Button? button) async {
+  Future<void> _navigateToButtonEditor(models.Button? button) async {
     if (_selectedPage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -324,7 +324,7 @@ class _ServerScreenState extends State<ServerScreen> {
       return;
     }
 
-    final result = await Navigator.push<Button>(
+    final result = await Navigator.push<models.Button>(
       context,
       MaterialPageRoute(
         builder:
@@ -426,6 +426,25 @@ class _ServerScreenState extends State<ServerScreen> {
                 : '';
         return 'Keystroke: $modifierText${action.key.toUpperCase()}';
     }
+  }
+
+  /// Reorders buttons within the selected page
+  void _reorderButtons(int oldIndex, int newIndex) {
+    setState(() {
+      if (_selectedPage == null) return;
+
+      if (newIndex > oldIndex) {
+        // When moving down, the destination index needs to be decremented
+        // because the item is removed before being inserted
+        newIndex -= 1;
+      }
+
+      final button = _selectedPage!.buttons.removeAt(oldIndex);
+      _selectedPage!.buttons.insert(newIndex, button);
+
+      // Update the page with reordered buttons
+      widget.server.updatePage(_selectedPage!);
+    });
   }
 
   @override
@@ -688,9 +707,7 @@ class _ServerScreenState extends State<ServerScreen> {
                                       ? Theme.of(
                                         context,
                                       ).colorScheme.primaryContainer
-                                      : Theme.of(
-                                        context,
-                                      ).colorScheme.surface,
+                                      : Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -760,24 +777,37 @@ class _ServerScreenState extends State<ServerScreen> {
                           ),
                         ),
                       )
-                      : ListView.builder(
+                      : ReorderableListView.builder(
+                        onReorder: _reorderButtons,
                         itemCount: _selectedPage!.buttons.length,
                         itemBuilder: (context, index) {
                           final button = _selectedPage!.buttons[index];
                           return Card(
+                            key: ValueKey(button.id),
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: _hexToColor(button.color),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  _getIconData(button.iconName),
-                                  color: Colors.white,
-                                ),
+                              leading: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.drag_handle,
+                                    color: Colors.grey,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: _hexToColor(button.color),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      _getIconData(button.iconName),
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                               title: Text(button.name),
                               subtitle: Column(
