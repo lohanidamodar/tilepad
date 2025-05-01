@@ -14,8 +14,14 @@ final serverConnectionsProvider =
     StateNotifierProvider<ServerConnectionsNotifier, List<ServerConnection>>((
       ref,
     ) {
-      return ServerConnectionsNotifier();
+      return ServerConnectionsNotifier(ref);
     });
+
+/// Provider for the default server ID
+final defaultServerIdProvider = StateProvider<String?>((ref) {
+  // The initial value will be updated by ServerConnectionsNotifier when it loads
+  return null;
+});
 
 /// Provider for the currently selected server connection
 final selectedServerConnectionProvider = StateProvider<ServerConnection?>(
@@ -40,8 +46,25 @@ final commandResultProvider = StateProvider<CommandResultEvent?>((ref) {
 
 /// Notifier for server connections
 class ServerConnectionsNotifier extends StateNotifier<List<ServerConnection>> {
+  final Ref? _ref;
+  String? _defaultServerId;
+
+  /// Get the default server ID, if any
+  String? get defaultServerId => _defaultServerId;
+
+  /// Get the default server connection, if set
+  ServerConnection? get defaultServer {
+    if (_defaultServerId == null) return null;
+
+    try {
+      return state.firstWhere((c) => c.id == _defaultServerId);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Creates a new server connections notifier
-  ServerConnectionsNotifier() : super([]) {
+  ServerConnectionsNotifier([this._ref]) : super([]) {
     _loadConnections();
   }
 
@@ -50,6 +73,12 @@ class ServerConnectionsNotifier extends StateNotifier<List<ServerConnection>> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final connectionsJson = prefs.getStringList('server_connections') ?? [];
+      _defaultServerId = prefs.getString('default_server_id');
+
+      // Update the default server ID provider if ref is available
+      if (_ref != null) {
+        _ref.read(defaultServerIdProvider.notifier).state = _defaultServerId;
+      }
 
       final connections =
           connectionsJson
@@ -73,9 +102,28 @@ class ServerConnectionsNotifier extends StateNotifier<List<ServerConnection>> {
           state.map((connection) => jsonEncode(connection.toJson())).toList();
 
       await prefs.setStringList('server_connections', connectionsJson);
+
+      // Save default server ID
+      if (_defaultServerId != null) {
+        await prefs.setString('default_server_id', _defaultServerId!);
+      } else {
+        await prefs.remove('default_server_id');
+      }
     } catch (e) {
       debugPrint('Error saving server connections: $e');
     }
+  }
+
+  /// Sets or clears the default server
+  Future<void> setDefaultServer(String? serverId) async {
+    _defaultServerId = serverId;
+
+    // Update the default server ID provider if ref is available
+    if (_ref != null) {
+      _ref.read(defaultServerIdProvider.notifier).state = _defaultServerId;
+    }
+
+    await _saveConnections();
   }
 
   /// Adds a new server connection

@@ -201,6 +201,7 @@ class ServerListScreen extends ConsumerWidget {
     List<ServerConnection> connections,
   ) {
     final connectionState = ref.watch(providers.connectionStateProvider);
+    final defaultServerId = ref.watch(providers.defaultServerIdProvider);
 
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 80),
@@ -213,6 +214,8 @@ class ServerListScreen extends ConsumerWidget {
             connectionState.status == providers.ConnectionStatus.connected &&
             connectionState.connection?.id == connection.id;
 
+        final isDefault = connection.id == defaultServerId;
+
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ListTile(
@@ -220,7 +223,13 @@ class ServerListScreen extends ConsumerWidget {
               Icons.computer,
               color: isConnected ? Colors.green : null,
             ),
-            title: Text(connection.name),
+            title: Row(
+              children: [
+                Expanded(child: Text(connection.name)),
+                if (isDefault)
+                  const Icon(Icons.star, size: 18, color: Colors.amber),
+              ],
+            ),
             subtitle: Text(
               'Last connected: ${dateFormat.format(connection.lastConnected)}\n${connection.address}',
             ),
@@ -269,6 +278,13 @@ class ServerListScreen extends ConsumerWidget {
     WidgetRef ref,
     ServerConnection connection,
   ) {
+    // Check if this server is the default
+    final isDefault =
+        ref
+            .read(providers.serverConnectionsProvider.notifier)
+            .defaultServerId ==
+        connection.id;
+
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -296,6 +312,36 @@ class ServerListScreen extends ConsumerWidget {
                 onTap: () {
                   Navigator.pop(context);
                   _connectToServer(context, ref, connection);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  isDefault ? Icons.star : Icons.star_border,
+                  color: isDefault ? Colors.amber : null,
+                ),
+                title: Text(isDefault ? 'Remove as Default' : 'Set as Default'),
+                onTap: () {
+                  Navigator.pop(context);
+
+                  // Toggle default status
+                  final connectionsNotifier = ref.read(
+                    providers.serverConnectionsProvider.notifier,
+                  );
+                  connectionsNotifier.setDefaultServer(
+                    isDefault ? null : connection.id,
+                  );
+
+                  // Show confirmation
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isDefault
+                            ? 'Default server removed'
+                            : '${connection.name} set as default server',
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
                 },
               ),
               ListTile(

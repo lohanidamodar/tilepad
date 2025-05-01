@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'server_list_screen.dart';
+import 'splash_screen.dart';
 
 /// Main entry point for the client app
 void main() {
@@ -38,7 +38,7 @@ class MarcoDeckClientApp extends ConsumerWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      home: const ServerListScreen(),
+      home: const SplashScreen(),
     );
   }
 }
