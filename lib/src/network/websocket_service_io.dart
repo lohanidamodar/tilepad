@@ -19,6 +19,10 @@ class IOClientWebSocketService implements ClientWebSocketService {
   WebSocketChannel? _channel;
   final _messageController = StreamController<Message>.broadcast();
   bool _isConnected = false;
+  String? _lastConnectedAddress;
+  Timer? _reconnectTimer;
+  Timer? _pingTimer;
+  bool _reconnecting = false;
 
   @override
   WebSocketChannel? get channel => _channel;
@@ -33,6 +37,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
   Future<bool> connect(String address) async {
     try {
       debugPrint('Attempting to connect to: $address');
+      _lastConnectedAddress = address;
 
       // Close existing connection if any
       await close();
@@ -41,12 +46,13 @@ class IOClientWebSocketService implements ClientWebSocketService {
       try {
         _channel = IOWebSocketChannel.connect(
           Uri.parse(address),
-          pingInterval: const Duration(seconds: 5),
+          pingInterval: const Duration(seconds: 2),
         );
       } catch (e) {
         // Handle immediate connection failures
         debugPrint('Immediate connection failure: $e');
         _isConnected = false;
+        _startReconnectionTimer();
         return false;
       }
 
@@ -57,6 +63,18 @@ class IOClientWebSocketService implements ClientWebSocketService {
             try {
               final message = Message.decode(data);
               _messageController.add(message);
+
+              // If we receive a ping message, respond with a pong
+              if (message.type == MessageType.ping) {
+                sendMessage(
+                  Message(
+                    type: MessageType.pong,
+                    payload: {
+                      'timestamp': DateTime.now().millisecondsSinceEpoch,
+                    },
+                  ),
+                );
+              }
             } catch (e) {
               debugPrint('Error decoding message: $e');
             }
@@ -65,37 +83,83 @@ class IOClientWebSocketService implements ClientWebSocketService {
         onDone: () {
           debugPrint('WebSocket connection closed');
           _isConnected = false;
+          _startReconnectionTimer();
         },
         onError: (error) {
           debugPrint('WebSocket error: $error');
           _isConnected = false;
+          _startReconnectionTimer();
         },
       );
 
       // Wait a short time to ensure connection is established
-      // Try to get an initial message or response to validate the connection
       try {
         await Future.delayed(const Duration(milliseconds: 500));
         // Check if the connection was dropped during the delay
         if (_channel == null) {
           debugPrint('Connection was closed during initial delay');
           _isConnected = false;
+          _startReconnectionTimer();
           return false;
         }
       } catch (e) {
         debugPrint('Error during connection verification: $e');
         _isConnected = false;
+        _startReconnectionTimer();
         return false;
       }
 
       _isConnected = true;
       debugPrint('Connection established');
+
+      // Start ping timer for explicit ping messages
+      _startPingTimer();
+
       return true;
     } catch (e) {
       _isConnected = false;
       debugPrint('Failed to connect: $e');
+      _startReconnectionTimer();
       return false;
     }
+  }
+
+  void _startPingTimer() {
+    _pingTimer?.cancel();
+    _pingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (_isConnected) {
+        try {
+          sendMessage(
+            Message(
+              type: MessageType.ping,
+              payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+            ),
+          );
+        } catch (e) {
+          debugPrint('Error sending ping: $e');
+          _isConnected = false;
+          _startReconnectionTimer();
+        }
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _startReconnectionTimer() {
+    if (_reconnecting || _lastConnectedAddress == null) return;
+
+    _reconnecting = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      debugPrint('Attempting to reconnect...');
+      final success = await connect(_lastConnectedAddress!);
+      if (success) {
+        debugPrint('Reconnection successful');
+        timer.cancel();
+        _reconnecting = false;
+      }
+    });
   }
 
   @override
@@ -106,6 +170,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
       } catch (e) {
         debugPrint('Error sending message: $e');
         _isConnected = false;
+        _startReconnectionTimer();
       }
     }
   }
@@ -113,6 +178,9 @@ class IOClientWebSocketService implements ClientWebSocketService {
   @override
   Future<void> close() async {
     _isConnected = false;
+    _pingTimer?.cancel();
+    _reconnectTimer?.cancel();
+    _reconnecting = false;
     await _channel?.sink.close();
     _channel = null;
   }
@@ -123,9 +191,11 @@ class IOServerWebSocketService implements ServerWebSocketService {
   HttpServer? _server;
   final List<WebSocket> _clients = [];
   final Map<WebSocket, ClientInfo> _clientInfo = {};
+  final Map<WebSocket, DateTime> _lastPongReceived = {};
   final _messageController = StreamController<Message>.broadcast();
   final _clientConnectionController =
       StreamController<ClientConnectionEvent>.broadcast();
+  Timer? _pingTimer;
 
   @override
   Stream<Message> get messageStream => _messageController.stream;
@@ -154,10 +224,55 @@ class IOServerWebSocketService implements ServerWebSocketService {
         }
       });
 
+      // Start ping timer to check client connections
+      _startPingTimer();
+
       return true;
     } catch (e) {
       debugPrint('Failed to start server: $e');
       return false;
+    }
+  }
+
+  void _startPingTimer() {
+    _pingTimer?.cancel();
+    _pingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      _pingClients();
+      _checkClientTimeouts();
+    });
+  }
+
+  void _pingClients() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final pingMessage =
+        Message(
+          type: MessageType.ping,
+          payload: {'timestamp': timestamp},
+        ).encode();
+
+    for (var client in [..._clients]) {
+      try {
+        client.add(pingMessage);
+      } catch (e) {
+        debugPrint('Error pinging client: $e');
+        _handleClientDisconnection(client);
+      }
+    }
+  }
+
+  void _checkClientTimeouts() {
+    final now = DateTime.now();
+    final timeout = const Duration(seconds: 10); // Allow for some network delay
+
+    for (var client in [..._clients]) {
+      final lastPong = _lastPongReceived[client];
+      if (lastPong != null) {
+        final elapsed = now.difference(lastPong);
+        if (elapsed > timeout) {
+          debugPrint('Client timed out: ${_clientInfo[client]?.id}');
+          _handleClientDisconnection(client);
+        }
+      }
     }
   }
 
@@ -169,6 +284,9 @@ class IOServerWebSocketService implements ServerWebSocketService {
     final clientInfo = ClientInfo.fromWebSocket(client, request);
     _clientInfo[client] = clientInfo;
 
+    // Initialize last pong timestamp
+    _lastPongReceived[client] = DateTime.now();
+
     // Emit client connected event
     _clientConnectionController.add(
       ClientConnectionEvent(clientInfo: clientInfo, connected: true),
@@ -179,7 +297,13 @@ class IOServerWebSocketService implements ServerWebSocketService {
         if (data is String) {
           try {
             final message = Message.decode(data);
-            _messageController.add(message);
+
+            // Update last pong time if this is a pong message
+            if (message.type == MessageType.pong) {
+              _lastPongReceived[client] = DateTime.now();
+            } else {
+              _messageController.add(message);
+            }
           } catch (e) {
             debugPrint('Error decoding message: $e');
           }
@@ -203,6 +327,14 @@ class IOServerWebSocketService implements ServerWebSocketService {
     // Remove client
     _clients.remove(client);
     _clientInfo.remove(client);
+    _lastPongReceived.remove(client);
+
+    // Close the client socket
+    try {
+      client.close();
+    } catch (e) {
+      // Socket already closed, ignore
+    }
 
     // Emit client disconnected event if we had info about this client
     if (clientInfo != null) {
@@ -220,18 +352,30 @@ class IOServerWebSocketService implements ServerWebSocketService {
   @override
   void broadcast(Message message) {
     final encodedMessage = message.encode();
-    for (var client in _clients) {
-      client.add(encodedMessage);
+    for (var client in [..._clients]) {
+      try {
+        client.add(encodedMessage);
+      } catch (e) {
+        debugPrint('Error broadcasting to client: $e');
+        _handleClientDisconnection(client);
+      }
     }
   }
 
   @override
   Future<void> close() async {
+    _pingTimer?.cancel();
+
     for (var client in [..._clients]) {
-      await client.close();
+      try {
+        await client.close();
+      } catch (e) {
+        // Ignore errors when closing
+      }
     }
     _clients.clear();
     _clientInfo.clear();
+    _lastPongReceived.clear();
 
     await _server?.close();
   }

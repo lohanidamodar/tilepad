@@ -28,6 +28,12 @@ enum MessageType {
 
   /// Error message
   error,
+
+  /// Ping message to check connection status
+  ping,
+
+  /// Pong response to a ping message
+  pong,
 }
 
 /// A message that can be sent between the client and server
