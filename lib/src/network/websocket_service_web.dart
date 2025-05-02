@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:marco_deck/src/client/client_providers.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/html.dart';
 
@@ -24,6 +25,10 @@ class WebClientWebSocketService implements ClientWebSocketService {
   Timer? _reconnectTimer;
   void Function(bool)? _onReconnectionStateChanged;
 
+  // Connection monitoring
+  StreamController<ConnectionStatus>? _connectionStatusController;
+  Timer? _connectionMonitorTimer;
+
   @override
   WebSocketChannel? get channel => _channel;
 
@@ -36,6 +41,13 @@ class WebClientWebSocketService implements ClientWebSocketService {
   @override
   set onReconnectionStateChanged(void Function(bool) callback) {
     _onReconnectionStateChanged = callback;
+  }
+
+  @override
+  Stream<ConnectionStatus> get connectionStatusStream {
+    _connectionStatusController ??=
+        StreamController<ConnectionStatus>.broadcast();
+    return _connectionStatusController!.stream;
   }
 
   @override
@@ -115,11 +127,23 @@ class WebClientWebSocketService implements ClientWebSocketService {
         onDone: () {
           debugPrint('Web: WebSocket connection closed');
           _isConnected = false;
+
+          // Notify about disconnection
+          if (_connectionStatusController != null) {
+            _connectionStatusController!.add(ConnectionStatus.disconnected);
+          }
+
           _startReconnectionTimer();
         },
         onError: (error) {
           debugPrint('Web: WebSocket error: $error');
           _isConnected = false;
+
+          // Notify about disconnection
+          if (_connectionStatusController != null) {
+            _connectionStatusController!.add(ConnectionStatus.disconnected);
+          }
+
           _startReconnectionTimer();
         },
       );
@@ -170,6 +194,9 @@ class WebClientWebSocketService implements ClientWebSocketService {
         _reconnectTimer?.cancel();
         _reconnectTimer = null;
       }
+
+      // Start connection monitoring
+      _startConnectionMonitoring();
 
       return true;
     } catch (e) {
@@ -234,6 +261,9 @@ class WebClientWebSocketService implements ClientWebSocketService {
     // Cancel reconnection
     cancelReconnection();
 
+    // Stop connection monitoring
+    _stopConnectionMonitoring();
+
     // Close the channel properly
     try {
       await _channel?.sink.close(1000, 'Connection closed by client');
@@ -243,6 +273,25 @@ class WebClientWebSocketService implements ClientWebSocketService {
       _channel = null;
       _lastConnectedAddress = null; // Reset the address to ensure a clean state
     }
+  }
+
+  /// Monitor connection health periodically
+  void _startConnectionMonitoring() {
+    _connectionMonitorTimer?.cancel();
+    _connectionMonitorTimer = Timer.periodic(const Duration(seconds: 3), (
+      timer,
+    ) {
+      if (!_isConnected && _connectionStatusController != null) {
+        // If we're not connected, emit a disconnected status
+        _connectionStatusController!.add(ConnectionStatus.disconnected);
+      }
+    });
+  }
+
+  /// Stop connection monitoring
+  void _stopConnectionMonitoring() {
+    _connectionMonitorTimer?.cancel();
+    _connectionMonitorTimer = null;
   }
 }
 

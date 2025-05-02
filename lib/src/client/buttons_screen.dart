@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marco_deck/src/network/websocket_service.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../models/server_connection.dart';
@@ -28,9 +29,15 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   bool _showResult = false;
   final PageController _pageController = PageController();
 
+  // Reference to the WebSocket service
+  late final ClientWebSocketService _webSocketService;
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize WebSocket service reference
+    _webSocketService = ClientWebSocketService();
 
     // Request buttons from server when screen is first shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -134,6 +141,51 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
   }
 
+  /// Handles connection loss by attempting to reconnect
+  void _handleConnectionLoss(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final connectionState = ref.read(connectionStateProvider);
+
+    // Show dialog to inform the user
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: colorScheme.error),
+                const SizedBox(width: 12),
+                const Text('Connection Lost'),
+              ],
+            ),
+            content: const Text(
+              'The connection to the server has been lost. Would you like to reconnect?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+
+                  // Attempt to reconnect if we have connection info
+                  if (connectionState.connection != null) {
+                    ref
+                        .read(connectionStateProvider.notifier)
+                        .connect(connectionState.connection!);
+                  }
+                },
+                child: const Text('Reconnect'),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final connectionState = ref.watch(connectionStateProvider);
@@ -142,7 +194,21 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     final commandResult = ref.watch(commandResultProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
+    // More robust connection status check - only show buttons if truly connected
     final isConnected = connectionState.status == ConnectionStatus.connected;
+
+    // For debugging - log connection state changes
+    debugPrint('ButtonsScreen: Connection status: ${connectionState.status}');
+
+    // Connection lost detection for more responsive UI
+    if (connectionState.status == ConnectionStatus.disconnected &&
+        pages.isNotEmpty) {
+      // If we have buttons but the connection is gone, clear the buttons
+      // This ensures we don't show stale buttons from a previous connection
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(pagesProvider.notifier).state = [];
+      });
+    }
 
     // Synchronize page controller with the selected index from provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -202,16 +268,22 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
               tooltip: 'Refresh buttons',
               style: IconButton.styleFrom(foregroundColor: colorScheme.primary),
               onPressed: () {
-                ref.read(connectionStateProvider.notifier).requestButtons();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Buttons refreshed'),
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 1),
-                    backgroundColor: colorScheme.primaryContainer,
-                    showCloseIcon: true,
-                  ),
-                );
+                // Before refreshing, ensure connection is active
+                if (_webSocketService.isConnected) {
+                  ref.read(connectionStateProvider.notifier).requestButtons();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Buttons refreshed'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 1),
+                      backgroundColor: colorScheme.primaryContainer,
+                      showCloseIcon: true,
+                    ),
+                  );
+                } else {
+                  // Connection lost, attempt to reconnect
+                  _handleConnectionLoss(context);
+                }
               },
             ),
           PopupMenuButton<String>(

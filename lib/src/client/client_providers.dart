@@ -355,6 +355,10 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
       _handleServerMessage,
     );
 
+    // Listen for connection status changes from the WebSocket service
+    _connectionStatusSubscription = _webSocketService.connectionStatusStream
+        .listen(_handleConnectionStatusChange);
+
     // Set up reconnection listener
     _setupReconnectionListener();
   }
@@ -363,8 +367,41 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
   void dispose() {
     _cancelConnectionTimeout();
     _messageSubscription.cancel();
+    _connectionStatusSubscription.cancel();
     _webSocketService.close();
     super.dispose();
+  }
+
+  // Subscription for connection status changes
+  late StreamSubscription<ConnectionStatus> _connectionStatusSubscription;
+
+  /// Handle connection status changes from the WebSocket service
+  void _handleConnectionStatusChange(ConnectionStatus status) {
+    debugPrint('Connection status changed: $status');
+
+    if (status == ConnectionStatus.disconnected &&
+        state.status != ConnectionStatus.disconnected &&
+        state.status != ConnectionStatus.reconnecting) {
+      // If we were connected but now we're disconnected, and not already reconnecting
+      debugPrint('Connection lost, updating UI to disconnected state');
+
+      // Check if we have a connection to retry with
+      if (state.connection != null) {
+        // Update UI to show reconnecting state
+        state = ConnectionState(
+          status: ConnectionStatus.reconnecting,
+          connection: state.connection,
+          errorMessage: 'Connection lost, attempting to reconnect...',
+        );
+
+        // Start reconnection process
+        _isReconnecting = true;
+        _startReconnectAttemptCounter();
+      } else {
+        // Just show disconnected
+        state = const ConnectionState(status: ConnectionStatus.disconnected);
+      }
+    }
   }
 
   /// Connects to a server

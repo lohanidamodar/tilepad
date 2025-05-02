@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/button.dart';
+import '../network/websocket_service.dart';
+import 'client_providers.dart';
 
 /// Widget that displays a grid of macro buttons
-class ButtonGrid extends StatelessWidget {
+class ButtonGrid extends ConsumerWidget {
   /// The list of buttons to display
   final List<Button> buttons;
 
@@ -42,7 +45,7 @@ class ButtonGrid extends StatelessWidget {
   const ButtonGrid({super.key, required this.buttons, this.onButtonPressed});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (buttons.isEmpty) {
       return const Center(
         child: Text('No buttons available', style: TextStyle(fontSize: 18)),
@@ -59,21 +62,76 @@ class ButtonGrid extends StatelessWidget {
       itemCount: buttons.length,
       itemBuilder: (context, index) {
         final button = buttons[index];
-        return _buildButton(context, button);
+        return _buildButton(context, button, ref);
       },
     );
   }
 
+  /// Handles connection loss and shows a reconnection dialog
+  void _handleConnectionLoss(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final connectionState = ref.read(connectionStateProvider);
+
+    // Show dialog to inform the user
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: colorScheme.error),
+                const SizedBox(width: 12),
+                const Text('Connection Lost'),
+              ],
+            ),
+            content: const Text(
+              'The connection to the server has been lost. Would you like to reconnect?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+
+                  // Attempt to reconnect if we have connection info
+                  if (connectionState.connection != null) {
+                    ref
+                        .read(connectionStateProvider.notifier)
+                        .connect(connectionState.connection!);
+                  }
+                },
+                child: const Text('Reconnect'),
+              ),
+            ],
+          ),
+    );
+  }
+
   /// Builds a single button widget
-  Widget _buildButton(BuildContext context, Button button) {
+  Widget _buildButton(BuildContext context, Button button, WidgetRef ref) {
+    final webSocketService = ClientWebSocketService();
+
     return Material(
       color: _hexToColor(button.color),
       borderRadius: BorderRadius.circular(12),
       elevation: 3,
       child: InkWell(
         onTap: () {
-          if (onButtonPressed != null) {
-            onButtonPressed!(button.id);
+          // Check if connection is active before sending command
+          if (ref.read(connectionStateProvider).status ==
+                  ConnectionStatus.connected &&
+              webSocketService.isConnected) {
+            if (onButtonPressed != null) {
+              onButtonPressed!(button.id);
+            }
+          } else {
+            // Connection is lost, show dialog to reconnect
+            _handleConnectionLoss(context, ref);
           }
         },
         borderRadius: BorderRadius.circular(12),

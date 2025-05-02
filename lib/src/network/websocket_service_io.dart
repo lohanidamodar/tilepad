@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:marco_deck/src/client/client_providers.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -24,6 +25,10 @@ class IOClientWebSocketService implements ClientWebSocketService {
   Timer? _pingTimer;
   bool _reconnecting = false;
   void Function(bool)? _onReconnectionStateChanged;
+
+  // Connection monitoring
+  StreamController<ConnectionStatus>? _connectionStatusController;
+  Timer? _connectionMonitorTimer;
 
   @override
   WebSocketChannel? get channel => _channel;
@@ -53,6 +58,14 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
   @override
   Stream<Message> get messageStream => _messageController.stream;
+
+  /// Stream of connection status changes
+  @override
+  Stream<ConnectionStatus> get connectionStatusStream {
+    _connectionStatusController ??=
+        StreamController<ConnectionStatus>.broadcast();
+    return _connectionStatusController!.stream;
+  }
 
   @override
   Future<bool> connect(String address) async {
@@ -106,11 +119,23 @@ class IOClientWebSocketService implements ClientWebSocketService {
         onDone: () {
           debugPrint('WebSocket connection closed');
           _isConnected = false;
+
+          // Notify about disconnection through the status stream
+          if (_connectionStatusController != null) {
+            _connectionStatusController!.add(ConnectionStatus.disconnected);
+          }
+
           _startReconnectionTimer();
         },
         onError: (error) {
           debugPrint('WebSocket error: $error');
           _isConnected = false;
+
+          // Notify about disconnection through the status stream
+          if (_connectionStatusController != null) {
+            _connectionStatusController!.add(ConnectionStatus.disconnected);
+          }
+
           _startReconnectionTimer();
         },
       );
@@ -164,6 +189,9 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
       // Start ping timer for explicit ping messages
       _startPingTimer();
+
+      // Start connection monitoring
+      _startConnectionMonitoring();
 
       return true;
     } catch (e) {
@@ -228,6 +256,25 @@ class IOClientWebSocketService implements ClientWebSocketService {
     });
   }
 
+  /// Monitor connection health periodically
+  void _startConnectionMonitoring() {
+    _connectionMonitorTimer?.cancel();
+    _connectionMonitorTimer = Timer.periodic(const Duration(seconds: 3), (
+      timer,
+    ) {
+      if (!_isConnected && _connectionStatusController != null) {
+        // If we're not connected, emit a disconnected status
+        _connectionStatusController!.add(ConnectionStatus.disconnected);
+      }
+    });
+  }
+
+  /// Stop connection monitoring
+  void _stopConnectionMonitoring() {
+    _connectionMonitorTimer?.cancel();
+    _connectionMonitorTimer = null;
+  }
+
   @override
   void sendMessage(Message message) {
     if (_channel != null && _isConnected) {
@@ -252,6 +299,9 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
     // Cancel reconnection
     cancelReconnection();
+
+    // Stop connection monitoring
+    _stopConnectionMonitoring();
 
     // Close the channel properly
     try {

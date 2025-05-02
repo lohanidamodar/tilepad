@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:marco_deck/src/client/client_providers.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 // Import platform-specific implementations conditionally
@@ -39,6 +40,9 @@ abstract class ClientWebSocketService implements WebSocketService {
 
   /// Callback for when the reconnection state changes
   set onReconnectionStateChanged(void Function(bool isReconnecting) callback);
+
+  /// Stream that emits connection status changes
+  Stream<ConnectionStatus> get connectionStatusStream;
 
   /// Cancels any ongoing reconnection attempts
   void cancelReconnection();
