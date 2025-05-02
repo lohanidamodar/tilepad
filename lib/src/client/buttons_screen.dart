@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:marco_deck/src/network/websocket_service.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../models/server_connection.dart';
@@ -30,14 +29,12 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   final PageController _pageController = PageController();
 
   // Reference to the WebSocket service
-  late final ClientWebSocketService _webSocketService;
 
   @override
   void initState() {
     super.initState();
 
     // Initialize WebSocket service reference
-    _webSocketService = ClientWebSocketService();
 
     // Request buttons from server when screen is first shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -141,50 +138,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
   }
 
-  /// Handles connection loss by attempting to reconnect
-  void _handleConnectionLoss(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final connectionState = ref.read(connectionStateProvider);
-
-    // Show dialog to inform the user
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.error_outline, color: colorScheme.error),
-                const SizedBox(width: 12),
-                const Text('Connection Lost'),
-              ],
-            ),
-            content: const Text(
-              'The connection to the server has been lost. Would you like to reconnect?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-
-                  // Attempt to reconnect if we have connection info
-                  if (connectionState.connection != null) {
-                    ref
-                        .read(connectionStateProvider.notifier)
-                        .connect(connectionState.connection!);
-                  }
-                },
-                child: const Text('Reconnect'),
-              ),
-            ],
-          ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
