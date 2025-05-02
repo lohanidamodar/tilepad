@@ -33,6 +33,15 @@ abstract class ClientWebSocketService implements WebSocketService {
 
   /// Whether the client is currently connected to a server
   bool get isConnected;
+
+  /// Whether the client is actively trying to reconnect
+  bool get isReconnecting;
+
+  /// Callback for when the reconnection state changes
+  set onReconnectionStateChanged(void Function(bool isReconnecting) callback);
+
+  /// Cancels any ongoing reconnection attempts
+  void cancelReconnection();
 }
 
 /// A server implementation of [WebSocketService]

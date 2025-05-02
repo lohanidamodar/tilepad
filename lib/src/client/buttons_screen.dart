@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../models/server_connection.dart';
-import '../utils/theme.dart';
 import 'client_providers.dart';
 import 'button_grid.dart';
 import 'server_list_screen.dart';
 import 'connection_screen.dart';
+import 'settings_screen.dart';
 
 /// Screen for displaying and interacting with buttons
 class ButtonsScreen extends ConsumerStatefulWidget {
@@ -128,13 +128,18 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     }
   }
 
+  void _showSettings(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final connectionState = ref.watch(connectionStateProvider);
     final pages = ref.watch(pagesProvider);
     final selectedPageIndex = ref.watch(selectedPageIndexProvider);
     final commandResult = ref.watch(commandResultProvider);
-    final themeMode = ref.watch(themeModeProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
     final isConnected = connectionState.status == ConnectionStatus.connected;
@@ -156,26 +161,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(4.0),
-                child: Image.asset(
-                  'assets/logo.png',
-                  errorBuilder:
-                      (context, error, stackTrace) => Icon(
-                        Icons.devices,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
             Text(
               connectionState.connection?.name ?? 'MarcoDeck',
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -211,14 +196,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           ],
         ),
         actions: [
-          // Theme mode selector
-          ThemeModeSelector(
-            currentThemeMode: themeMode,
-            onThemeModeChanged: (mode) {
-              ref.read(themeModeProvider.notifier).setThemeMode(mode);
-            },
-          ),
-
           if (isConnected)
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -254,10 +231,22 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 case 'disconnect':
                   ref.read(connectionStateProvider.notifier).disconnect();
                   break;
+                case 'settings':
+                  _showSettings(context);
+                  break;
               }
             },
             itemBuilder:
                 (BuildContext context) => <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'settings',
+                    child: ListTile(
+                      leading: Icon(Icons.settings, color: colorScheme.primary),
+                      title: const Text('Settings'),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
                   PopupMenuItem<String>(
                     value: 'servers',
                     child: ListTile(
@@ -459,9 +448,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           else
             _buildNoConnectionView(context),
 
-          // Connection status indicator for connecting/error state
+          // Connection status indicator for connecting/error/reconnecting state
           if (connectionState.status == ConnectionStatus.connecting ||
-              connectionState.status == ConnectionStatus.error)
+              connectionState.status == ConnectionStatus.error ||
+              connectionState.status == ConnectionStatus.reconnecting)
             Container(
               color: colorScheme.scrim.withAlpha(200),
               alignment: Alignment.center,
@@ -482,25 +472,43 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(
-                      color:
-                          connectionState.status == ConnectionStatus.connecting
-                              ? colorScheme.primary
-                              : colorScheme.error,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      connectionState.status == ConnectionStatus.connecting
-                          ? 'Connecting...'
-                          : 'Connection Error',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    if (connectionState.status == ConnectionStatus.reconnecting)
+                      // Pulsating reconnection animation
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0.5, end: 1.0),
+                        duration: const Duration(milliseconds: 1000),
+                        builder: (context, value, child) {
+                          return Opacity(opacity: value, child: child);
+                        },
+                        child: Icon(
+                          Icons.sync,
+                          color: colorScheme.primary,
+                          size: 48,
+                        ),
+                      )
+                    else
+                      CircularProgressIndicator(
                         color:
                             connectionState.status ==
                                     ConnectionStatus.connecting
                                 ? colorScheme.primary
                                 : colorScheme.error,
+                      ),
+                    const SizedBox(height: 24),
+                    Text(
+                      connectionState.status == ConnectionStatus.connecting
+                          ? 'Connecting...'
+                          : connectionState.status ==
+                              ConnectionStatus.reconnecting
+                          ? 'Reconnecting...'
+                          : 'Connection Error',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            connectionState.status == ConnectionStatus.error
+                                ? colorScheme.error
+                                : colorScheme.primary,
                       ),
                     ),
                     if (connectionState.errorMessage != null)
@@ -526,15 +534,66 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                             icon: const Icon(Icons.refresh),
                             label: const Text('Retry'),
                           ),
-                        const SizedBox(width: 12),
-                        OutlinedButton(
-                          onPressed: () {
-                            ref
-                                .read(connectionStateProvider.notifier)
-                                .resetErrorState();
-                          },
-                          child: const Text('Dismiss'),
-                        ),
+                        if (connectionState.status ==
+                            ConnectionStatus.reconnecting) ...[
+                          FilledButton.icon(
+                            onPressed: () {
+                              // Cancel the automatic reconnection and manually reconnect
+                              ref
+                                  .read(connectionStateProvider.notifier)
+                                  .cancelReconnection();
+                              if (connectionState.connection != null) {
+                                ref
+                                    .read(connectionStateProvider.notifier)
+                                    .connect(connectionState.connection!);
+                              }
+                            },
+                            icon: const Icon(Icons.sync),
+                            label: const Text('Reconnect Now'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: colorScheme.primaryContainer,
+                              foregroundColor: colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              // Cancel the reconnection attempt
+                              ref
+                                  .read(connectionStateProvider.notifier)
+                                  .cancelReconnection();
+                            },
+                            icon: const Icon(Icons.cancel),
+                            label: const Text('Cancel'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: colorScheme.error,
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(width: 12),
+                          OutlinedButton(
+                            onPressed: () {
+                              if (connectionState.status ==
+                                  ConnectionStatus.connecting) {
+                                // Cancel connection attempt
+                                ref
+                                    .read(connectionStateProvider.notifier)
+                                    .cancelConnection();
+                              } else {
+                                // Dismiss error
+                                ref
+                                    .read(connectionStateProvider.notifier)
+                                    .resetErrorState();
+                              }
+                            },
+                            child: Text(
+                              connectionState.status ==
+                                      ConnectionStatus.connecting
+                                  ? 'Cancel'
+                                  : 'Dismiss',
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],

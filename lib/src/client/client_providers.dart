@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/button.dart';
 import '../models/message.dart';
@@ -59,6 +60,55 @@ final buttonsProvider = StateProvider<List<Button>>((ref) {
 final commandResultProvider = StateProvider<CommandResultEvent?>((ref) {
   return null;
 });
+
+/// Provider for the keep screen awake setting
+final keepAwakeProvider = StateNotifierProvider<KeepAwakeNotifier, bool>((ref) {
+  return KeepAwakeNotifier();
+});
+
+/// Notifier for the keep screen awake setting
+class KeepAwakeNotifier extends StateNotifier<bool> {
+  /// Creates a new keep awake notifier
+  KeepAwakeNotifier() : super(true) {
+    _loadPreference();
+  }
+
+  /// Loads the saved preference
+  Future<void> _loadPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keepAwake = prefs.getBool('keep_screen_awake') ?? true;
+      state = keepAwake;
+
+      // Apply the setting
+      if (keepAwake) {
+        WakelockPlus.enable();
+      } else {
+        WakelockPlus.disable();
+      }
+    } catch (e) {
+      debugPrint('Error loading keep awake preference: $e');
+    }
+  }
+
+  /// Sets whether to keep the screen awake
+  Future<void> setKeepAwake(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('keep_screen_awake', value);
+      state = value;
+
+      // Apply the setting
+      if (value) {
+        WakelockPlus.enable();
+      } else {
+        WakelockPlus.disable();
+      }
+    } catch (e) {
+      debugPrint('Error saving keep awake preference: $e');
+    }
+  }
+}
 
 /// Notifier for server connections
 class ServerConnectionsNotifier extends StateNotifier<List<ServerConnection>> {
@@ -216,6 +266,9 @@ enum ConnectionStatus {
   /// Attempting to connect to a server
   connecting,
 
+  /// Attempting to reconnect to a server after connection loss
+  reconnecting,
+
   /// Connected to a server
   connected,
 
@@ -262,6 +315,38 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
   late StreamSubscription<Message> _messageSubscription;
   Timer? _connectionTimeoutTimer;
 
+  // Reconnection tracking
+  bool _isReconnecting = false;
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 5;
+
+  /// Gets whether the service is currently attempting to reconnect
+  bool get isReconnecting => _isReconnecting;
+
+  /// Sets up listener for WebSocket reconnection
+  void _setupReconnectionListener() {
+    // Listen for the reconnection state from the WebSocket service
+    // We'll use a stream transformer to listen to changes in the connection status
+    _webSocketService.onReconnectionStateChanged = (isReconnecting) {
+      if (isReconnecting && state.status != ConnectionStatus.reconnecting) {
+        // Only update if we're not already in reconnecting state
+        if (state.connection != null) {
+          state = ConnectionState(
+            status: ConnectionStatus.reconnecting,
+            connection: state.connection,
+            errorMessage: 'Connection lost, attempting to reconnect...',
+          );
+        }
+        _isReconnecting = true;
+        _startReconnectAttemptCounter();
+      } else if (!isReconnecting && _isReconnecting) {
+        _isReconnecting = false;
+        _cancelReconnectAttemptCounter();
+      }
+    };
+  }
+
   /// Creates a new connection state notifier
   ConnectionStateNotifier(this._ref)
     : super(const ConnectionState(status: ConnectionStatus.disconnected)) {
@@ -269,6 +354,9 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
     _messageSubscription = _webSocketService.messageStream.listen(
       _handleServerMessage,
     );
+
+    // Set up reconnection listener
+    _setupReconnectionListener();
   }
 
   @override
@@ -282,6 +370,12 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
   /// Connects to a server
   Future<bool> connect(ServerConnection connection) async {
     try {
+      debugPrint('Connecting to server: ${connection.address}');
+      // If currently reconnecting, cancel that first
+      if (_isReconnecting) {
+        cancelReconnection();
+      }
+
       // Update state to connecting
       state = ConnectionState(
         status: ConnectionStatus.connecting,
@@ -380,13 +474,68 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
         // Connection attempt has timed out
         _webSocketService.close();
 
-        state = ConnectionState(
-          status: ConnectionStatus.error,
-          errorMessage: 'Connection timed out',
-          connection: state.connection,
-        );
+        if (state.connection != null) {
+          // Instead of just showing an error, transition to reconnecting state
+          state = ConnectionState(
+            status: ConnectionStatus.reconnecting,
+            errorMessage: 'Connection timed out, attempting to reconnect...',
+            connection: state.connection,
+          );
+
+          // Start reconnection process
+          _handleConnectionTimeout();
+        } else {
+          // If no connection info, just show error
+          state = ConnectionState(
+            status: ConnectionStatus.error,
+            errorMessage: 'Connection timed out',
+            connection: state.connection,
+          );
+        }
       }
     });
+  }
+
+  /// Handles connection timeout by initiating auto-retry
+  void _handleConnectionTimeout() {
+    if (state.connection == null) return;
+
+    // Start reconnect attempt counter and retry connection
+    _isReconnecting = true;
+    _startReconnectAttemptCounter();
+
+    // Schedule first retry after a short delay
+    Timer(const Duration(milliseconds: 500), () {
+      if (_isReconnecting && state.connection != null) {
+        _retryConnection();
+      }
+    });
+  }
+
+  /// Retries connection after timeout or other error
+  Future<void> _retryConnection() async {
+    if (!_isReconnecting || state.connection == null) return;
+
+    try {
+      debugPrint('Auto-retrying connection after timeout...');
+      final success = await _webSocketService.connect(
+        state.connection!.address,
+      );
+
+      if (success) {
+        // Send connect message
+        _webSocketService.sendMessage(Message(type: MessageType.connect));
+
+        // Set ack timeout
+        _setAckTimeout(state.connection!);
+      } else {
+        // Let the reconnection timer handle the next retry
+        debugPrint('Auto-retry failed, will try again...');
+      }
+    } catch (e) {
+      debugPrint('Error during auto-retry: $e');
+      // Keep reconnection state active, timer will handle next retry
+    }
   }
 
   /// Cancels the connection timeout timer if it exists
@@ -406,14 +555,28 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
 
   /// Disconnects from the server
   Future<void> disconnect() async {
+    debugPrint('Fully disconnecting from server and cleaning up resources');
+
+    // Cancel all timers and pending operations
     _cancelConnectionTimeout();
+    _cancelAckTimeout();
+    _cancelReconnectAttemptCounter();
+
+    // Make sure any reconnection attempts are canceled
+    if (_isReconnecting) {
+      _webSocketService.cancelReconnection();
+      _isReconnecting = false;
+    }
+
+    // Close the WebSocket connection properly
     await _webSocketService.close();
 
-    // Update state to disconnected
+    // Completely reset the state
     state = const ConnectionState(status: ConnectionStatus.disconnected);
 
     // Clear buttons
-    _ref.read(buttonsProvider.notifier).state = [];
+    _ref.read(pagesProvider.notifier).state = [];
+    _ref.read(selectedPageIndexProvider.notifier).state = 0;
   }
 
   /// Resets error state back to disconnected
@@ -528,6 +691,58 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
       );
     } catch (e) {
       debugPrint('Error handling command result: $e');
+    }
+  }
+
+  /// Starts the reconnect attempt counter
+  void _startReconnectAttemptCounter() {
+    _reconnectAttempts = 0;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      _reconnectAttempts++;
+
+      // If we've reached max attempts, cancel reconnection
+      if (_reconnectAttempts >= _maxReconnectAttempts) {
+        cancelReconnection();
+
+        // Set to error state with message
+        state = ConnectionState(
+          status: ConnectionStatus.error,
+          errorMessage:
+              'Reconnection failed after $_maxReconnectAttempts attempts',
+          connection: state.connection,
+        );
+      } else {
+        // Update the error message to show attempt count
+        if (state.status == ConnectionStatus.reconnecting &&
+            state.connection != null) {
+          state = ConnectionState(
+            status: ConnectionStatus.reconnecting,
+            connection: state.connection,
+            errorMessage:
+                'Connection lost, reconnection attempt $_reconnectAttempts of $_maxReconnectAttempts...',
+          );
+        }
+      }
+    });
+  }
+
+  /// Cancels the reconnect attempt counter
+  void _cancelReconnectAttemptCounter() {
+    _reconnectAttempts = 0;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+  }
+
+  /// Cancels any ongoing reconnection attempts
+  void cancelReconnection() {
+    if (_isReconnecting) {
+      _webSocketService.cancelReconnection();
+      _cancelReconnectAttemptCounter();
+      _isReconnecting = false;
+
+      // Update UI to disconnected state
+      state = const ConnectionState(status: ConnectionStatus.disconnected);
     }
   }
 }

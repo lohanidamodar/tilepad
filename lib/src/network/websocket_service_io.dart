@@ -23,12 +23,33 @@ class IOClientWebSocketService implements ClientWebSocketService {
   Timer? _reconnectTimer;
   Timer? _pingTimer;
   bool _reconnecting = false;
+  void Function(bool)? _onReconnectionStateChanged;
 
   @override
   WebSocketChannel? get channel => _channel;
 
   @override
   bool get isConnected => _isConnected;
+
+  @override
+  bool get isReconnecting => _reconnecting;
+
+  @override
+  set onReconnectionStateChanged(void Function(bool) callback) {
+    _onReconnectionStateChanged = callback;
+  }
+
+  @override
+  void cancelReconnection() {
+    if (_reconnecting) {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+      _reconnecting = false;
+      if (_onReconnectionStateChanged != null) {
+        _onReconnectionStateChanged!(false);
+      }
+    }
+  }
 
   @override
   Stream<Message> get messageStream => _messageController.stream;
@@ -42,17 +63,19 @@ class IOClientWebSocketService implements ClientWebSocketService {
       // Close existing connection if any
       await close();
 
-      // Create the connection
+      // Create the connection with a shorter timeout
       try {
         _channel = IOWebSocketChannel.connect(
           Uri.parse(address),
           pingInterval: const Duration(seconds: 2),
+          connectTimeout: const Duration(
+            seconds: 8,
+          ), // Add explicit timeout for connection
         );
       } catch (e) {
         // Handle immediate connection failures
         debugPrint('Immediate connection failure: $e');
         _isConnected = false;
-        _startReconnectionTimer();
         return false;
       }
 
@@ -102,15 +125,42 @@ class IOClientWebSocketService implements ClientWebSocketService {
           _startReconnectionTimer();
           return false;
         }
+
+        // Send a test ping to verify the connection is actually working
+        try {
+          debugPrint('Sending test ping to verify connection');
+          _channel!.sink.add(
+            Message(
+              type: MessageType.ping,
+              payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+            ).encode(),
+          );
+        } catch (e) {
+          debugPrint('Error sending test ping: $e');
+          _isConnected = false;
+          await _channel?.sink.close();
+          _channel = null;
+          _startReconnectionTimer();
+          return false;
+        }
       } catch (e) {
         debugPrint('Error during connection verification: $e');
         _isConnected = false;
-        _startReconnectionTimer();
         return false;
       }
 
       _isConnected = true;
       debugPrint('Connection established');
+
+      // If we were reconnecting, notify that we're no longer reconnecting
+      if (_reconnecting) {
+        _reconnecting = false;
+        if (_onReconnectionStateChanged != null) {
+          _onReconnectionStateChanged!(false);
+        }
+        _reconnectTimer?.cancel();
+        _reconnectTimer = null;
+      }
 
       // Start ping timer for explicit ping messages
       _startPingTimer();
@@ -119,7 +169,6 @@ class IOClientWebSocketService implements ClientWebSocketService {
     } catch (e) {
       _isConnected = false;
       debugPrint('Failed to connect: $e');
-      _startReconnectionTimer();
       return false;
     }
   }
@@ -150,14 +199,31 @@ class IOClientWebSocketService implements ClientWebSocketService {
     if (_reconnecting || _lastConnectedAddress == null) return;
 
     _reconnecting = true;
+    // Notify about reconnection state change
+    if (_onReconnectionStateChanged != null) {
+      _onReconnectionStateChanged!(true);
+    }
+
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-      debugPrint('Attempting to reconnect...');
-      final success = await connect(_lastConnectedAddress!);
-      if (success) {
-        debugPrint('Reconnection successful');
+      if (!_reconnecting) {
         timer.cancel();
-        _reconnecting = false;
+        return;
+      }
+
+      debugPrint('Attempting to reconnect...');
+      try {
+        final success = await connect(_lastConnectedAddress!);
+        if (success) {
+          debugPrint('Reconnection successful');
+          timer.cancel();
+          _reconnecting = false;
+          if (_onReconnectionStateChanged != null) {
+            _onReconnectionStateChanged!(false);
+          }
+        }
+      } catch (e) {
+        debugPrint('Reconnection attempt failed: $e');
       }
     });
   }
@@ -177,12 +243,28 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
   @override
   Future<void> close() async {
+    debugPrint('Closing WebSocket connection and cleaning up resources');
     _isConnected = false;
+
+    // Cancel all timers
     _pingTimer?.cancel();
-    _reconnectTimer?.cancel();
-    _reconnecting = false;
-    await _channel?.sink.close();
-    _channel = null;
+    _pingTimer = null;
+
+    // Cancel reconnection
+    cancelReconnection();
+
+    // Close the channel properly
+    try {
+      await _channel?.sink.close(
+        WebSocketStatus.normalClosure,
+        'Connection closed by client',
+      );
+    } catch (e) {
+      debugPrint('Error closing WebSocket channel: $e');
+    } finally {
+      _channel = null;
+      _lastConnectedAddress = null; // Reset the address to ensure a clean state
+    }
   }
 }
 

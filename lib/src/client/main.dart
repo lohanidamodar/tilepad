@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'splash_screen.dart';
 import 'client_providers.dart' as providers;
@@ -15,6 +16,9 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // Keep the screen awake while the app is running
+  WakelockPlus.enable();
 
   runApp(const ProviderScope(child: MarcoDeckClientApp()));
 }
