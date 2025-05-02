@@ -231,7 +231,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
     if (_onReconnectionStateChanged != null) {
       _onReconnectionStateChanged!(true);
     }
-    
+
     // Track reconnection attempts for exponential backoff
     int currentReconnectAttempt = 0;
     final int maxReconnectAttempts = 10;
@@ -242,22 +242,25 @@ class IOClientWebSocketService implements ClientWebSocketService {
         timer.cancel();
         return;
       }
-      
+
       currentReconnectAttempt++;
-      
+
       // Calculate delay based on attempt number (exponential backoff with a cap)
       // This will start at 5 seconds and gradually increase
-      final int delaySeconds = currentReconnectAttempt > 5 
-          ? 20  // Cap at 20 seconds max delay
-          : 5 * currentReconnectAttempt;
-      
-      debugPrint('Reconnection attempt $currentReconnectAttempt of $maxReconnectAttempts (delay: ${delaySeconds}s)');
-      
+      final int delaySeconds =
+          currentReconnectAttempt > 5
+              ? 20 // Cap at 20 seconds max delay
+              : 5 * currentReconnectAttempt;
+
+      debugPrint(
+        'Reconnection attempt $currentReconnectAttempt of $maxReconnectAttempts (delay: ${delaySeconds}s)',
+      );
+
       // Notify status update with current attempt info via reconnection state change
       if (_onReconnectionStateChanged != null) {
         _onReconnectionStateChanged!(true);
       }
-      
+
       if (_connectionStatusController != null) {
         _connectionStatusController!.add(ConnectionStatus.reconnecting);
       }
@@ -274,8 +277,10 @@ class IOClientWebSocketService implements ClientWebSocketService {
         } else {
           // Don't attempt to reconnect again immediately
           // The timer will trigger the next attempt after the specified delay
-          debugPrint('Reconnection attempt failed, waiting ${delaySeconds}s before next attempt');
-          
+          debugPrint(
+            'Reconnection attempt failed, waiting ${delaySeconds}s before next attempt',
+          );
+
           // If we've reached the maximum number of attempts, stop reconnecting
           if (currentReconnectAttempt >= maxReconnectAttempts) {
             debugPrint('Maximum reconnection attempts reached, giving up');

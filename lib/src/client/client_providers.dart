@@ -737,35 +737,41 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _reconnectAttempts++;
-      
+
       // Only update the UI every 5 seconds or when a new attempt is about to happen
       if (_reconnectAttempts % 5 == 0 || _reconnectAttempts % 5 == 1) {
         // Calculate how long until next reconnection attempt based on the attempt number
-        int delayBetweenAttempts = _reconnectAttempts > 5 ? 20 : 5 * (_reconnectAttempts ~/ 5 + 1);
-        int secondsUntilNextAttempt = delayBetweenAttempts - (_reconnectAttempts % delayBetweenAttempts);
-        
+        int delayBetweenAttempts =
+            _reconnectAttempts > 5 ? 20 : 5 * (_reconnectAttempts ~/ 5 + 1);
+        int secondsUntilNextAttempt =
+            delayBetweenAttempts - (_reconnectAttempts % delayBetweenAttempts);
+
         // If we've just made an attempt, report the next delay
         if (_reconnectAttempts % delayBetweenAttempts == 1) {
           secondsUntilNextAttempt = delayBetweenAttempts - 1;
         }
-        
+
         // Update the error message to show attempt count and time until next attempt
-        if (state.status == ConnectionStatus.reconnecting && state.connection != null) {
+        if (state.status == ConnectionStatus.reconnecting &&
+            state.connection != null) {
           // Show the correct attempt number (attempts are counted from 1)
-          final int displayAttempt = (_reconnectAttempts / delayBetweenAttempts).ceil();
-          
+          final int displayAttempt =
+              (_reconnectAttempts / delayBetweenAttempts).ceil();
+
           state = ConnectionState(
             status: ConnectionStatus.reconnecting,
             connection: state.connection,
-            errorMessage: secondsUntilNextAttempt <= 0 
-                ? 'Connection lost, attempting reconnection $displayAttempt of $_maxReconnectAttempts...'
-                : 'Connection lost, next reconnection attempt in ${secondsUntilNextAttempt}s ($displayAttempt of $_maxReconnectAttempts)',
+            errorMessage:
+                secondsUntilNextAttempt <= 0
+                    ? 'Connection lost, attempting reconnection $displayAttempt of $_maxReconnectAttempts...'
+                    : 'Connection lost, next reconnection attempt in ${secondsUntilNextAttempt}s ($displayAttempt of $_maxReconnectAttempts)',
           );
         }
       }
 
       // If we've reached max attempts, cancel reconnection
-      if (_reconnectAttempts >= 120) { // ~2 minutes total time (with increasing delays)
+      if (_reconnectAttempts >= 120) {
+        // ~2 minutes total time (with increasing delays)
         cancelReconnection();
 
         // Set to error state with message
