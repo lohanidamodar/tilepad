@@ -269,21 +269,16 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
               style: IconButton.styleFrom(foregroundColor: colorScheme.primary),
               onPressed: () {
                 // Before refreshing, ensure connection is active
-                if (_webSocketService.isConnected) {
-                  ref.read(connectionStateProvider.notifier).requestButtons();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Buttons refreshed'),
-                      behavior: SnackBarBehavior.floating,
-                      duration: const Duration(seconds: 1),
-                      backgroundColor: colorScheme.primaryContainer,
-                      showCloseIcon: true,
-                    ),
-                  );
-                } else {
-                  // Connection lost, attempt to reconnect
-                  _handleConnectionLoss(context);
-                }
+                ref.read(connectionStateProvider.notifier).requestButtons();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Buttons refreshed'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: colorScheme.primaryContainer,
+                    showCloseIcon: true,
+                  ),
+                );
               },
             ),
           PopupMenuButton<String>(

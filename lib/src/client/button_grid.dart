@@ -114,8 +114,6 @@ class ButtonGrid extends ConsumerWidget {
 
   /// Builds a single button widget
   Widget _buildButton(BuildContext context, Button button, WidgetRef ref) {
-    final webSocketService = ClientWebSocketService();
-
     return Material(
       color: _hexToColor(button.color),
       borderRadius: BorderRadius.circular(12),
@@ -124,8 +122,7 @@ class ButtonGrid extends ConsumerWidget {
         onTap: () {
           // Check if connection is active before sending command
           if (ref.read(connectionStateProvider).status ==
-                  ConnectionStatus.connected &&
-              webSocketService.isConnected) {
+              ConnectionStatus.connected) {
             if (onButtonPressed != null) {
               onButtonPressed!(button.id);
             }
