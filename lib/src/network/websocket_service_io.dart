@@ -203,7 +203,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
   void _startPingTimer() {
     _pingTimer?.cancel();
-    _pingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+    _pingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_isConnected) {
         try {
           sendMessage(
@@ -411,7 +411,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
 
   void _startPingTimer() {
     _pingTimer?.cancel();
-    _pingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+    _pingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _pingClients();
       _checkClientTimeouts();
     });
