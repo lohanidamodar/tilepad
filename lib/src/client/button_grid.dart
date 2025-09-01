@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/button.dart';
+import '../utils/accessibility.dart';
 import 'client_providers.dart';
 
 /// Widget that displays a grid of macro buttons with enhanced visual feedback
@@ -111,7 +112,10 @@ class ButtonGrid extends ConsumerWidget {
     final connectionState = ref.read(connectionStateProvider);
 
     // Provide haptic feedback
-    HapticFeedback.mediumImpact();
+    AccessibilityUtils.provideFeedback(FeedbackType.medium);
+    
+    // Announce connection loss to screen readers
+    AccessibilityUtils.announce(context, 'Connection to server lost');
 
     // Show dialog to inform the user
     showDialog(
@@ -132,6 +136,7 @@ class ButtonGrid extends ConsumerWidget {
               Navigator.of(context).pop();
               // Attempt to reconnect if we have connection info
               if (connectionState.connection != null) {
+                AccessibilityUtils.announce(context, 'Attempting to reconnect');
                 ref
                     .read(connectionStateProvider.notifier)
                     .connect(connectionState.connection!);
@@ -145,21 +150,24 @@ class ButtonGrid extends ConsumerWidget {
     );
   }
 
-  /// Builds a single button widget with enhanced animations
+  /// Builds a single button widget with enhanced animations and accessibility
   Widget _buildButton(BuildContext context, Button button, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final buttonColor = _hexToColor(button.color);
+    final isConnected = ref.read(connectionStateProvider).status == ConnectionStatus.connected;
     
-    return AnimatedButton(
-      color: buttonColor,
-      icon: _getIconData(button.iconName),
+    return AccessibleButton(
       label: button.name,
+      hint: AccessibilityUtils.getButtonStateLabel(isConnected, false),
+      enabled: isConnected,
       onPressed: () {
         // Check if connection is active before sending command
-        if (ref.read(connectionStateProvider).status ==
-            ConnectionStatus.connected) {
+        if (isConnected) {
           // Provide haptic feedback
-          HapticFeedback.lightImpact();
+          AccessibilityUtils.provideFeedback(FeedbackType.light);
+          
+          // Announce button press to screen readers
+          AccessibilityUtils.announce(context, 'Activated ${button.name}');
           
           if (onButtonPressed != null) {
             onButtonPressed!(button.id);
@@ -169,16 +177,26 @@ class ButtonGrid extends ConsumerWidget {
           _handleConnectionLoss(context, ref);
         }
       },
+      child: AnimatedButton(
+        color: buttonColor,
+        icon: _getIconData(button.iconName),
+        label: button.name,
+        isEnabled: isConnected,
+        onPressed: () {
+          // This will be handled by AccessibleButton
+        },
+      ),
     );
   }
 }
 
-/// Enhanced animated button widget
+/// Enhanced animated button widget with accessibility support
 class AnimatedButton extends StatefulWidget {
   final Color color;
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final bool isEnabled;
 
   const AnimatedButton({
     super.key,
@@ -186,6 +204,7 @@ class AnimatedButton extends StatefulWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.isEnabled = true,
   });
 
   @override
@@ -249,6 +268,9 @@ class _AnimatedButtonState extends State<AnimatedButton>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final effectiveColor = widget.isEnabled 
+        ? widget.color 
+        : widget.color.withOpacity(0.5);
     
     return AnimatedBuilder(
       animation: _animationController,
@@ -256,74 +278,73 @@ class _AnimatedButtonState extends State<AnimatedButton>
         return Transform.scale(
           scale: _scaleAnimation.value,
           child: Material(
-            color: widget.color,
+            color: effectiveColor,
             borderRadius: BorderRadius.circular(16),
-            elevation: _elevationAnimation.value,
+            elevation: widget.isEnabled ? _elevationAnimation.value : 1.0,
             shadowColor: widget.color.withOpacity(0.4),
-            child: GestureDetector(
-              onTapDown: _handleTapDown,
-              onTapUp: _handleTapUp,
-              onTapCancel: _handleTapCancel,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      widget.color,
-                      widget.color.withOpacity(0.8),
-                    ],
-                  ),
-                  boxShadow: _isPressed
-                      ? []
-                      : [
-                          BoxShadow(
-                            color: widget.color.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: FaIcon(
-                        widget.icon,
-                        size: 28,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        widget.label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black26,
-                              offset: Offset(0, 1),
-                              blurRadius: 2,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    effectiveColor,
+                    effectiveColor.withOpacity(0.8),
                   ],
                 ),
+                boxShadow: _isPressed || !widget.isEnabled
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: widget.color.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(widget.isEnabled ? 0.2 : 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: FaIcon(
+                      widget.icon,
+                      size: 28,
+                      color: widget.isEnabled 
+                          ? Colors.white 
+                          : Colors.white.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      widget.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: widget.isEnabled 
+                            ? Colors.white 
+                            : Colors.white.withOpacity(0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        shadows: widget.isEnabled ? [
+                          const Shadow(
+                            color: Colors.black26,
+                            offset: Offset(0, 1),
+                            blurRadius: 2,
+                          ),
+                        ] : [],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
