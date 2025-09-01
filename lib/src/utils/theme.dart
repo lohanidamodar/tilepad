@@ -158,7 +158,7 @@ ThemeData lightTheme = ThemeData(
     brightness: Brightness.light,
   ),
   appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     clipBehavior: Clip.antiAlias,
     elevation: 1,
     margin: const EdgeInsets.all(8),
@@ -190,7 +190,7 @@ ThemeData lightTheme = ThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   ),
-  dialogTheme: DialogTheme(
+  dialogTheme: DialogThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
   ),
   snackBarTheme: SnackBarThemeData(
@@ -225,7 +225,7 @@ ThemeData darkTheme = ThemeData(
     brightness: Brightness.dark,
   ),
   appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     clipBehavior: Clip.antiAlias,
     elevation: 1,
     margin: const EdgeInsets.all(8),
@@ -257,7 +257,7 @@ ThemeData darkTheme = ThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   ),
-  dialogTheme: DialogTheme(
+  dialogTheme: DialogThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
   ),
   snackBarTheme: SnackBarThemeData(
