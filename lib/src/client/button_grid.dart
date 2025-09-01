@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/button.dart';
 import 'client_providers.dart';
 
-/// Widget that displays a grid of macro buttons
+/// Widget that displays a grid of macro buttons with enhanced visual feedback
 class ButtonGrid extends ConsumerWidget {
   /// The list of buttons to display
   final List<Button> buttons;
@@ -45,9 +46,46 @@ class ButtonGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
     if (buttons.isEmpty) {
-      return const Center(
-        child: Text('No buttons available', style: TextStyle(fontSize: 18)),
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.grid_view_rounded,
+                size: 64,
+                color: colorScheme.primary.withOpacity(0.6),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No buttons available',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Buttons will appear here when connected to a server',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -55,8 +93,9 @@ class ButtonGrid extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.0,
       ),
       itemCount: buttons.length,
       itemBuilder: (context, index) {
@@ -71,87 +110,225 @@ class ButtonGrid extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final connectionState = ref.read(connectionStateProvider);
 
+    // Provide haptic feedback
+    HapticFeedback.mediumImpact();
+
     // Show dialog to inform the user
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.error_outline, color: colorScheme.error),
-                const SizedBox(width: 12),
-                const Text('Connection Lost'),
-              ],
-            ),
-            content: const Text(
-              'The connection to the server has been lost. Would you like to reconnect?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-
-                  // Attempt to reconnect if we have connection info
-                  if (connectionState.connection != null) {
-                    ref
-                        .read(connectionStateProvider.notifier)
-                        .connect(connectionState.connection!);
-                  }
-                },
-                child: const Text('Reconnect'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        icon: Icon(Icons.wifi_off_rounded, color: colorScheme.error, size: 32),
+        title: const Text('Connection Lost'),
+        content: const Text(
+          'The connection to the server has been lost. Would you like to reconnect?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
           ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Attempt to reconnect if we have connection info
+              if (connectionState.connection != null) {
+                ref
+                    .read(connectionStateProvider.notifier)
+                    .connect(connectionState.connection!);
+              }
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Reconnect'),
+          ),
+        ],
+      ),
     );
   }
 
-  /// Builds a single button widget
+  /// Builds a single button widget with enhanced animations
   Widget _buildButton(BuildContext context, Button button, WidgetRef ref) {
-    return Material(
-      color: _hexToColor(button.color),
-      borderRadius: BorderRadius.circular(12),
-      elevation: 3,
-      child: InkWell(
-        onTap: () {
-          // Check if connection is active before sending command
-          if (ref.read(connectionStateProvider).status ==
-              ConnectionStatus.connected) {
-            if (onButtonPressed != null) {
-              onButtonPressed!(button.id);
-            }
-          } else {
-            // Connection is lost, show dialog to reconnect
-            _handleConnectionLoss(context, ref);
+    final colorScheme = Theme.of(context).colorScheme;
+    final buttonColor = _hexToColor(button.color);
+    
+    return AnimatedButton(
+      color: buttonColor,
+      icon: _getIconData(button.iconName),
+      label: button.name,
+      onPressed: () {
+        // Check if connection is active before sending command
+        if (ref.read(connectionStateProvider).status ==
+            ConnectionStatus.connected) {
+          // Provide haptic feedback
+          HapticFeedback.lightImpact();
+          
+          if (onButtonPressed != null) {
+            onButtonPressed!(button.id);
           }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FaIcon(
-              _getIconData(button.iconName),
-              size: 32,
-              color: Colors.white,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              button.name,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+        } else {
+          // Connection is lost, show dialog to reconnect
+          _handleConnectionLoss(context, ref);
+        }
+      },
+    );
+  }
+}
+
+/// Enhanced animated button widget
+class AnimatedButton extends StatefulWidget {
+  final Color color;
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const AnimatedButton({
+    super.key,
+    required this.color,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  State<AnimatedButton> createState() => _AnimatedButtonState();
+}
+
+class _AnimatedButtonState extends State<AnimatedButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _elevationAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _elevationAnimation = Tween<double>(
+      begin: 4.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _handleTapDown(TapDownDetails details) {
+    setState(() => _isPressed = true);
+    _animationController.forward();
+  }
+
+  void _handleTapUp(TapUpDetails details) {
+    setState(() => _isPressed = false);
+    _animationController.reverse();
+    widget.onPressed();
+  }
+
+  void _handleTapCancel() {
+    setState(() => _isPressed = false);
+    _animationController.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Material(
+            color: widget.color,
+            borderRadius: BorderRadius.circular(16),
+            elevation: _elevationAnimation.value,
+            shadowColor: widget.color.withOpacity(0.4),
+            child: GestureDetector(
+              onTapDown: _handleTapDown,
+              onTapUp: _handleTapUp,
+              onTapCancel: _handleTapCancel,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      widget.color,
+                      widget.color.withOpacity(0.8),
+                    ],
+                  ),
+                  boxShadow: _isPressed
+                      ? []
+                      : [
+                          BoxShadow(
+                            color: widget.color.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: FaIcon(
+                        widget.icon,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        widget.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black26,
+                              offset: Offset(0, 1),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:marco_deck/src/client/client_providers.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -15,7 +16,7 @@ ClientWebSocketService createWebSocketClient() => WebClientWebSocketService();
 /// Note: This is a stub since servers can't run on web, but it avoids import errors
 ServerWebSocketService createWebSocketServer() => WebServerWebSocketService();
 
-/// Web implementation of the client WebSocket service
+/// Enhanced web implementation of the client WebSocket service
 class WebClientWebSocketService implements ClientWebSocketService {
   WebSocketChannel? _channel;
   final _messageController = StreamController<Message>.broadcast();
@@ -23,11 +24,21 @@ class WebClientWebSocketService implements ClientWebSocketService {
   bool _isReconnecting = false;
   String? _lastConnectedAddress;
   Timer? _reconnectTimer;
+  Timer? _healthCheckTimer;
   void Function(bool)? _onReconnectionStateChanged;
 
-  // Connection monitoring
+  // Enhanced connection monitoring
   StreamController<ConnectionStatus>? _connectionStatusController;
-  Timer? _connectionMonitorTimer;
+  int _reconnectAttempts = 0;
+  int _maxReconnectAttempts = 15;
+  DateTime? _lastPingTime;
+  DateTime? _lastPongTime;
+  bool _awaitingPong = false;
+  
+  // Adaptive reconnection timing
+  static const int _baseReconnectDelay = 1000; // 1 second
+  static const int _maxReconnectDelay = 30000; // 30 seconds
+  static const double _backoffMultiplier = 1.5;
 
   @override
   WebSocketChannel? get channel => _channel;
@@ -56,8 +67,14 @@ class WebClientWebSocketService implements ClientWebSocketService {
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
       _isReconnecting = false;
+      _reconnectAttempts = 0;
+      
       if (_onReconnectionStateChanged != null) {
         _onReconnectionStateChanged!(false);
+      }
+      
+      if (_connectionStatusController != null) {
+        _connectionStatusController!.add(ConnectionStatus.disconnected);
       }
     }
   }
@@ -70,54 +87,53 @@ class WebClientWebSocketService implements ClientWebSocketService {
     try {
       debugPrint('Web: Attempting to connect to: $address');
       _lastConnectedAddress = address;
+      _reconnectAttempts = 0;
+
+      // Notify connecting status
+      if (_connectionStatusController != null) {
+        _connectionStatusController!.add(ConnectionStatus.connecting);
+      }
 
       // Close existing connection if any
       await close();
 
-      // Create a web socket connection with timeout handling
+      // Create the WebSocket connection for web
       try {
-        // Create a timeout that will cancel the connection attempt if it takes too long
-        final connectionTimeout = Timer(const Duration(seconds: 8), () {
-          debugPrint('Web: Connection attempt timed out');
-          // If we're still trying to connect when this timer fires, close the connection
-          if (_channel != null && !_isConnected) {
-            _channel?.sink.close();
-            _channel = null;
-          }
-        });
-
-        _channel = HtmlWebSocketChannel.connect(address);
-
-        // Wait a very short time to see if we get an immediate error
-        await Future.delayed(const Duration(milliseconds: 100));
-
-        // Cancel timeout if we get here without an exception
-        connectionTimeout.cancel();
+        _channel = HtmlWebSocketChannel.connect(Uri.parse(address));
       } catch (e) {
         debugPrint('Web: Immediate connection failure: $e');
         _isConnected = false;
-        _startReconnectionTimer();
+        
+        if (_connectionStatusController != null) {
+          _connectionStatusController!.add(ConnectionStatus.error);
+        }
+        
         return false;
       }
 
-      // Set up the connection listener
+      // Set up enhanced message handling
       _channel!.stream.listen(
         (dynamic data) {
           if (data is String) {
             try {
               final message = Message.decode(data);
-              _messageController.add(message);
-
-              // If we receive a ping message, respond with a pong
-              if (message.type == MessageType.ping) {
-                sendMessage(
-                  Message(
-                    type: MessageType.pong,
-                    payload: {
-                      'timestamp': DateTime.now().millisecondsSinceEpoch,
-                    },
-                  ),
-                );
+              
+              // Handle different message types
+              switch (message.type) {
+                case MessageType.ping:
+                  // Respond to ping immediately
+                  _sendPong();
+                  break;
+                case MessageType.pong:
+                  // Update pong reception time
+                  _lastPongTime = DateTime.now();
+                  _awaitingPong = false;
+                  debugPrint('Web: Received pong - connection healthy');
+                  break;
+                default:
+                  // Forward other messages
+                  _messageController.add(message);
+                  break;
               }
             } catch (e) {
               debugPrint('Web: Error decoding message: $e');
@@ -125,162 +141,285 @@ class WebClientWebSocketService implements ClientWebSocketService {
           }
         },
         onDone: () {
-          debugPrint('Web: WebSocket connection closed');
-          _isConnected = false;
-
-          // Notify about disconnection
-          if (_connectionStatusController != null) {
-            _connectionStatusController!.add(ConnectionStatus.disconnected);
-          }
-
-          _startReconnectionTimer();
+          debugPrint('Web: WebSocket connection closed gracefully');
+          _handleDisconnection();
         },
         onError: (error) {
           debugPrint('Web: WebSocket error: $error');
-          _isConnected = false;
-
-          // Notify about disconnection
-          if (_connectionStatusController != null) {
-            _connectionStatusController!.add(ConnectionStatus.disconnected);
-          }
-
-          _startReconnectionTimer();
+          _handleDisconnection();
         },
       );
 
-      // Wait a short time to ensure connection is established
-      try {
-        await Future.delayed(const Duration(milliseconds: 500));
-        // Check if the connection was dropped during the delay
-        if (_channel == null) {
-          debugPrint('Web: Connection was closed during initial delay');
-          _isConnected = false;
-          _startReconnectionTimer();
-          return false;
-        }
+      // Enhanced connection verification with timeout
+      final connectionSuccess = await _verifyConnection();
+      
+      if (connectionSuccess) {
+        _isConnected = true;
+        _reconnectAttempts = 0;
+        debugPrint('Web: Connection established successfully');
 
-        // Send a test ping to verify the connection is actually working
-        try {
-          debugPrint('Web: Sending test ping to verify connection');
-          _channel!.sink.add(
-            Message(
-              type: MessageType.ping,
-              payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
-            ).encode(),
-          );
-        } catch (e) {
-          debugPrint('Web: Error sending test ping: $e');
-          _isConnected = false;
-          await _channel?.sink.close();
-          _channel = null;
-          return false;
-        }
-      } catch (e) {
-        debugPrint('Web: Error during connection verification: $e');
-        _isConnected = false;
-        _startReconnectionTimer();
-        return false;
-      }
-
-      _isConnected = true;
-      debugPrint('Web: Connection established');
-
-      // If we were reconnecting, notify that we're no longer reconnecting
-      if (_isReconnecting) {
-        _isReconnecting = false;
-        if (_onReconnectionStateChanged != null) {
-          _onReconnectionStateChanged!(false);
-        }
-        _reconnectTimer?.cancel();
-        _reconnectTimer = null;
-      }
-
-      // Start connection monitoring
-      _startConnectionMonitoring();
-
-      return true;
-    } catch (e) {
-      _isConnected = false;
-      debugPrint('Web: Failed to connect: $e');
-      _startReconnectionTimer();
-      return false;
-    }
-  }
-
-  void _startReconnectionTimer() {
-    if (_isReconnecting || _lastConnectedAddress == null) return;
-
-    _isReconnecting = true;
-    // Notify about reconnection state change
-    if (_onReconnectionStateChanged != null) {
-      _onReconnectionStateChanged!(true);
-    }
-
-    // Track reconnection attempts for exponential backoff
-    int currentReconnectAttempt = 0;
-    final int maxReconnectAttempts = 10;
-
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      if (!_isReconnecting) {
-        timer.cancel();
-        return;
-      }
-
-      currentReconnectAttempt++;
-
-      // Calculate delay based on attempt number (exponential backoff with a cap)
-      // This will start at 5 seconds and gradually increase
-      final int delaySeconds =
-          currentReconnectAttempt > 5
-              ? 20 // Cap at 20 seconds max delay
-              : 5 * currentReconnectAttempt;
-
-      debugPrint(
-        'Web: Reconnection attempt $currentReconnectAttempt of $maxReconnectAttempts (delay: ${delaySeconds}s)',
-      );
-
-      // Notify status update via reconnection state change
-      if (_onReconnectionStateChanged != null) {
-        _onReconnectionStateChanged!(true);
-      }
-
-      if (_connectionStatusController != null) {
-        _connectionStatusController!.add(ConnectionStatus.reconnecting);
-      }
-
-      try {
-        final success = await connect(_lastConnectedAddress!);
-        if (success) {
-          debugPrint('Web: Reconnection successful');
-          timer.cancel();
+        // Reset reconnection state
+        if (_isReconnecting) {
           _isReconnecting = false;
           if (_onReconnectionStateChanged != null) {
             _onReconnectionStateChanged!(false);
           }
-        } else {
-          // Don't attempt to reconnect again immediately
-          // The timer will trigger the next attempt after the specified delay
-          debugPrint(
-            'Web: Reconnection attempt failed, waiting ${delaySeconds}s before next attempt',
-          );
-
-          // If we've reached the maximum number of attempts, stop reconnecting
-          if (currentReconnectAttempt >= maxReconnectAttempts) {
-            debugPrint('Web: Maximum reconnection attempts reached, giving up');
-            timer.cancel();
-            _isReconnecting = false;
-            if (_onReconnectionStateChanged != null) {
-              _onReconnectionStateChanged!(false);
-            }
-          }
+          _reconnectTimer?.cancel();
+          _reconnectTimer = null;
         }
+
+        // Start health monitoring
+        _startHealthCheck();
+        
+        if (_connectionStatusController != null) {
+          _connectionStatusController!.add(ConnectionStatus.connected);
+        }
+
+        return true;
+      } else {
+        _isConnected = false;
+        await _channel?.sink.close();
+        _channel = null;
+        
+        if (_connectionStatusController != null) {
+          _connectionStatusController!.add(ConnectionStatus.error);
+        }
+        
+        return false;
+      }
+    } catch (e) {
+      _isConnected = false;
+      debugPrint('Web: Failed to connect: $e');
+      
+      if (_connectionStatusController != null) {
+        _connectionStatusController!.add(ConnectionStatus.error);
+      }
+      
+      return false;
+    }
+  }
+
+  /// Enhanced connection verification with timeout
+  Future<bool> _verifyConnection() async {
+    try {
+      // Wait briefly for connection to stabilize
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Check if channel is still available
+      if (_channel == null) {
+        debugPrint('Web: Channel closed during verification');
+        return false;
+      }
+
+      // Send verification ping with timeout
+      final verificationCompleter = Completer<bool>();
+      Timer? verificationTimeout;
+      
+      // Set up timeout
+      verificationTimeout = Timer(const Duration(seconds: 5), () {
+        if (!verificationCompleter.isCompleted) {
+          verificationCompleter.complete(false);
+        }
+      });
+
+      // Listen for pong response
+      late StreamSubscription messageSubscription;
+      messageSubscription = _messageController.stream.listen((message) {
+        if (message.type == MessageType.pong && !verificationCompleter.isCompleted) {
+          verificationTimeout?.cancel();
+          messageSubscription.cancel();
+          verificationCompleter.complete(true);
+        }
+      });
+
+      // Send verification ping
+      try {
+        debugPrint('Web: Sending verification ping');
+        _sendPing();
+        
+        final success = await verificationCompleter.future;
+        
+        verificationTimeout?.cancel();
+        messageSubscription.cancel();
+        
+        if (success) {
+          debugPrint('Web: Connection verification successful');
+        } else {
+          debugPrint('Web: Connection verification failed - timeout');
+        }
+        
+        return success;
       } catch (e) {
-        debugPrint('Web: Reconnection attempt failed: $e');
-        // Don't attempt to reconnect again immediately
-        // Let the timer handle the next attempt after delay
+        debugPrint('Web: Error during verification ping: $e');
+        verificationTimeout?.cancel();
+        messageSubscription.cancel();
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Web: Error during connection verification: $e');
+      return false;
+    }
+  }
+
+  /// Handle disconnection with enhanced retry logic
+  void _handleDisconnection() {
+    _isConnected = false;
+    _stopHealthCheck();
+    
+    if (_connectionStatusController != null) {
+      _connectionStatusController!.add(ConnectionStatus.disconnected);
+    }
+
+    // Start enhanced reconnection if we have an address to reconnect to
+    if (_lastConnectedAddress != null && !_isReconnecting) {
+      _startEnhancedReconnection();
+    }
+  }
+
+  /// Enhanced reconnection with adaptive backoff
+  void _startEnhancedReconnection() {
+    if (_isReconnecting || _lastConnectedAddress == null) return;
+
+    _isReconnecting = true;
+    
+    if (_onReconnectionStateChanged != null) {
+      _onReconnectionStateChanged!(true);
+    }
+
+    if (_connectionStatusController != null) {
+      _connectionStatusController!.add(ConnectionStatus.reconnecting);
+    }
+
+    _scheduleReconnection();
+  }
+
+  /// Schedule the next reconnection attempt with adaptive delay
+  void _scheduleReconnection() {
+    if (!_isReconnecting || _reconnectAttempts >= _maxReconnectAttempts) {
+      if (_reconnectAttempts >= _maxReconnectAttempts) {
+        debugPrint('Web: Maximum reconnection attempts reached');
+        _isReconnecting = false;
+        
+        if (_onReconnectionStateChanged != null) {
+          _onReconnectionStateChanged!(false);
+        }
+        
+        if (_connectionStatusController != null) {
+          _connectionStatusController!.add(ConnectionStatus.disconnected);
+        }
+      }
+      return;
+    }
+
+    // Calculate adaptive delay
+    final delay = _calculateReconnectDelay(_reconnectAttempts);
+    
+    debugPrint(
+      'Web: Scheduling reconnection attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts in ${delay}ms',
+    );
+
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(Duration(milliseconds: delay), () async {
+      if (!_isReconnecting) return;
+
+      _reconnectAttempts++;
+      
+      debugPrint(
+        'Web: Attempting reconnection ${_reconnectAttempts}/$_maxReconnectAttempts to $_lastConnectedAddress',
+      );
+
+      final success = await connect(_lastConnectedAddress!);
+      
+      if (!success && _isReconnecting) {
+        // Schedule next attempt
+        _scheduleReconnection();
       }
     });
+  }
+
+  /// Calculate adaptive reconnection delay
+  int _calculateReconnectDelay(int attemptNumber) {
+    // Exponential backoff with jitter
+    final baseDelay = _baseReconnectDelay * pow(_backoffMultiplier, attemptNumber);
+    final cappedDelay = min(baseDelay, _maxReconnectDelay.toDouble()).toInt();
+    
+    // Add jitter (±25%)
+    final jitter = (cappedDelay * 0.25 * (Random().nextDouble() * 2 - 1)).toInt();
+    
+    return cappedDelay + jitter;
+  }
+
+  /// Start health check monitoring
+  void _startHealthCheck() {
+    _stopHealthCheck();
+    
+    _healthCheckTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      if (!_isConnected) {
+        timer.cancel();
+        return;
+      }
+      
+      _performHealthCheck();
+    });
+  }
+
+  /// Stop health check monitoring
+  void _stopHealthCheck() {
+    _healthCheckTimer?.cancel();
+    _healthCheckTimer = null;
+  }
+
+  /// Perform health check by sending ping
+  void _performHealthCheck() {
+    if (!_isConnected || _channel == null) return;
+
+    try {
+      // Check if we're awaiting a pong for too long
+      if (_awaitingPong && _lastPingTime != null) {
+        final timeSinceLastPing = DateTime.now().difference(_lastPingTime!);
+        if (timeSinceLastPing.inSeconds > 30) {
+          debugPrint('Web: Health check failed - no pong received for 30 seconds');
+          _handleDisconnection();
+          return;
+        }
+      }
+
+      // Send ping if not awaiting pong
+      if (!_awaitingPong) {
+        _sendPing();
+      }
+    } catch (e) {
+      debugPrint('Web: Error during health check: $e');
+      _handleDisconnection();
+    }
+  }
+
+  /// Send ping message
+  void _sendPing() {
+    try {
+      _lastPingTime = DateTime.now();
+      _awaitingPong = true;
+      
+      sendMessage(Message(
+        type: MessageType.ping,
+        payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+      ));
+    } catch (e) {
+      debugPrint('Web: Error sending ping: $e');
+      _handleDisconnection();
+    }
+  }
+
+  /// Send pong message
+  void _sendPong() {
+    try {
+      sendMessage(Message(
+        type: MessageType.pong,
+        payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+      ));
+    } catch (e) {
+      debugPrint('Web: Error sending pong: $e');
+    }
   }
 
   @override
@@ -290,90 +429,73 @@ class WebClientWebSocketService implements ClientWebSocketService {
         _channel!.sink.add(message.encode());
       } catch (e) {
         debugPrint('Web: Error sending message: $e');
-        _isConnected = false;
-        _startReconnectionTimer();
+        _handleDisconnection();
       }
+    } else {
+      debugPrint('Web: Cannot send message - not connected');
     }
   }
 
   @override
   Future<void> close() async {
-    debugPrint('Web: Closing WebSocket connection and cleaning up resources');
-    _isConnected = false;
-
-    // Cancel reconnection
-    cancelReconnection();
-
-    // Stop connection monitoring
-    _stopConnectionMonitoring();
-
-    // Close the channel properly
-    try {
-      await _channel?.sink.close(1000, 'Connection closed by client');
-    } catch (e) {
-      debugPrint('Web: Error closing WebSocket channel: $e');
-    } finally {
+    _stopHealthCheck();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _isReconnecting = false;
+    
+    if (_channel != null) {
+      try {
+        await _channel!.sink.close();
+      } catch (e) {
+        debugPrint('Web: Error closing channel: $e');
+      }
       _channel = null;
-      _lastConnectedAddress = null; // Reset the address to ensure a clean state
+    }
+    
+    _isConnected = false;
+    
+    if (_connectionStatusController != null) {
+      _connectionStatusController!.add(ConnectionStatus.disconnected);
     }
   }
 
-  /// Monitor connection health periodically
-  void _startConnectionMonitoring() {
-    _connectionMonitorTimer?.cancel();
-    _connectionMonitorTimer = Timer.periodic(const Duration(seconds: 3), (
-      timer,
-    ) {
-      if (!_isConnected && _connectionStatusController != null) {
-        // If we're not connected, emit a disconnected status
-        _connectionStatusController!.add(ConnectionStatus.disconnected);
-      }
-    });
-  }
-
-  /// Stop connection monitoring
-  void _stopConnectionMonitoring() {
-    _connectionMonitorTimer?.cancel();
-    _connectionMonitorTimer = null;
+  /// Dispose of resources
+  void dispose() {
+    close();
+    _messageController.close();
+    _connectionStatusController?.close();
   }
 }
 
-/// A stub implementation of ServerWebSocketService for web
-/// Note: This is only to prevent import errors since servers don't run on web
+/// Stub implementation for web server (servers can't run on web)
 class WebServerWebSocketService implements ServerWebSocketService {
-  final _messageController = StreamController<Message>.broadcast();
-  final _clientConnectionController =
-      StreamController<ClientConnectionEvent>.broadcast();
+  @override
+  Stream<Message> get messageStream => const Stream.empty();
 
   @override
-  Stream<Message> get messageStream => _messageController.stream;
-
-  @override
-  Stream<ClientConnectionEvent> get clientConnectionStream =>
-      _clientConnectionController.stream;
+  Stream<ClientConnectionEvent> get clientConnectionStream => const Stream.empty();
 
   @override
   List<ClientInfo> get connectedClients => [];
 
   @override
   Future<bool> start(int port) async {
-    debugPrint('Cannot start server on web platform');
+    debugPrint('Web: Server cannot be started on web platform');
     return false;
   }
 
   @override
-  void broadcast(Message message) {
-    // No-op on web
+  void sendMessage(Message message) {
+    debugPrint('Web: Cannot send message - server not supported on web');
   }
 
   @override
-  void sendMessage(Message message) {
-    // No-op on web
+  void broadcast(Message message) {
+    debugPrint('Web: Cannot broadcast - server not supported on web');
   }
 
   @override
   Future<void> close() async {
-    await _messageController.close();
-    await _clientConnectionController.close();
+    // Nothing to close on web server stub
   }
 }

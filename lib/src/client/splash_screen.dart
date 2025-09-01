@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'buttons_screen.dart';
 import 'client_providers.dart' as providers;
 
-/// Splash screen that handles automatic connection to the default server
+/// Enhanced splash screen with animations and improved UX
 class SplashScreen extends ConsumerStatefulWidget {
   /// Creates a new splash screen
   const SplashScreen({super.key});
@@ -13,126 +13,190 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen>
+    with TickerProviderStateMixin {
   bool _initialized = false;
   String _statusMessage = 'Initializing...';
+  double _progress = 0.0;
+  
+  late AnimationController _logoAnimationController;
+  late AnimationController _fadeAnimationController;
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _logoRotationAnimation;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    
+    // Initialize animations
+    _logoAnimationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    
+    _fadeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    
+    _logoScaleAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _logoAnimationController,
+      curve: Curves.elasticOut,
+    ));
+    
+    _logoRotationAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.25,
+    ).animate(CurvedAnimation(
+      parent: _logoAnimationController,
+      curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
+    ));
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeAnimationController,
+      curve: Curves.easeIn,
+    ));
+    
+    // Start animations
+    _logoAnimationController.forward();
+    _fadeAnimationController.forward();
+    
     // Delay initialization until after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeApp();
     });
   }
 
+  @override
+  void dispose() {
+    _logoAnimationController.dispose();
+    _fadeAnimationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updateProgress(double progress, String message) async {
+    if (mounted) {
+      setState(() {
+        _progress = progress;
+        _statusMessage = message;
+      });
+      // Small delay to show progress update
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+  }
+
   Future<void> _initializeApp() async {
     if (_initialized) return;
     _initialized = true;
 
-    // Wait for the server connections to load
-    setState(() {
-      _statusMessage = 'Loading saved connections...';
-    });
-
-    final defaultServer =
-        ref.read(providers.serverConnectionsProvider.notifier).defaultServer;
-
-    if (defaultServer == null) {
-      setState(() {
-        _statusMessage = 'No default server set';
-      });
-
-      // Wait a moment so user can see the message
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder:
-                (context) => const ButtonsScreen(showNoConnectionMessage: true),
-          ),
-        );
-      }
-      return;
-    }
-
     try {
-      setState(() {
-        _statusMessage = 'Connecting to ${defaultServer.name}...';
-      });
+      // Step 1: Loading saved connections
+      await _updateProgress(0.2, 'Loading saved connections...');
+
+      final defaultServer =
+          ref.read(providers.serverConnectionsProvider.notifier).defaultServer;
+
+      if (defaultServer == null) {
+        await _updateProgress(0.5, 'No default server configured');
+        await Future.delayed(const Duration(milliseconds: 800));
+
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const ButtonsScreen(showNoConnectionMessage: true),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 500),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Step 2: Connecting to server
+      await _updateProgress(0.4, 'Connecting to ${defaultServer.name}...');
+      
       debugPrint(
         'Attempting to connect to server: ${defaultServer.name} (${defaultServer.address})',
       );
-    } catch (_) {
-      // No server found with this ID
-      setState(() {
-        _statusMessage = 'Default server not found';
-      });
-      debugPrint(
-        'Server with ID ${defaultServer.id} not found in saved connections',
+
+      final connectionNotifier = ref.read(
+        providers.connectionStateProvider.notifier,
       );
 
-      // Wait a moment so user can see the message
-      await Future.delayed(const Duration(seconds: 1));
+      // Step 3: Establishing connection
+      await _updateProgress(0.6, 'Establishing connection...');
+      
+      // Ensure any previous connection is properly closed
+      await connectionNotifier.disconnect();
 
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder:
-                (context) => const ButtonsScreen(showNoConnectionMessage: true),
-          ),
-        );
+      // Now attempt to connect
+      final success = await connectionNotifier.connect(defaultServer);
+      debugPrint('Connection attempt result: $success');
+
+      if (success && mounted) {
+        // Step 4: Loading content
+        await _updateProgress(0.8, 'Loading buttons...');
+
+        // Request buttons immediately after connection
+        connectionNotifier.requestButtons();
+
+        // Step 5: Complete
+        await _updateProgress(1.0, 'Ready!');
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const ButtonsScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  )),
+                  child: child,
+                );
+              },
+              transitionDuration: const Duration(milliseconds: 600),
+            ),
+          );
+        }
+        return;
+      } else {
+        await _updateProgress(0.3, 'Connection failed - retrying...');
+        debugPrint('Failed to connect to default server');
+        await Future.delayed(const Duration(milliseconds: 1000));
       }
-      return;
+    } catch (e) {
+      await _updateProgress(0.0, 'Error: ${e.toString()}');
+      debugPrint('Error during initialization: $e');
+      await Future.delayed(const Duration(milliseconds: 1500));
     }
 
-    // Try to connect to the default server
-    final connectionNotifier = ref.read(
-      providers.connectionStateProvider.notifier,
-    );
-
-    // Ensure any previous connection is properly closed
-    await connectionNotifier.disconnect();
-
-    // Now attempt to connect
-    final success = await connectionNotifier.connect(defaultServer);
-    debugPrint('Connection attempt result: $success');
-
-    if (success && mounted) {
-      setState(() {
-        _statusMessage = 'Connected successfully';
-      });
-
-      // Request buttons immediately after connection
-      connectionNotifier.requestButtons();
-
-      // If connection successful, navigate to buttons screen as the home screen
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const ButtonsScreen()),
-        );
-      }
-      return;
-    } else {
-      setState(() {
-        _statusMessage = 'Connection failed';
-      });
-      debugPrint('Failed to connect to default server');
-
-      // Wait a moment so user can see the message
-      await Future.delayed(const Duration(seconds: 1));
-    }
-
-    // If no default server or connection failed, still go to buttons screen
-    // but it will show a disconnected state with options to connect
+    // If connection failed or error occurred, go to buttons screen
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder:
-              (context) => const ButtonsScreen(showNoConnectionMessage: true),
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const ButtonsScreen(showNoConnectionMessage: true),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 500),
         ),
       );
     }
@@ -140,32 +204,187 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App logo
-            Image.asset(
-              'assets/logo.png',
-              height: 120,
-              errorBuilder:
-                  (context, error, stackTrace) =>
-                      const Icon(Icons.devices, size: 100, color: Colors.blue),
+      backgroundColor: colorScheme.surface,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colorScheme.surface,
+              colorScheme.surfaceVariant.withOpacity(0.3),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Animated logo
+                  AnimatedBuilder(
+                    animation: _logoAnimationController,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _logoScaleAnimation.value,
+                        child: Transform.rotate(
+                          angle: _logoRotationAnimation.value * 3.14159,
+                          child: Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colorScheme.primary.withOpacity(0.3),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/logo.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Icon(
+                                  Icons.devices_rounded,
+                                  size: 60,
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // App title with fade animation
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Text(
+                      'MarcoDeck',
+                      style: textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Subtitle
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Text(
+                      'Remote Macro Control',
+                      style: textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 48),
+                  
+                  // Status message
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: colorScheme.outlineVariant,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            _statusMessage,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Progress bar
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Container(
+                      width: 200,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: FractionallySizedBox(
+                        widthFactor: _progress,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                colorScheme.primary,
+                                colorScheme.secondary,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 80),
+                  
+                  // Version info
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Text(
+                      'Version 1.0.0',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
-            const Text(
-              'MarcoDeck',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _statusMessage,
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 32),
-            const CircularProgressIndicator(),
-          ],
+          ),
         ),
       ),
     );
