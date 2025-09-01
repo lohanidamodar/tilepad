@@ -574,7 +574,24 @@ class _ServerScreenState extends State<ServerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MarcoDeck Server'),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.computer,
+                color: colorScheme.onPrimaryContainer,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('MarcoDeck Server'),
+          ],
+        ),
         actions: [
           // Theme mode selector
           if (widget.onThemeModeChanged != null)
@@ -583,430 +600,686 @@ class _ServerScreenState extends State<ServerScreen> {
               onThemeModeChanged: widget.onThemeModeChanged!,
             ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _refreshPages,
             tooltip: 'Refresh',
+            style: IconButton.styleFrom(
+              backgroundColor: colorScheme.surfaceVariant.withOpacity(0.5),
+            ),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          // Server status card
-          Card(
-            margin: const EdgeInsets.all(16),
-            clipBehavior: Clip.antiAlias,
-            elevation: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Server status header
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  color:
-                      _isRunning
-                          ? colorScheme.primaryContainer
-                          : colorScheme.errorContainer,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Server Status',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color:
-                                  _isRunning
-                                      ? colorScheme.primary
-                                      : colorScheme.error,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _isRunning ? 'Running' : 'Stopped',
-                            style: TextStyle(
-                              color:
-                                  _isRunning
-                                      ? colorScheme.onPrimaryContainer
-                                      : colorScheme.onErrorContainer,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Server info content
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Connection info
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: colorScheme.surface.withAlpha(120),
-                          border: Border.all(color: colorScheme.outlineVariant),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.computer,
-                                  size: 20,
-                                  color: colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'IP Address: $_serverIp',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.router,
-                                  size: 20,
-                                  color: colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Port: $_serverPort',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton.filled(
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: colorScheme.primary
-                                        .withAlpha(30),
-                                    minimumSize: const Size(32, 32),
-                                  ),
-                                  icon: Icon(
-                                    Icons.edit,
-                                    size: 16,
-                                    color: colorScheme.primary,
-                                  ),
-                                  onPressed: _showChangePortDialog,
-                                  tooltip: 'Change Port',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Connection URL
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: colorScheme.primaryContainer.withAlpha(127),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.link, color: colorScheme.primary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Connect your client to:',
-                                    style: TextStyle(
-                                      color: colorScheme.onPrimaryContainer,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'ws://$_serverIp:$_serverPort',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: colorScheme.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                Clipboard.setData(
-                                  ClipboardData(
-                                    text: 'ws://$_serverIp:$_serverPort',
-                                  ),
-                                ).then((_) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Connection URL copied to clipboard',
-                                      ),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
-                                });
-                              },
-                              icon: Icon(
-                                Icons.copy,
-                                color: colorScheme.primary,
-                              ),
-                              tooltip: 'Copy to clipboard',
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // Note text
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 16,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Keep this application running while clients are connected.',
-                                style: TextStyle(
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: 12,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Server control buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          FilledButton.icon(
-                            onPressed: _isRunning ? _restartServer : null,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Restart Server'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: colorScheme.secondaryContainer,
-                              foregroundColor: colorScheme.onSecondaryContainer,
-                              disabledBackgroundColor: colorScheme.surface
-                                  .withAlpha(60),
-                              disabledForegroundColor: colorScheme
-                                  .onSurfaceVariant
-                                  .withAlpha(127),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          FilledButton.icon(
-                            onPressed:
-                                _isRunning
-                                    ? () async {
-                                      await widget.server.stop();
-                                      setState(() {
-                                        _isRunning = false;
-                                      });
-                                    }
-                                    : () async {
-                                      final success =
-                                          await widget.server.start();
-                                      setState(() {
-                                        _isRunning = success;
-                                      });
-                                      if (success) {
-                                        _refreshPages();
-                                      }
-                                    },
-                            icon: Icon(
-                              _isRunning ? Icons.stop : Icons.play_arrow,
-                            ),
-                            label: Text(
-                              _isRunning ? 'Stop Server' : 'Start Server',
-                            ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor:
-                                  _isRunning
-                                      ? colorScheme.errorContainer
-                                      : colorScheme.primaryContainer,
-                              foregroundColor:
-                                  _isRunning
-                                      ? colorScheme.onErrorContainer
-                                      : colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Connected clients card
-          if (_isRunning)
-            Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          // Enhanced Server status card
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            child: Card(
               clipBehavior: Clip.antiAlias,
+              elevation: _isRunning ? 4 : 2,
+              shadowColor: _isRunning 
+                  ? colorScheme.primary.withOpacity(0.2)
+                  : colorScheme.shadow.withOpacity(0.1),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
-                  Container(
-                    width: double.infinity,
+                  // Enhanced server status header
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: 20,
+                      vertical: 16,
                     ),
-                    color: colorScheme.secondaryContainer,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: _isRunning
+                            ? [
+                                colorScheme.primaryContainer,
+                                colorScheme.primaryContainer.withOpacity(0.8),
+                              ]
+                            : [
+                                colorScheme.errorContainer,
+                                colorScheme.errorContainer.withOpacity(0.8),
+                              ],
+                      ),
+                    ),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(
-                          Icons.devices,
-                          color: colorScheme.onSecondaryContainer,
-                          size: 20,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.dns_rounded,
+                              color: _isRunning
+                                  ? colorScheme.onPrimaryContainer
+                                  : colorScheme.onErrorContainer,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Server Status',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: _isRunning
+                                    ? colorScheme.onPrimaryContainer
+                                    : colorScheme.onErrorContainer,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Connected Clients (${_connectedClients.length})',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSecondaryContainer,
-                          ),
+                        Row(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _isRunning
+                                    ? Colors.green
+                                    : colorScheme.error,
+                                boxShadow: _isRunning
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.green.withOpacity(0.5),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        ),
+                                      ]
+                                    : [],
+                              ),
+                              child: _isRunning
+                                  ? const Center(
+                                      child: Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 10,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _isRunning ? 'Running' : 'Stopped',
+                              style: TextStyle(
+                                color: _isRunning
+                                    ? colorScheme.onPrimaryContainer
+                                    : colorScheme.onErrorContainer,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
 
-                  // Clients list
+                  // Enhanced server info content
                   Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: _buildConnectedClientsList(),
-                  ),
-                ],
-              ),
-            ),
-
-          // Pages and buttons section
-          Card(
-            margin: const EdgeInsets.all(16),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Pages section header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  color: colorScheme.tertiaryContainer,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.dashboard,
-                            color: colorScheme.onTertiaryContainer,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Pages (${_pages.length})',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onTertiaryContainer,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Connection info with improved styling
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            gradient: LinearGradient(
+                              colors: [
+                                colorScheme.surfaceVariant.withOpacity(0.3),
+                                colorScheme.surfaceVariant.withOpacity(0.1),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant,
+                              width: 1,
                             ),
                           ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          FilledButton.tonalIcon(
-                            onPressed: () => _showPageEditor(null),
-                            icon: const Icon(Icons.add),
-                            label: const Text('New Page'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: colorScheme.tertiary.withAlpha(
-                                200,
-                              ),
-                              foregroundColor: colorScheme.onTertiaryContainer,
-                            ),
-                          ),
-                          if (_selectedPage != null)
-                            Row(
-                              children: [
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.edit,
-                                    color: colorScheme.onTertiaryContainer,
-                                  ),
-                                  onPressed:
-                                      () => _showPageEditor(_selectedPage),
-                                  tooltip: 'Edit Page',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Connection Details',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.delete,
-                                    color: colorScheme.onTertiaryContainer,
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // IP Address row
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.router_rounded,
+                                      size: 20,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
                                   ),
-                                  onPressed:
-                                      () => _deletePage(_selectedPage!.id),
-                                  tooltip: 'Delete Page',
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'IP Address',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _serverIp,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Port row
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.secondaryContainer,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.settings_ethernet_rounded,
+                                      size: 20,
+                                      color: colorScheme.onSecondaryContainer,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Port',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '$_serverPort',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  FilledButton.tonalIcon(
+                                    onPressed: _showChangePortDialog,
+                                    icon: const Icon(Icons.edit_rounded, size: 16),
+                                    label: const Text('Change'),
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      minimumSize: const Size(0, 32),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Enhanced connection URL
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            gradient: LinearGradient(
+                              colors: [
+                                colorScheme.primaryContainer,
+                                colorScheme.primaryContainer.withOpacity(0.7),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.primary.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.link_rounded,
+                                    color: colorScheme.onPrimaryContainer,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Client Connection URL',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: colorScheme.onPrimaryContainer.withOpacity(0.2),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: SelectableText(
+                                        'ws://$_serverIp:$_serverPort',
+                                        style: TextStyle(
+                                          fontFamily: 'monospace',
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: colorScheme.onPrimaryContainer,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    FilledButton.icon(
+                                      onPressed: () {
+                                        Clipboard.setData(
+                                          ClipboardData(
+                                            text: 'ws://$_serverIp:$_serverPort',
+                                          ),
+                                        ).then((_) {
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.check_circle_rounded,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  const Text('URL copied to clipboard'),
+                                                ],
+                                              ),
+                                              behavior: SnackBarBehavior.floating,
+                                              backgroundColor: Colors.green.shade600,
+                                            ),
+                                          );
+                                        });
+                                      },
+                                      icon: const Icon(Icons.copy_rounded, size: 16),
+                                      label: const Text('Copy'),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: colorScheme.primary,
+                                        foregroundColor: colorScheme.onPrimary,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        minimumSize: const Size(0, 32),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 12),
+                              
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline_rounded,
+                                    size: 16,
+                                    color: colorScheme.onPrimaryContainer.withOpacity(0.7),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Use this URL in your mobile app to connect',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: colorScheme.onPrimaryContainer.withOpacity(0.8),
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Enhanced server control buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: _isRunning ? _restartServer : null,
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('Restart Server'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: colorScheme.tertiaryContainer,
+                                  foregroundColor: colorScheme.onTertiaryContainer,
+                                  disabledBackgroundColor: colorScheme.surface.withOpacity(0.3),
+                                  disabledForegroundColor: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: _isRunning
+                                    ? () async {
+                                        await widget.server.stop();
+                                        setState(() {
+                                          _isRunning = false;
+                                        });
+                                      }
+                                    : () async {
+                                        final success = await widget.server.start();
+                                        setState(() {
+                                          _isRunning = success;
+                                        });
+                                        if (success) {
+                                          _refreshPages();
+                                        }
+                                      },
+                                icon: Icon(
+                                  _isRunning ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                                ),
+                                label: Text(
+                                  _isRunning ? 'Stop Server' : 'Start Server',
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _isRunning
+                                      ? colorScheme.errorContainer
+                                      : colorScheme.primaryContainer,
+                                  foregroundColor: _isRunning
+                                      ? colorScheme.onErrorContainer
+                                      : colorScheme.onPrimaryContainer,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Enhanced Connected clients card
+          if (_isRunning)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                elevation: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Enhanced header
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            colorScheme.secondaryContainer,
+                            colorScheme.secondaryContainer.withOpacity(0.8),
+                          ],
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: colorScheme.secondary.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.devices_rounded,
+                              color: colorScheme.onSecondaryContainer,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Connected Clients',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _connectedClients.isNotEmpty
+                                  ? Colors.green.withOpacity(0.2)
+                                  : colorScheme.surfaceVariant.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _connectedClients.isNotEmpty
+                                    ? Colors.green
+                                    : colorScheme.outline.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _connectedClients.isNotEmpty
+                                        ? Colors.green
+                                        : colorScheme.outline,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${_connectedClients.length}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _connectedClients.isNotEmpty
+                                        ? Colors.green.shade700
+                                        : colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ],
                             ),
+                          ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+
+                    // Enhanced clients list
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: _buildConnectedClientsList(),
+                    ),
+                  ],
                 ),
+              ),
+            ),
+
+          // Enhanced Pages and buttons section
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              elevation: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Enhanced pages section header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.tertiaryContainer,
+                          colorScheme.tertiaryContainer.withOpacity(0.8),
+                        ],
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: colorScheme.tertiary.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.dashboard_rounded,
+                                color: colorScheme.onTertiaryContainer,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Button Pages',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onTertiaryContainer,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.tertiary.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_pages.length}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onTertiaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            FilledButton.tonalIcon(
+                              onPressed: () => _showPageEditor(null),
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text('New Page'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: colorScheme.tertiary.withOpacity(0.3),
+                                foregroundColor: colorScheme.onTertiaryContainer,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                            if (_selectedPage != null) ...[
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.edit_rounded,
+                                  color: colorScheme.onTertiaryContainer,
+                                ),
+                                onPressed: () => _showPageEditor(_selectedPage),
+                                tooltip: 'Edit Page',
+                                style: IconButton.styleFrom(
+                                  backgroundColor: colorScheme.tertiary.withOpacity(0.2),
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_rounded,
+                                  color: colorScheme.onTertiaryContainer,
+                                ),
+                                onPressed: () => _deletePage(_selectedPage!.id),
+                                tooltip: 'Delete Page',
+                                style: IconButton.styleFrom(
+                                  backgroundColor: colorScheme.tertiary.withOpacity(0.2),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Page tabs
                 if (_pages.isNotEmpty)
@@ -1425,27 +1698,49 @@ class _ServerScreenState extends State<ServerScreen> {
 
     if (_connectedClients.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: colorScheme.surface.withAlpha(60),
-          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surfaceVariant.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: colorScheme.outlineVariant,
+            style: BorderStyle.solid,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.devices_other,
-              size: 32,
-              color: colorScheme.onSurfaceVariant.withAlpha(127),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceVariant.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.smartphone_rounded,
+                size: 32,
+                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
               'No clients connected',
               style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
                 color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Clients will appear here when they connect to the server',
+              style: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
                 fontStyle: FontStyle.italic,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1454,85 +1749,181 @@ class _ServerScreenState extends State<ServerScreen> {
 
     final dateFormat = DateFormat('h:mm:ss a');
 
-    return ListView.builder(
+    return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _connectedClients.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final client = _connectedClients[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          elevation: 0,
-          color: colorScheme.surface.withAlpha(60),
+        final connectionDuration = DateTime.now().difference(client.connectedAt);
+        
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colorScheme.surfaceVariant.withOpacity(0.3),
+                colorScheme.surface.withOpacity(0.8),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withOpacity(0.5),
+            ),
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
+                // Enhanced device icon
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      colors: [
+                        colorScheme.primaryContainer,
+                        colorScheme.primaryContainer.withOpacity(0.7),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.primary.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Icon(
-                    Icons.smartphone,
+                    Icons.smartphone_rounded,
                     size: 24,
-                    color: colorScheme.onSecondaryContainer,
+                    color: colorScheme.onPrimaryContainer,
                   ),
                 ),
                 const SizedBox(width: 16),
+                
+                // Enhanced client info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        client.deviceName ?? 'Unknown Device',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
+                      // Device name
                       Row(
                         children: [
-                          Icon(
-                            Icons.wifi,
-                            size: 14,
-                            color: colorScheme.secondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            client.ipAddress,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: colorScheme.onSurfaceVariant.withAlpha(
-                                127,
+                          Expanded(
+                            child: Text(
+                              client.deviceName ?? 'Unknown Device',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.access_time,
-                            size: 14,
-                            color: colorScheme.secondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Connected at: ${dateFormat.format(client.connectedAt)}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: colorScheme.onSurfaceVariant,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
                             ),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.green.withOpacity(0.5),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Online',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 8),
+                      
+                      // Connection details
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 4,
+                        children: [
+                          // IP Address
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.wifi_rounded,
+                                size: 14,
+                                color: colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                client.ipAddress,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          // Connection time
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.access_time_rounded,
+                                size: 14,
+                                color: colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                dateFormat.format(client.connectedAt),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          // Connection duration
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.timer_rounded,
+                                size: 14,
+                                color: colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDuration(connectionDuration),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1545,5 +1936,16 @@ class _ServerScreenState extends State<ServerScreen> {
         );
       },
     );
+  }
+
+  /// Format duration in a human-readable way
+  String _formatDuration(Duration duration) {
+    if (duration.inHours > 0) {
+      return '${duration.inHours}h ${duration.inMinutes % 60}m';
+    } else if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    } else {
+      return '${duration.inSeconds}s';
+    }
   }
 }
