@@ -846,7 +846,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                   labelText: 'Key',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedKey,
+                initialValue: _selectedKey,
                 items:
                     _commonKeys.map((key) {
                       return DropdownMenuItem<String>(

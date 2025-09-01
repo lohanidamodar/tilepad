@@ -30,9 +30,8 @@ class WebClientWebSocketService implements ClientWebSocketService {
   // Enhanced connection monitoring
   StreamController<ConnectionStatus>? _connectionStatusController;
   int _reconnectAttempts = 0;
-  int _maxReconnectAttempts = 15;
+  final int _maxReconnectAttempts = 15;
   DateTime? _lastPingTime;
-  DateTime? _lastPongTime;
   bool _awaitingPong = false;
   
   // Adaptive reconnection timing
@@ -126,7 +125,6 @@ class WebClientWebSocketService implements ClientWebSocketService {
                   break;
                 case MessageType.pong:
                   // Update pong reception time
-                  _lastPongTime = DateTime.now();
                   _awaitingPong = false;
                   debugPrint('Web: Received pong - connection healthy');
                   break;
@@ -239,7 +237,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
         
         final success = await verificationCompleter.future;
         
-        verificationTimeout?.cancel();
+        verificationTimeout.cancel();
         messageSubscription.cancel();
         
         if (success) {
@@ -251,7 +249,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
         return success;
       } catch (e) {
         debugPrint('Web: Error during verification ping: $e');
-        verificationTimeout?.cancel();
+        verificationTimeout.cancel();
         messageSubscription.cancel();
         return false;
       }
@@ -325,7 +323,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
       _reconnectAttempts++;
       
       debugPrint(
-        'Web: Attempting reconnection ${_reconnectAttempts}/$_maxReconnectAttempts to $_lastConnectedAddress',
+        'Web: Attempting reconnection $_reconnectAttempts/$_maxReconnectAttempts to $_lastConnectedAddress',
       );
 
       final success = await connect(_lastConnectedAddress!);

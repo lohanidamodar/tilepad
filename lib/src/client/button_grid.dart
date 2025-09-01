@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -48,13 +47,13 @@ class ButtonGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     if (buttons.isEmpty) {
       return Center(
         child: Container(
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: colorScheme.surface.withOpacity(0.5),
+            color: colorScheme.surface.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: colorScheme.outlineVariant),
           ),
@@ -64,7 +63,7 @@ class ButtonGrid extends ConsumerWidget {
               Icon(
                 Icons.grid_view_rounded,
                 size: 64,
-                color: colorScheme.primary.withOpacity(0.6),
+                color: colorScheme.primary.withValues(alpha: 0.6),
               ),
               const SizedBox(height: 16),
               Text(
@@ -80,7 +79,7 @@ class ButtonGrid extends ConsumerWidget {
                 'Buttons will appear here when connected to a server',
                 style: TextStyle(
                   fontSize: 14,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -113,49 +112,57 @@ class ButtonGrid extends ConsumerWidget {
 
     // Provide haptic feedback
     AccessibilityUtils.provideFeedback(FeedbackType.medium);
-    
+
     // Announce connection loss to screen readers
     AccessibilityUtils.announce(context, 'Connection to server lost');
 
     // Show dialog to inform the user
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: Icon(Icons.wifi_off_rounded, color: colorScheme.error, size: 32),
-        title: const Text('Connection Lost'),
-        content: const Text(
-          'The connection to the server has been lost. Would you like to reconnect?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            icon: Icon(
+              Icons.wifi_off_rounded,
+              color: colorScheme.error,
+              size: 32,
+            ),
+            title: const Text('Connection Lost'),
+            content: const Text(
+              'The connection to the server has been lost. Would you like to reconnect?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  // Attempt to reconnect if we have connection info
+                  if (connectionState.connection != null) {
+                    AccessibilityUtils.announce(
+                      context,
+                      'Attempting to reconnect',
+                    );
+                    ref
+                        .read(connectionStateProvider.notifier)
+                        .connect(connectionState.connection!);
+                  }
+                },
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Reconnect'),
+              ),
+            ],
           ),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Attempt to reconnect if we have connection info
-              if (connectionState.connection != null) {
-                AccessibilityUtils.announce(context, 'Attempting to reconnect');
-                ref
-                    .read(connectionStateProvider.notifier)
-                    .connect(connectionState.connection!);
-              }
-            },
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Reconnect'),
-          ),
-        ],
-      ),
     );
   }
 
   /// Builds a single button widget with enhanced animations and accessibility
   Widget _buildButton(BuildContext context, Button button, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
     final buttonColor = _hexToColor(button.color);
-    final isConnected = ref.read(connectionStateProvider).status == ConnectionStatus.connected;
-    
+    final isConnected =
+        ref.read(connectionStateProvider).status == ConnectionStatus.connected;
+
     return AccessibleButton(
       label: button.name,
       hint: AccessibilityUtils.getButtonStateLabel(isConnected, false),
@@ -165,10 +172,10 @@ class ButtonGrid extends ConsumerWidget {
         if (isConnected) {
           // Provide haptic feedback
           AccessibilityUtils.provideFeedback(FeedbackType.light);
-          
+
           // Announce button press to screen readers
           AccessibilityUtils.announce(context, 'Activated ${button.name}');
-          
+
           if (onButtonPressed != null) {
             onButtonPressed!(button.id);
           }
@@ -216,7 +223,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _elevationAnimation;
-  bool _isPressed = false;
+  final bool _isPressed = false;
 
   @override
   void initState() {
@@ -225,22 +232,14 @@ class _AnimatedButtonState extends State<AnimatedButton>
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-    
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _elevationAnimation = Tween<double>(
-      begin: 4.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    _elevationAnimation = Tween<double>(begin: 4.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -249,29 +248,11 @@ class _AnimatedButtonState extends State<AnimatedButton>
     super.dispose();
   }
 
-  void _handleTapDown(TapDownDetails details) {
-    setState(() => _isPressed = true);
-    _animationController.forward();
-  }
-
-  void _handleTapUp(TapUpDetails details) {
-    setState(() => _isPressed = false);
-    _animationController.reverse();
-    widget.onPressed();
-  }
-
-  void _handleTapCancel() {
-    setState(() => _isPressed = false);
-    _animationController.reverse();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final effectiveColor = widget.isEnabled 
-        ? widget.color 
-        : widget.color.withOpacity(0.5);
-    
+    final effectiveColor =
+        widget.isEnabled ? widget.color : widget.color.withValues(alpha: 0.5);
+
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
@@ -281,7 +262,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
             color: effectiveColor,
             borderRadius: BorderRadius.circular(16),
             elevation: widget.isEnabled ? _elevationAnimation.value : 1.0,
-            shadowColor: widget.color.withOpacity(0.4),
+            shadowColor: widget.color.withValues(alpha: 0.4),
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
@@ -290,18 +271,19 @@ class _AnimatedButtonState extends State<AnimatedButton>
                   end: Alignment.bottomRight,
                   colors: [
                     effectiveColor,
-                    effectiveColor.withOpacity(0.8),
+                    effectiveColor.withValues(alpha: 0.8),
                   ],
                 ),
-                boxShadow: _isPressed || !widget.isEnabled
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: widget.color.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                boxShadow:
+                    _isPressed || !widget.isEnabled
+                        ? []
+                        : [
+                          BoxShadow(
+                            color: widget.color.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -309,15 +291,18 @@ class _AnimatedButtonState extends State<AnimatedButton>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(widget.isEnabled ? 0.2 : 0.1),
+                      color: Colors.white.withValues(
+                        alpha: widget.isEnabled ? 0.2 : 0.1,
+                      ),
                       shape: BoxShape.circle,
                     ),
                     child: FaIcon(
                       widget.icon,
                       size: 28,
-                      color: widget.isEnabled 
-                          ? Colors.white 
-                          : Colors.white.withOpacity(0.6),
+                      color:
+                          widget.isEnabled
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -329,18 +314,22 @@ class _AnimatedButtonState extends State<AnimatedButton>
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: widget.isEnabled 
-                            ? Colors.white 
-                            : Colors.white.withOpacity(0.6),
+                        color:
+                            widget.isEnabled
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.6),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        shadows: widget.isEnabled ? [
-                          const Shadow(
-                            color: Colors.black26,
-                            offset: Offset(0, 1),
-                            blurRadius: 2,
-                          ),
-                        ] : [],
+                        shadows:
+                            widget.isEnabled
+                                ? [
+                                  const Shadow(
+                                    color: Colors.black26,
+                                    offset: Offset(0, 1),
+                                    blurRadius: 2,
+                                  ),
+                                ]
+                                : [],
                       ),
                     ),
                   ),

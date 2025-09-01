@@ -6,9 +6,10 @@ import '../utils/theme.dart';
 import 'client_providers.dart';
 
 /// Provider for accessibility settings
-final accessibilitySettingsProvider = ChangeNotifierProvider<AccessibilitySettings>(
-  (ref) => AccessibilitySettings(),
-);
+final accessibilitySettingsProvider =
+    ChangeNotifierProvider<AccessibilitySettings>(
+      (ref) => AccessibilitySettings(),
+    );
 
 /// Enhanced settings screen with accessibility options
 class SettingsScreen extends ConsumerWidget {
@@ -26,10 +27,7 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(
-              Icons.settings_rounded,
-              color: colorScheme.primary,
-            ),
+            Icon(Icons.settings_rounded, color: colorScheme.primary),
             const SizedBox(width: 12),
             const Text('Settings'),
           ],
@@ -50,7 +48,8 @@ class SettingsScreen extends ConsumerWidget {
               _buildToggleSetting(
                 context: context,
                 title: 'Keep Screen Awake',
-                subtitle: 'Prevent the screen from turning off while using the app',
+                subtitle:
+                    'Prevent the screen from turning off while using the app',
                 icon: Icons.lightbulb_outline_rounded,
                 value: keepAwake,
                 onChanged: (value) {
@@ -70,9 +69,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Accessibility Settings Section
           _buildSection(
             context: context,
@@ -93,9 +92,9 @@ class SettingsScreen extends ConsumerWidget {
               _buildTextScaleSetting(context, accessibilitySettings),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Connection Settings Section
           _buildSection(
             context: context,
@@ -107,10 +106,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Auto-Reconnect',
                 subtitle: 'Automatically reconnects when connection is lost',
                 icon: Icons.refresh_rounded,
-                trailing: Icon(
-                  Icons.check_circle_rounded,
-                  color: Colors.green,
-                ),
+                trailing: Icon(Icons.check_circle_rounded, color: Colors.green),
               ),
               const SizedBox(height: 12),
               _buildInfoCard(
@@ -118,16 +114,13 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Connection Health Monitoring',
                 subtitle: 'Continuously monitors connection quality',
                 icon: Icons.health_and_safety_rounded,
-                trailing: Icon(
-                  Icons.check_circle_rounded,
-                  color: Colors.green,
-                ),
+                trailing: Icon(Icons.check_circle_rounded, color: Colors.green),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // About Section
           _buildSection(
             context: context,
@@ -180,11 +173,7 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 12),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 20,
-                color: colorScheme.primary,
-              ),
+              Icon(icon, size: 20, color: colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -199,9 +188,7 @@ class SettingsScreen extends ConsumerWidget {
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              children: children,
-            ),
+            child: Column(children: children),
           ),
         ),
       ],
@@ -219,25 +206,19 @@ class SettingsScreen extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return ListTile(
-      leading: Icon(
-        icon,
-        color: colorScheme.secondary,
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
+      leading: Icon(icon, color: colorScheme.secondary),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(subtitle),
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-      ),
+      trailing: Switch(value: value, onChanged: onChanged),
       onTap: () => onChanged(!value),
       contentPadding: EdgeInsets.zero,
     );
   }
 
-  Widget _buildTextScaleSetting(BuildContext context, AccessibilitySettings settings) {
+  Widget _buildTextScaleSetting(
+    BuildContext context,
+    AccessibilitySettings settings,
+  ) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
@@ -252,7 +233,9 @@ class SettingsScreen extends ConsumerWidget {
             'Text Size',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
-          subtitle: Text('Adjust text size: ${(settings.textScale * 100).round()}%'),
+          subtitle: Text(
+            'Adjust text size: ${(settings.textScale * 100).round()}%',
+          ),
           contentPadding: EdgeInsets.zero,
         ),
         const SizedBox(height: 8),
@@ -282,17 +265,18 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildThemeSelector(BuildContext context, WidgetRef ref, ThemeMode themeMode) {
+  Widget _buildThemeSelector(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeMode themeMode,
+  ) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ListTile(
-          leading: Icon(
-            Icons.palette_rounded,
-            color: colorScheme.secondary,
-          ),
+          leading: Icon(Icons.palette_rounded, color: colorScheme.secondary),
           title: const Text(
             'Theme',
             style: TextStyle(fontWeight: FontWeight.w600),
@@ -309,7 +293,10 @@ class SettingsScreen extends ConsumerWidget {
                 label: 'Light',
                 icon: Icons.wb_sunny_rounded,
                 isSelected: themeMode == ThemeMode.light,
-                onTap: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.light),
+                onTap:
+                    () => ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(ThemeMode.light),
               ),
             ),
             const SizedBox(width: 8),
@@ -319,7 +306,10 @@ class SettingsScreen extends ConsumerWidget {
                 label: 'Dark',
                 icon: Icons.nightlight_rounded,
                 isSelected: themeMode == ThemeMode.dark,
-                onTap: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.dark),
+                onTap:
+                    () => ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(ThemeMode.dark),
               ),
             ),
             const SizedBox(width: 8),
@@ -329,7 +319,10 @@ class SettingsScreen extends ConsumerWidget {
                 label: 'System',
                 icon: Icons.settings_suggest_rounded,
                 isSelected: themeMode == ThemeMode.system,
-                onTap: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.system),
+                onTap:
+                    () => ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(ThemeMode.system),
               ),
             ),
           ],
@@ -348,7 +341,10 @@ class SettingsScreen extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: isSelected ? colorScheme.primaryContainer : colorScheme.surfaceVariant,
+      color:
+          isSelected
+              ? colorScheme.primaryContainer
+              : colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -359,7 +355,10 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               Icon(
                 icon,
-                color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
+                color:
+                    isSelected
+                        ? colorScheme.onPrimaryContainer
+                        : colorScheme.onSurfaceVariant,
               ),
               const SizedBox(height: 4),
               Text(
@@ -367,7 +366,10 @@ class SettingsScreen extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
+                  color:
+                      isSelected
+                          ? colorScheme.onPrimaryContainer
+                          : colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -387,14 +389,8 @@ class SettingsScreen extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return ListTile(
-      leading: Icon(
-        icon,
-        color: colorScheme.secondary,
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
+      leading: Icon(icon, color: colorScheme.secondary),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(subtitle),
       trailing: trailing,
       contentPadding: EdgeInsets.zero,
@@ -410,103 +406,5 @@ class SettingsScreen extends ConsumerWidget {
       case ThemeMode.system:
         return 'Follow system setting';
     }
-  }
-}
-                      themeMode == ThemeMode.system
-                          ? 'System Default'
-                          : themeMode == ThemeMode.light
-                          ? 'Light'
-                          : 'Dark',
-                    ),
-                    leading: const Icon(Icons.palette_outlined),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
-                      _showThemeSelectionDialog(context, ref);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'About',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    title: const Text('MarcoDeck Client'),
-                    subtitle: const Text('Version 1.0.0'),
-                    leading: const Icon(Icons.info_outline),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showThemeSelectionDialog(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.read(themeModeProvider);
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Theme'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<ThemeMode>(
-                title: const Text('System Default'),
-                value: ThemeMode.system,
-                groupValue: themeMode,
-                onChanged: (value) {
-                  ref.read(themeModeProvider.notifier).setThemeMode(value!);
-                  Navigator.pop(context);
-                },
-              ),
-              RadioListTile<ThemeMode>(
-                title: const Text('Light'),
-                value: ThemeMode.light,
-                groupValue: themeMode,
-                onChanged: (value) {
-                  ref.read(themeModeProvider.notifier).setThemeMode(value!);
-                  Navigator.pop(context);
-                },
-              ),
-              RadioListTile<ThemeMode>(
-                title: const Text('Dark'),
-                value: ThemeMode.dark,
-                groupValue: themeMode,
-                onChanged: (value) {
-                  ref.read(themeModeProvider.notifier).setThemeMode(value!);
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
   }
 }

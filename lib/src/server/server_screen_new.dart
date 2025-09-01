@@ -63,7 +63,9 @@ class _ServerScreenState extends State<ServerScreen> {
     });
 
     // Subscribe to server status updates
-    _serverStatusSubscription = widget.server.serverStatusStream.listen((status) {
+    _serverStatusSubscription = widget.server.serverStatusStream.listen((
+      status,
+    ) {
       setState(() {
         if (mounted) {
           _showStatusMessage(status);
@@ -105,9 +107,10 @@ class _ServerScreenState extends State<ServerScreen> {
         content: Text(
           status.message,
           style: TextStyle(
-            color: backgroundColor.computeLuminance() > 0.5
-                ? colorScheme.onPrimaryContainer
-                : colorScheme.onErrorContainer,
+            color:
+                backgroundColor.computeLuminance() > 0.5
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onErrorContainer,
           ),
         ),
         backgroundColor: backgroundColor,
@@ -189,70 +192,74 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _showChangePortDialog() async {
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Server Port'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter a new port number between 1024 and 65535.',
-              style: TextStyle(fontSize: 14),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Change Server Port'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter a new port number between 1024 and 65535.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _portController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Port',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _portController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'Port',
-                border: OutlineInputBorder(),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+              ElevatedButton(
+                onPressed: () async {
+                  final newPort =
+                      int.tryParse(_portController.text) ?? _serverPort;
+
+                  if (newPort < 1024 || newPort > 65535) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Port must be between 1024 and 65535'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  Navigator.of(context).pop();
+
+                  if (newPort != _serverPort) {
+                    if (_isRunning) {
+                      final success = await widget.server.restart(
+                        newPort: newPort,
+                      );
+                      setState(() {
+                        _isRunning = success;
+                        _serverPort = newPort;
+                      });
+                    } else {
+                      await widget.server.setPort(newPort);
+                      setState(() {
+                        _serverPort = newPort;
+                      });
+                    }
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final newPort = int.tryParse(_portController.text) ?? _serverPort;
-
-              if (newPort < 1024 || newPort > 65535) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Port must be between 1024 and 65535'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-                return;
-              }
-
-              Navigator.of(context).pop();
-
-              if (newPort != _serverPort) {
-                if (_isRunning) {
-                  final success = await widget.server.restart(newPort: newPort);
-                  setState(() {
-                    _isRunning = success;
-                    _serverPort = newPort;
-                  });
-                } else {
-                  await widget.server.setPort(newPort);
-                  setState(() {
-                    _serverPort = newPort;
-                  });
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -262,7 +269,8 @@ class _ServerScreenState extends State<ServerScreen> {
       setState(() {
         _pages = widget.server.pages;
 
-        if (_selectedPage == null || !_pages.any((p) => p.id == _selectedPage!.id)) {
+        if (_selectedPage == null ||
+            !_pages.any((p) => p.id == _selectedPage!.id)) {
           _selectedPage = _pages.isNotEmpty ? _pages.first : null;
         } else {
           _selectedPage = _pages.firstWhere((p) => p.id == _selectedPage!.id);
@@ -293,7 +301,9 @@ class _ServerScreenState extends State<ServerScreen> {
     if (_pages.length <= 1) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Cannot delete the last page. Create a new page first.'),
+          content: Text(
+            'Cannot delete the last page. Create a new page first.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -302,35 +312,36 @@ class _ServerScreenState extends State<ServerScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Page'),
-        content: const Text(
-          'Are you sure you want to delete this page? All buttons on this page will be deleted as well.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              widget.server.deletePage(id);
-
-              if (_selectedPage?.id == id) {
-                _selectedPage = null;
-              }
-
-              _refreshPages();
-              Navigator.of(context).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Page'),
+            content: const Text(
+              'Are you sure you want to delete this page? All buttons on this page will be deleted as well.',
             ),
-            child: const Text('Delete'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  widget.server.deletePage(id);
+
+                  if (_selectedPage?.id == id) {
+                    _selectedPage = null;
+                  }
+
+                  _refreshPages();
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -349,17 +360,18 @@ class _ServerScreenState extends State<ServerScreen> {
     final result = await Navigator.push<models.Button>(
       context,
       MaterialPageRoute(
-        builder: (context) => ButtonEditorPage(
-          button: button,
-          onSave: (updatedButton) {
-            if (button == null) {
-              widget.server.addButton(updatedButton, _selectedPage!.id);
-            } else {
-              widget.server.updateButton(updatedButton);
-            }
-            _refreshPages();
-          },
-        ),
+        builder:
+            (context) => ButtonEditorPage(
+              button: button,
+              onSave: (updatedButton) {
+                if (button == null) {
+                  widget.server.addButton(updatedButton, _selectedPage!.id);
+                } else {
+                  widget.server.updateButton(updatedButton);
+                }
+                _refreshPages();
+              },
+            ),
       ),
     );
 
@@ -377,28 +389,29 @@ class _ServerScreenState extends State<ServerScreen> {
   void _deleteButton(String id) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Button'),
-        content: const Text('Are you sure you want to delete this button?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Button'),
+            content: const Text('Are you sure you want to delete this button?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  widget.server.deleteButton(id);
+                  _refreshPages();
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              widget.server.deleteButton(id);
-              _refreshPages();
-              Navigator.of(context).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -453,7 +466,9 @@ class _ServerScreenState extends State<ServerScreen> {
             onPressed: _refreshPages,
             tooltip: 'Refresh',
             style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -474,9 +489,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
           // Connected Clients Card
           if (_isRunning)
-            ConnectedClientsCard(
-              connectedClients: _connectedClients,
-            ),
+            ConnectedClientsCard(connectedClients: _connectedClients),
 
           // Pages and Buttons Section
           PagesAndButtonsSection(

@@ -735,7 +735,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                             vertical: 16,
                           ),
                         ),
-                        value: _selectedKey,
+                        initialValue: _selectedKey,
                         isExpanded: true,
                         items:
                             _commonKeys.map((key) {

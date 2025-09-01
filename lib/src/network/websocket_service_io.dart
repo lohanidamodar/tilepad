@@ -23,7 +23,6 @@ class IOClientWebSocketService implements ClientWebSocketService {
   bool _isConnected = false;
   String? _lastConnectedAddress;
   Timer? _reconnectTimer;
-  Timer? _pingTimer;
   Timer? _healthCheckTimer;
   bool _reconnecting = false;
   void Function(bool)? _onReconnectionStateChanged;
@@ -31,11 +30,10 @@ class IOClientWebSocketService implements ClientWebSocketService {
   // Enhanced connection monitoring
   StreamController<ConnectionStatus>? _connectionStatusController;
   int _reconnectAttempts = 0;
-  int _maxReconnectAttempts = 15; // Increased for better persistence
+  final int _maxReconnectAttempts = 15; // Increased for better persistence
   DateTime? _lastPingTime;
-  DateTime? _lastPongTime;
   bool _awaitingPong = false;
-  
+
   // Adaptive reconnection timing
   static const int _baseReconnectDelay = 1000; // 1 second
   static const int _maxReconnectDelay = 30000; // 30 seconds
@@ -62,11 +60,11 @@ class IOClientWebSocketService implements ClientWebSocketService {
       _reconnectTimer = null;
       _reconnecting = false;
       _reconnectAttempts = 0;
-      
+
       if (_onReconnectionStateChanged != null) {
         _onReconnectionStateChanged!(false);
       }
-      
+
       if (_connectionStatusController != null) {
         _connectionStatusController!.add(ConnectionStatus.disconnected);
       }
@@ -109,11 +107,11 @@ class IOClientWebSocketService implements ClientWebSocketService {
       } catch (e) {
         debugPrint('Immediate connection failure: $e');
         _isConnected = false;
-        
+
         if (_connectionStatusController != null) {
           _connectionStatusController!.add(ConnectionStatus.error);
         }
-        
+
         return false;
       }
 
@@ -123,7 +121,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
           if (data is String) {
             try {
               final message = Message.decode(data);
-              
+
               // Handle different message types
               switch (message.type) {
                 case MessageType.ping:
@@ -132,7 +130,6 @@ class IOClientWebSocketService implements ClientWebSocketService {
                   break;
                 case MessageType.pong:
                   // Update pong reception time
-                  _lastPongTime = DateTime.now();
                   _awaitingPong = false;
                   debugPrint('Received pong - connection healthy');
                   break;
@@ -158,7 +155,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
       // Enhanced connection verification with timeout
       final connectionSuccess = await _verifyConnection();
-      
+
       if (connectionSuccess) {
         _isConnected = true;
         _reconnectAttempts = 0;
@@ -176,7 +173,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
         // Start health monitoring
         _startHealthCheck();
-        
+
         if (_connectionStatusController != null) {
           _connectionStatusController!.add(ConnectionStatus.connected);
         }
@@ -186,21 +183,21 @@ class IOClientWebSocketService implements ClientWebSocketService {
         _isConnected = false;
         await _channel?.sink.close();
         _channel = null;
-        
+
         if (_connectionStatusController != null) {
           _connectionStatusController!.add(ConnectionStatus.error);
         }
-        
+
         return false;
       }
     } catch (e) {
       _isConnected = false;
       debugPrint('Failed to connect: $e');
-      
+
       if (_connectionStatusController != null) {
         _connectionStatusController!.add(ConnectionStatus.error);
       }
-      
+
       return false;
     }
   }
@@ -210,7 +207,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
     try {
       // Wait briefly for connection to stabilize
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       // Check if channel is still available
       if (_channel == null) {
         debugPrint('Channel closed during verification');
@@ -220,7 +217,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
       // Send verification ping with timeout
       final verificationCompleter = Completer<bool>();
       Timer? verificationTimeout;
-      
+
       // Set up timeout
       verificationTimeout = Timer(const Duration(seconds: 5), () {
         if (!verificationCompleter.isCompleted) {
@@ -231,7 +228,8 @@ class IOClientWebSocketService implements ClientWebSocketService {
       // Listen for pong response
       late StreamSubscription messageSubscription;
       messageSubscription = _messageController.stream.listen((message) {
-        if (message.type == MessageType.pong && !verificationCompleter.isCompleted) {
+        if (message.type == MessageType.pong &&
+            !verificationCompleter.isCompleted) {
           verificationTimeout?.cancel();
           messageSubscription.cancel();
           verificationCompleter.complete(true);
@@ -242,22 +240,22 @@ class IOClientWebSocketService implements ClientWebSocketService {
       try {
         debugPrint('Sending verification ping');
         _sendPing();
-        
+
         final success = await verificationCompleter.future;
-        
-        verificationTimeout?.cancel();
+
+        verificationTimeout.cancel();
         messageSubscription.cancel();
-        
+
         if (success) {
           debugPrint('Connection verification successful');
         } else {
           debugPrint('Connection verification failed - timeout');
         }
-        
+
         return success;
       } catch (e) {
         debugPrint('Error during verification ping: $e');
-        verificationTimeout?.cancel();
+        verificationTimeout.cancel();
         messageSubscription.cancel();
         return false;
       }
@@ -271,7 +269,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
   void _handleDisconnection() {
     _isConnected = false;
     _stopHealthCheck();
-    
+
     if (_connectionStatusController != null) {
       _connectionStatusController!.add(ConnectionStatus.disconnected);
     }
@@ -287,7 +285,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
     if (_reconnecting || _lastConnectedAddress == null) return;
 
     _reconnecting = true;
-    
+
     if (_onReconnectionStateChanged != null) {
       _onReconnectionStateChanged!(true);
     }
@@ -305,11 +303,11 @@ class IOClientWebSocketService implements ClientWebSocketService {
       if (_reconnectAttempts >= _maxReconnectAttempts) {
         debugPrint('Maximum reconnection attempts reached');
         _reconnecting = false;
-        
+
         if (_onReconnectionStateChanged != null) {
           _onReconnectionStateChanged!(false);
         }
-        
+
         if (_connectionStatusController != null) {
           _connectionStatusController!.add(ConnectionStatus.disconnected);
         }
@@ -319,7 +317,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
     // Calculate adaptive delay
     final delay = _calculateReconnectDelay(_reconnectAttempts);
-    
+
     debugPrint(
       'Scheduling reconnection attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts in ${delay}ms',
     );
@@ -329,13 +327,13 @@ class IOClientWebSocketService implements ClientWebSocketService {
       if (!_reconnecting) return;
 
       _reconnectAttempts++;
-      
+
       debugPrint(
-        'Attempting reconnection ${_reconnectAttempts}/$_maxReconnectAttempts to $_lastConnectedAddress',
+        'Attempting reconnection $_reconnectAttempts/$_maxReconnectAttempts to $_lastConnectedAddress',
       );
 
       final success = await connect(_lastConnectedAddress!);
-      
+
       if (!success && _reconnecting) {
         // Schedule next attempt
         _scheduleReconnection();
@@ -346,25 +344,27 @@ class IOClientWebSocketService implements ClientWebSocketService {
   /// Calculate adaptive reconnection delay
   int _calculateReconnectDelay(int attemptNumber) {
     // Exponential backoff with jitter
-    final baseDelay = _baseReconnectDelay * pow(_backoffMultiplier, attemptNumber);
+    final baseDelay =
+        _baseReconnectDelay * pow(_backoffMultiplier, attemptNumber);
     final cappedDelay = min(baseDelay, _maxReconnectDelay.toDouble()).toInt();
-    
+
     // Add jitter (±25%)
-    final jitter = (cappedDelay * 0.25 * (Random().nextDouble() * 2 - 1)).toInt();
-    
+    final jitter =
+        (cappedDelay * 0.25 * (Random().nextDouble() * 2 - 1)).toInt();
+
     return cappedDelay + jitter;
   }
 
   /// Start health check monitoring
   void _startHealthCheck() {
     _stopHealthCheck();
-    
+
     _healthCheckTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (!_isConnected) {
         timer.cancel();
         return;
       }
-      
+
       _performHealthCheck();
     });
   }
@@ -405,11 +405,13 @@ class IOClientWebSocketService implements ClientWebSocketService {
     try {
       _lastPingTime = DateTime.now();
       _awaitingPong = true;
-      
-      sendMessage(Message(
-        type: MessageType.ping,
-        payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
-      ));
+
+      sendMessage(
+        Message(
+          type: MessageType.ping,
+          payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+        ),
+      );
     } catch (e) {
       debugPrint('Error sending ping: $e');
       _handleDisconnection();
@@ -419,19 +421,14 @@ class IOClientWebSocketService implements ClientWebSocketService {
   /// Send pong message
   void _sendPong() {
     try {
-      sendMessage(Message(
-        type: MessageType.pong,
-        payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
-      ));
+      sendMessage(
+        Message(
+          type: MessageType.pong,
+          payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+        ),
+      );
     } catch (e) {
       debugPrint('Error sending pong: $e');
-    }
-  }
-
-  /// Legacy method for reconnection timer start
-  void _startReconnectionTimer() {
-    if (!_reconnecting) {
-      _startEnhancedReconnection();
     }
   }
 
@@ -455,7 +452,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _reconnecting = false;
-    
+
     if (_channel != null) {
       try {
         await _channel!.sink.close();
@@ -464,9 +461,9 @@ class IOClientWebSocketService implements ClientWebSocketService {
       }
       _channel = null;
     }
-    
+
     _isConnected = false;
-    
+
     if (_connectionStatusController != null) {
       _connectionStatusController!.add(ConnectionStatus.disconnected);
     }
@@ -486,7 +483,8 @@ class IOServerWebSocketService implements ServerWebSocketService {
   final List<WebSocket> _clients = [];
   final List<ClientInfo> _connectedClients = [];
   final _messageController = StreamController<Message>.broadcast();
-  final _clientConnectionController = StreamController<ClientConnectionEvent>.broadcast();
+  final _clientConnectionController =
+      StreamController<ClientConnectionEvent>.broadcast();
 
   @override
   Stream<Message> get messageStream => _messageController.stream;
@@ -507,7 +505,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
       _server!.transform(WebSocketTransformer()).listen((WebSocket webSocket) {
         final clientInfo = ClientInfo(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
-          ipAddress: webSocket.remoteAddress?.address ?? 'Unknown',
+          ipAddress: _server?.address.address ?? 'Unknown',
           connectedAt: DateTime.now(),
         );
 

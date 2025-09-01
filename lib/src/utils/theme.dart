@@ -84,53 +84,57 @@ class ThemeModeSelector extends StatelessWidget {
       ),
       onSelected: onThemeModeChanged,
       position: PopupMenuPosition.under,
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<ThemeMode>>[
-        PopupMenuItem<ThemeMode>(
-          value: ThemeMode.light,
-          child: ListTile(
-            leading: Icon(
-              Icons.wb_sunny_outlined,
-              color: currentThemeMode == ThemeMode.light
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+      itemBuilder:
+          (BuildContext context) => <PopupMenuEntry<ThemeMode>>[
+            PopupMenuItem<ThemeMode>(
+              value: ThemeMode.light,
+              child: ListTile(
+                leading: Icon(
+                  Icons.wb_sunny_outlined,
+                  color:
+                      currentThemeMode == ThemeMode.light
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                ),
+                title: const Text('Light'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                selected: currentThemeMode == ThemeMode.light,
+              ),
             ),
-            title: const Text('Light'),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            selected: currentThemeMode == ThemeMode.light,
-          ),
-        ),
-        PopupMenuItem<ThemeMode>(
-          value: ThemeMode.dark,
-          child: ListTile(
-            leading: Icon(
-              Icons.nightlight_outlined,
-              color: currentThemeMode == ThemeMode.dark
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+            PopupMenuItem<ThemeMode>(
+              value: ThemeMode.dark,
+              child: ListTile(
+                leading: Icon(
+                  Icons.nightlight_outlined,
+                  color:
+                      currentThemeMode == ThemeMode.dark
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                ),
+                title: const Text('Dark'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                selected: currentThemeMode == ThemeMode.dark,
+              ),
             ),
-            title: const Text('Dark'),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            selected: currentThemeMode == ThemeMode.dark,
-          ),
-        ),
-        PopupMenuItem<ThemeMode>(
-          value: ThemeMode.system,
-          child: ListTile(
-            leading: Icon(
-              Icons.settings_suggest_outlined,
-              color: currentThemeMode == ThemeMode.system
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+            PopupMenuItem<ThemeMode>(
+              value: ThemeMode.system,
+              child: ListTile(
+                leading: Icon(
+                  Icons.settings_suggest_outlined,
+                  color:
+                      currentThemeMode == ThemeMode.system
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                ),
+                title: const Text('System'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                selected: currentThemeMode == ThemeMode.system,
+              ),
             ),
-            title: const Text('System'),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            selected: currentThemeMode == ThemeMode.system,
-          ),
-        ),
-      ],
+          ],
     );
   }
 
@@ -164,17 +168,16 @@ ThemeData lightTheme = ThemeData(
     scrolledUnderElevation: 1,
     backgroundColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
-    titleTextStyle: const TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.w600,
-    ),
+    titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
   ),
   cardTheme: CardThemeData(
     clipBehavior: Clip.antiAlias,
     elevation: 2,
-    shadowColor: Colors.black.withOpacity(0.1),
+    shadowColor: Colors.black.withValues(alpha: 0.1),
     margin: const EdgeInsets.all(8),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_cardBorderRadius)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_cardBorderRadius),
+    ),
   ),
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
@@ -200,38 +203,50 @@ ThemeData lightTheme = ThemeData(
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_commonBorderRadius),
+      ),
       elevation: 1,
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black.withValues(alpha: 0.1),
     ),
   ),
   filledButtonTheme: FilledButtonThemeData(
     style: FilledButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_commonBorderRadius),
+      ),
       elevation: 0,
     ),
   ),
   textButtonTheme: TextButtonThemeData(
     style: TextButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_commonBorderRadius),
+      ),
     ),
   ),
   outlinedButtonTheme: OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_commonBorderRadius),
+      ),
     ),
   ),
   dialogTheme: DialogThemeData(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_cardBorderRadius)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_cardBorderRadius),
+    ),
     elevation: 8,
-    shadowColor: Colors.black.withOpacity(0.2),
+    shadowColor: Colors.black.withValues(alpha: 0.2),
   ),
   snackBarTheme: SnackBarThemeData(
     behavior: SnackBarBehavior.floating,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_commonBorderRadius),
+    ),
     elevation: 4,
   ),
   chipTheme: ChipThemeData(
@@ -239,12 +254,16 @@ ThemeData lightTheme = ThemeData(
     elevation: 0,
   ),
   floatingActionButtonTheme: FloatingActionButtonThemeData(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_fabBorderRadius)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_fabBorderRadius),
+    ),
     elevation: 3,
   ),
   listTileTheme: const ListTileThemeData(
     contentPadding: EdgeInsets.symmetric(horizontal: 16),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(8)),
+    ),
   ),
   switchTheme: SwitchThemeData(
     thumbIcon: WidgetStateProperty.resolveWith((states) {
@@ -274,17 +293,16 @@ ThemeData darkTheme = ThemeData(
     scrolledUnderElevation: 1,
     backgroundColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
-    titleTextStyle: const TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.w600,
-    ),
+    titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
   ),
   cardTheme: CardThemeData(
     clipBehavior: Clip.antiAlias,
     elevation: 2,
-    shadowColor: Colors.black.withOpacity(0.3),
+    shadowColor: Colors.black.withValues(alpha: 0.3),
     margin: const EdgeInsets.all(8),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_cardBorderRadius)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_cardBorderRadius),
+    ),
   ),
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
@@ -310,38 +328,50 @@ ThemeData darkTheme = ThemeData(
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_commonBorderRadius),
+      ),
       elevation: 1,
-      shadowColor: Colors.black.withOpacity(0.3),
+      shadowColor: Colors.black.withValues(alpha: 0.3),
     ),
   ),
   filledButtonTheme: FilledButtonThemeData(
     style: FilledButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_commonBorderRadius),
+      ),
       elevation: 0,
     ),
   ),
   textButtonTheme: TextButtonThemeData(
     style: TextButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_commonBorderRadius),
+      ),
     ),
   ),
   outlinedButtonTheme: OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_commonBorderRadius),
+      ),
     ),
   ),
   dialogTheme: DialogThemeData(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_cardBorderRadius)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_cardBorderRadius),
+    ),
     elevation: 8,
-    shadowColor: Colors.black.withOpacity(0.4),
+    shadowColor: Colors.black.withValues(alpha: 0.4),
   ),
   snackBarTheme: SnackBarThemeData(
     behavior: SnackBarBehavior.floating,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_commonBorderRadius)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_commonBorderRadius),
+    ),
     elevation: 4,
   ),
   chipTheme: ChipThemeData(
@@ -349,12 +379,16 @@ ThemeData darkTheme = ThemeData(
     elevation: 0,
   ),
   floatingActionButtonTheme: FloatingActionButtonThemeData(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_fabBorderRadius)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_fabBorderRadius),
+    ),
     elevation: 3,
   ),
   listTileTheme: const ListTileThemeData(
     contentPadding: EdgeInsets.symmetric(horizontal: 16),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(8)),
+    ),
   ),
   switchTheme: SwitchThemeData(
     thumbIcon: WidgetStateProperty.resolveWith((states) {

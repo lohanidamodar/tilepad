@@ -18,7 +18,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   bool _initialized = false;
   String _statusMessage = 'Initializing...';
   double _progress = 0.0;
-  
+
   late AnimationController _logoAnimationController;
   late AnimationController _fadeAnimationController;
   late Animation<double> _logoScaleAnimation;
@@ -28,46 +28,40 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animations
     _logoAnimationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     );
-    
+
     _fadeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
-    _logoScaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _logoAnimationController,
-      curve: Curves.elasticOut,
-    ));
-    
-    _logoRotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: 0.25,
-    ).animate(CurvedAnimation(
-      parent: _logoAnimationController,
-      curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
-    ));
-    
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeAnimationController,
-      curve: Curves.easeIn,
-    ));
-    
+
+    _logoScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoAnimationController,
+        curve: Curves.elasticOut,
+      ),
+    );
+
+    _logoRotationAnimation = Tween<double>(begin: 0.0, end: 0.25).animate(
+      CurvedAnimation(
+        parent: _logoAnimationController,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
+      ),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeAnimationController, curve: Curves.easeIn),
+    );
+
     // Start animations
     _logoAnimationController.forward();
     _fadeAnimationController.forward();
-    
+
     // Delay initialization until after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeApp();
@@ -110,9 +104,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         if (mounted) {
           Navigator.of(context).pushReplacement(
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const ButtonsScreen(showNoConnectionMessage: true),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              pageBuilder:
+                  (context, animation, secondaryAnimation) =>
+                      const ButtonsScreen(showNoConnectionMessage: true),
+              transitionsBuilder: (
+                context,
+                animation,
+                secondaryAnimation,
+                child,
+              ) {
                 return FadeTransition(opacity: animation, child: child);
               },
               transitionDuration: const Duration(milliseconds: 500),
@@ -124,7 +124,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       // Step 2: Connecting to server
       await _updateProgress(0.4, 'Connecting to ${defaultServer.name}...');
-      
+
       debugPrint(
         'Attempting to connect to server: ${defaultServer.name} (${defaultServer.address})',
       );
@@ -135,7 +135,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       // Step 3: Establishing connection
       await _updateProgress(0.6, 'Establishing connection...');
-      
+
       // Ensure any previous connection is properly closed
       await connectionNotifier.disconnect();
 
@@ -157,17 +157,25 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         if (mounted) {
           Navigator.of(context).pushReplacement(
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const ButtonsScreen(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              pageBuilder:
+                  (context, animation, secondaryAnimation) =>
+                      const ButtonsScreen(),
+              transitionsBuilder: (
+                context,
+                animation,
+                secondaryAnimation,
+                child,
+              ) {
                 return SlideTransition(
                   position: Tween<Offset>(
                     begin: const Offset(1.0, 0.0),
                     end: Offset.zero,
-                  ).animate(CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  )),
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
                   child: child,
                 );
               },
@@ -191,8 +199,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const ButtonsScreen(showNoConnectionMessage: true),
+          pageBuilder:
+              (context, animation, secondaryAnimation) =>
+                  const ButtonsScreen(showNoConnectionMessage: true),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -216,7 +225,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             end: Alignment.bottomCenter,
             colors: [
               colorScheme.surface,
-              colorScheme.surfaceVariant.withOpacity(0.3),
+              colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             ],
           ),
         ),
@@ -243,7 +252,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: colorScheme.primary.withOpacity(0.3),
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                 ),
@@ -253,11 +264,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               child: Image.asset(
                                 'assets/logo.png',
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Icon(
-                                  Icons.devices_rounded,
-                                  size: 60,
-                                  color: colorScheme.onPrimaryContainer,
-                                ),
+                                errorBuilder:
+                                    (context, error, stackTrace) => Icon(
+                                      Icons.devices_rounded,
+                                      size: 60,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
                               ),
                             ),
                           ),
@@ -265,9 +277,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       );
                     },
                   ),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   // App title with fade animation
                   FadeTransition(
                     opacity: _fadeAnimation,
@@ -280,9 +292,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 8),
-                  
+
                   // Subtitle
                   FadeTransition(
                     opacity: _fadeAnimation,
@@ -294,9 +306,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 48),
-                  
+
                   // Status message
                   FadeTransition(
                     opacity: _fadeAnimation,
@@ -306,7 +318,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.5,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: colorScheme.outlineVariant,
@@ -338,9 +352,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Progress bar
                   FadeTransition(
                     opacity: _fadeAnimation,
@@ -348,7 +362,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       width: 200,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant,
+                        color: colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(2),
                       ),
                       child: FractionallySizedBox(
@@ -368,16 +382,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 80),
-                  
+
                   // Version info
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Text(
                       'Version 1.0.0',
                       style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ),
