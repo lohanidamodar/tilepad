@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Accessibility utilities for the MarcoDeck application
 class AccessibilityUtils {
@@ -137,34 +138,54 @@ extension HighContrastTheme on ThemeData {
 }
 
 /// Accessibility settings provider
-class AccessibilitySettings extends ChangeNotifier {
-  bool _highContrastMode = false;
-  bool _reduceAnimations = false;
-  double _textScale = 1.0;
-
-  bool get highContrastMode => _highContrastMode;
-  bool get reduceAnimations => _reduceAnimations;
-  double get textScale => _textScale;
+/// Settings for accessibility options
+class AccessibilitySettings extends Notifier<AccessibilityState> {
+  @override
+  AccessibilityState build() {
+    return AccessibilityState();
+  }
 
   void toggleHighContrast() {
-    _highContrastMode = !_highContrastMode;
-    notifyListeners();
+    state = state.copyWith(highContrastMode: !state.highContrastMode);
   }
 
   void toggleReduceAnimations() {
-    _reduceAnimations = !_reduceAnimations;
-    notifyListeners();
+    state = state.copyWith(reduceAnimations: !state.reduceAnimations);
   }
 
   void setTextScale(double scale) {
-    _textScale = scale.clamp(0.8, 2.0);
-    notifyListeners();
+    state = state.copyWith(textScale: scale.clamp(0.8, 2.0));
   }
+}
+
+/// State class for accessibility settings
+class AccessibilityState {
+  final bool highContrastMode;
+  final bool reduceAnimations;
+  final double textScale;
+
+  AccessibilityState({
+    this.highContrastMode = false,
+    this.reduceAnimations = false,
+    this.textScale = 1.0,
+  });
 
   Duration get animationDuration {
-    return _reduceAnimations
+    return reduceAnimations
         ? const Duration(milliseconds: 1)
         : const Duration(milliseconds: 300);
+  }
+
+  AccessibilityState copyWith({
+    bool? highContrastMode,
+    bool? reduceAnimations,
+    double? textScale,
+  }) {
+    return AccessibilityState(
+      highContrastMode: highContrastMode ?? this.highContrastMode,
+      reduceAnimations: reduceAnimations ?? this.reduceAnimations,
+      textScale: textScale ?? this.textScale,
+    );
   }
 }
 

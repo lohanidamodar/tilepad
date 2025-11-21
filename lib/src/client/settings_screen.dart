@@ -7,8 +7,8 @@ import 'client_providers.dart';
 
 /// Provider for accessibility settings
 final accessibilitySettingsProvider =
-    ChangeNotifierProvider<AccessibilitySettings>(
-      (ref) => AccessibilitySettings(),
+    NotifierProvider<AccessibilitySettings, AccessibilityState>(
+      AccessibilitySettings.new,
     );
 
 /// Enhanced settings screen with accessibility options
@@ -19,7 +19,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final accessibilitySettings = ref.watch(accessibilitySettingsProvider);
+    final accessibilityState = ref.watch(accessibilitySettingsProvider);
     final themeMode = ref.watch(themeModeProvider);
     final keepAwake = ref.watch(keepAwakeProvider);
 
@@ -62,9 +62,11 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'High Contrast Mode',
                 subtitle: 'Improves text and button visibility',
                 icon: Icons.contrast_rounded,
-                value: accessibilitySettings.highContrastMode,
+                value: accessibilityState.highContrastMode,
                 onChanged: (value) {
-                  accessibilitySettings.toggleHighContrast();
+                  ref
+                      .read(accessibilitySettingsProvider.notifier)
+                      .toggleHighContrast();
                 },
               ),
             ],
@@ -83,13 +85,15 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Reduce Animations',
                 subtitle: 'Minimizes motion for users sensitive to movement',
                 icon: Icons.motion_photos_off_rounded,
-                value: accessibilitySettings.reduceAnimations,
+                value: accessibilityState.reduceAnimations,
                 onChanged: (value) {
-                  accessibilitySettings.toggleReduceAnimations();
+                  ref
+                      .read(accessibilitySettingsProvider.notifier)
+                      .toggleReduceAnimations();
                 },
               ),
               const SizedBox(height: 16),
-              _buildTextScaleSetting(context, accessibilitySettings),
+              _buildTextScaleSetting(context, ref, accessibilityState),
             ],
           ),
 
@@ -217,7 +221,8 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildTextScaleSetting(
     BuildContext context,
-    AccessibilitySettings settings,
+    WidgetRef ref,
+    AccessibilityState state,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -234,7 +239,7 @@ class SettingsScreen extends ConsumerWidget {
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            'Adjust text size: ${(settings.textScale * 100).round()}%',
+            'Adjust text size: ${(state.textScale * 100).round()}%',
           ),
           contentPadding: EdgeInsets.zero,
         ),
@@ -247,12 +252,15 @@ class SettingsScreen extends ConsumerWidget {
             ),
             Expanded(
               child: Slider(
-                value: settings.textScale,
+                value: state.textScale,
                 min: 0.8,
                 max: 2.0,
                 divisions: 12,
-                label: '${(settings.textScale * 100).round()}%',
-                onChanged: settings.setTextScale,
+                label: '${(state.textScale * 100).round()}%',
+                onChanged:
+                    (value) => ref
+                        .read(accessibilitySettingsProvider.notifier)
+                        .setTextScale(value),
               ),
             ),
             Icon(

@@ -12,41 +12,73 @@ import '../network/websocket_service.dart';
 
 /// Provider for the list of saved server connections
 final serverConnectionsProvider =
-    StateNotifierProvider<ServerConnectionsNotifier, List<ServerConnection>>((
-      ref,
-    ) {
-      return ServerConnectionsNotifier(ref);
-    });
+    NotifierProvider<ServerConnectionsNotifier, List<ServerConnection>>(
+      ServerConnectionsNotifier.new,
+    );
 
 /// Provider for the default server ID
-final defaultServerIdProvider = StateProvider<String?>((ref) {
-  // The initial value will be updated by ServerConnectionsNotifier when it loads
-  return null;
-});
+final defaultServerIdProvider =
+    NotifierProvider<DefaultServerIdNotifier, String?>(
+      DefaultServerIdNotifier.new,
+    );
+
+/// Notifier for the default server ID
+class DefaultServerIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? value) => state = value;
+}
 
 /// Provider for the currently selected server connection
-final selectedServerConnectionProvider = StateProvider<ServerConnection?>(
-  (ref) => null,
-);
+final selectedServerConnectionProvider =
+    NotifierProvider<SelectedServerConnectionNotifier, ServerConnection?>(
+      SelectedServerConnectionNotifier.new,
+    );
+
+/// Notifier for the currently selected server connection
+class SelectedServerConnectionNotifier extends Notifier<ServerConnection?> {
+  @override
+  ServerConnection? build() => null;
+
+  void set(ServerConnection? value) => state = value;
+}
 
 /// Provider for the connection state
 final connectionStateProvider =
-    StateNotifierProvider<ConnectionStateNotifier, ConnectionState>((ref) {
-      return ConnectionStateNotifier(ref);
-    });
+    NotifierProvider<ConnectionStateNotifier, ConnectionState>(
+      ConnectionStateNotifier.new,
+    );
 
 /// Provider for pages from the server
-final pagesProvider = StateProvider<List<Page>>((ref) {
-  return [];
-});
+final pagesProvider = NotifierProvider<PagesNotifier, List<Page>>(
+  PagesNotifier.new,
+);
+
+/// Notifier for pages
+class PagesNotifier extends Notifier<List<Page>> {
+  @override
+  List<Page> build() => [];
+
+  void set(List<Page> value) => state = value;
+}
 
 /// Provider for the currently selected page index
-final selectedPageIndexProvider = StateProvider<int>((ref) {
-  return 0;
-});
+final selectedPageIndexProvider =
+    NotifierProvider<SelectedPageIndexNotifier, int>(
+      SelectedPageIndexNotifier.new,
+    );
+
+/// Notifier for selected page index
+class SelectedPageIndexNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void set(int value) => state = value;
+}
 
 /// Provider for the buttons from the server (for backward compatibility)
-final buttonsProvider = StateProvider<List<Button>>((ref) {
+final buttonsProvider = Provider<List<Button>>((ref) {
   // Get all buttons from all pages
   final pages = ref.watch(pagesProvider);
   final allButtons = <Button>[];
@@ -57,20 +89,30 @@ final buttonsProvider = StateProvider<List<Button>>((ref) {
 });
 
 /// Provider for command results
-final commandResultProvider = StateProvider<CommandResultEvent?>((ref) {
-  return null;
-});
+final commandResultProvider =
+    NotifierProvider<CommandResultNotifier, CommandResultEvent?>(
+      CommandResultNotifier.new,
+    );
+
+/// Notifier for command results
+class CommandResultNotifier extends Notifier<CommandResultEvent?> {
+  @override
+  CommandResultEvent? build() => null;
+
+  void set(CommandResultEvent? value) => state = value;
+}
 
 /// Provider for the keep screen awake setting
-final keepAwakeProvider = StateNotifierProvider<KeepAwakeNotifier, bool>((ref) {
-  return KeepAwakeNotifier();
-});
+final keepAwakeProvider = NotifierProvider<KeepAwakeNotifier, bool>(
+  KeepAwakeNotifier.new,
+);
 
 /// Notifier for the keep screen awake setting
-class KeepAwakeNotifier extends StateNotifier<bool> {
-  /// Creates a new keep awake notifier
-  KeepAwakeNotifier() : super(true) {
+class KeepAwakeNotifier extends Notifier<bool> {
+  @override
+  bool build() {
     _loadPreference();
+    return true;
   }
 
   /// Loads the saved preference
@@ -111,8 +153,7 @@ class KeepAwakeNotifier extends StateNotifier<bool> {
 }
 
 /// Notifier for server connections
-class ServerConnectionsNotifier extends StateNotifier<List<ServerConnection>> {
-  final Ref? _ref;
+class ServerConnectionsNotifier extends Notifier<List<ServerConnection>> {
   String? _defaultServerId;
 
   /// Get the default server ID, if any
@@ -129,9 +170,15 @@ class ServerConnectionsNotifier extends StateNotifier<List<ServerConnection>> {
     }
   }
 
-  /// Creates a new server connections notifier
-  ServerConnectionsNotifier([this._ref]) : super([]) {
-    _loadConnections();
+  @override
+  List<ServerConnection> build() {
+    _initialize();
+    return [];
+  }
+
+  /// Initializes the notifier and loads connections
+  Future<void> _initialize() async {
+    await _loadConnections();
   }
 
   /// Loads the saved connections from preferences
@@ -141,10 +188,8 @@ class ServerConnectionsNotifier extends StateNotifier<List<ServerConnection>> {
       final connectionsJson = prefs.getStringList('server_connections') ?? [];
       _defaultServerId = prefs.getString('default_server_id');
 
-      // Update the default server ID provider if ref is available
-      if (_ref != null) {
-        _ref.read(defaultServerIdProvider.notifier).state = _defaultServerId;
-      }
+      // Update the default server ID provider
+      ref.read(defaultServerIdProvider.notifier).set(_defaultServerId);
 
       final connections =
           connectionsJson
@@ -184,10 +229,8 @@ class ServerConnectionsNotifier extends StateNotifier<List<ServerConnection>> {
   Future<void> setDefaultServer(String? serverId) async {
     _defaultServerId = serverId;
 
-    // Update the default server ID provider if ref is available
-    if (_ref != null) {
-      _ref.read(defaultServerIdProvider.notifier).state = _defaultServerId;
-    }
+    // Update the default server ID provider
+    ref.read(defaultServerIdProvider.notifier).set(_defaultServerId);
 
     await _saveConnections();
   }
@@ -309,10 +352,10 @@ class ConnectionState {
 }
 
 /// Notifier for connection state
-class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
-  final Ref _ref;
+class ConnectionStateNotifier extends Notifier<ConnectionState> {
   final ClientWebSocketService _webSocketService = ClientWebSocketService();
   late StreamSubscription<Message> _messageSubscription;
+  late StreamSubscription<ConnectionStatus> _connectionStatusSubscription;
   Timer? _connectionTimeoutTimer;
 
   // Reconnection tracking
@@ -320,6 +363,31 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 5;
+
+  @override
+  ConnectionState build() {
+    // Listen for server messages
+    _messageSubscription = _webSocketService.messageStream.listen(
+      _handleServerMessage,
+    );
+
+    // Listen for connection status changes from the WebSocket service
+    _connectionStatusSubscription = _webSocketService.connectionStatusStream
+        .listen(_handleConnectionStatusChange);
+
+    // Set up reconnection listener
+    _setupReconnectionListener();
+
+    // Clean up when the provider is disposed
+    ref.onDispose(() {
+      _cancelConnectionTimeout();
+      _messageSubscription.cancel();
+      _connectionStatusSubscription.cancel();
+      _webSocketService.close();
+    });
+
+    return const ConnectionState(status: ConnectionStatus.disconnected);
+  }
 
   /// Gets whether the service is currently attempting to reconnect
   bool get isReconnecting => _isReconnecting;
@@ -346,34 +414,6 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
       }
     };
   }
-
-  /// Creates a new connection state notifier
-  ConnectionStateNotifier(this._ref)
-    : super(const ConnectionState(status: ConnectionStatus.disconnected)) {
-    // Listen for server messages
-    _messageSubscription = _webSocketService.messageStream.listen(
-      _handleServerMessage,
-    );
-
-    // Listen for connection status changes from the WebSocket service
-    _connectionStatusSubscription = _webSocketService.connectionStatusStream
-        .listen(_handleConnectionStatusChange);
-
-    // Set up reconnection listener
-    _setupReconnectionListener();
-  }
-
-  @override
-  void dispose() {
-    _cancelConnectionTimeout();
-    _messageSubscription.cancel();
-    _connectionStatusSubscription.cancel();
-    _webSocketService.close();
-    super.dispose();
-  }
-
-  // Subscription for connection status changes
-  late StreamSubscription<ConnectionStatus> _connectionStatusSubscription;
 
   /// Handle connection status changes from the WebSocket service
   void _handleConnectionStatusChange(ConnectionStatus status) {
@@ -438,7 +478,7 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
         _webSocketService.sendMessage(Message(type: MessageType.connect));
 
         // Update the last connected time
-        _ref
+        ref
             .read(serverConnectionsProvider.notifier)
             .updateLastConnected(connection.id);
 
@@ -612,8 +652,8 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
     state = const ConnectionState(status: ConnectionStatus.disconnected);
 
     // Clear buttons
-    _ref.read(pagesProvider.notifier).state = [];
-    _ref.read(selectedPageIndexProvider.notifier).state = 0;
+    ref.read(pagesProvider.notifier).set([]);
+    ref.read(selectedPageIndexProvider.notifier).set(0);
   }
 
   /// Resets error state back to disconnected
@@ -688,8 +728,8 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
       // Create a single page with these buttons
       final page = Page(name: 'All Buttons', buttons: buttons);
 
-      _ref.read(pagesProvider.notifier).state = [page];
-      _ref.read(selectedPageIndexProvider.notifier).state = 0;
+      ref.read(pagesProvider.notifier).set([page]);
+      ref.read(selectedPageIndexProvider.notifier).set(0);
     } catch (e) {
       debugPrint('Error handling buttons response: $e');
     }
@@ -705,12 +745,12 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
       // Sort pages by their order property
       pages.sort((a, b) => a.order.compareTo(b.order));
 
-      _ref.read(pagesProvider.notifier).state = pages;
+      ref.read(pagesProvider.notifier).set(pages);
 
       // Preserve selected page index if possible, otherwise reset to 0
-      final currentIndex = _ref.read(selectedPageIndexProvider);
+      final currentIndex = ref.read(selectedPageIndexProvider);
       if (currentIndex >= pages.length) {
-        _ref.read(selectedPageIndexProvider.notifier).state = 0;
+        ref.read(selectedPageIndexProvider.notifier).set(0);
       }
     } catch (e) {
       debugPrint('Error handling pages response: $e');
@@ -720,12 +760,16 @@ class ConnectionStateNotifier extends StateNotifier<ConnectionState> {
   /// Handles a command result message
   void _handleCommandResult(dynamic payload) {
     try {
-      _ref.read(commandResultProvider.notifier).state = CommandResultEvent(
-        buttonId: payload['buttonId'],
-        success: payload['success'],
-        output: payload['output'],
-        error: payload['error'],
-      );
+      ref
+          .read(commandResultProvider.notifier)
+          .set(
+            CommandResultEvent(
+              buttonId: payload['buttonId'],
+              success: payload['success'],
+              output: payload['output'],
+              error: payload['error'],
+            ),
+          );
     } catch (e) {
       debugPrint('Error handling command result: $e');
     }
