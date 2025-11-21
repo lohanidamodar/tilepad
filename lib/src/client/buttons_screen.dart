@@ -146,6 +146,15 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     final commandResult = ref.watch(commandResultProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
+    // Show result panel when commandResult changes
+    ref.listen<CommandResultEvent?>(commandResultProvider, (previous, next) {
+      if (next != null && mounted) {
+        setState(() {
+          _showResult = true;
+        });
+      }
+    });
+
     // More robust connection status check - only show buttons if truly connected
     final isConnected = connectionState.status == ConnectionStatus.connected;
 

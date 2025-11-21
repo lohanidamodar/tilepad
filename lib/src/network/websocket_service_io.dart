@@ -334,6 +334,13 @@ class IOClientWebSocketService implements ClientWebSocketService {
   void _startHealthCheck() {
     _stopHealthCheck();
 
+    // First health check after 20 seconds, then every 30 seconds
+    Timer(const Duration(seconds: 20), () {
+      if (_isConnected) {
+        _performHealthCheck();
+      }
+    });
+
     _healthCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (!_isConnected) {
         timer.cancel();
@@ -358,10 +365,14 @@ class IOClientWebSocketService implements ClientWebSocketService {
       // Check if we're awaiting a pong for too long
       if (_awaitingPong && _lastPingTime != null) {
         final timeSinceLastPing = DateTime.now().difference(_lastPingTime!);
-        if (timeSinceLastPing.inSeconds > 30) {
-          debugPrint('Health check failed - no pong received for 30 seconds');
+        if (timeSinceLastPing.inSeconds > 45) {
+          debugPrint('Health check failed - no pong received for 45 seconds');
           _handleDisconnection();
           return;
+        } else if (timeSinceLastPing.inSeconds > 30) {
+          debugPrint(
+            'Warning: Waiting for pong ${timeSinceLastPing.inSeconds}s',
+          );
         }
       }
 
@@ -423,11 +434,23 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
   @override
   Future<void> close() async {
+    debugPrint('Closing WebSocket connection');
+
+    // Cancel all timers
     _stopHealthCheck();
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
-    _reconnecting = false;
 
+    // Reset reconnection state
+    _reconnecting = false;
+    _reconnectAttempts = 0;
+    _awaitingPong = false;
+    _lastPingTime = null;
+
+    // Mark as not connected
+    _isConnected = false;
+
+    // Close the WebSocket channel
     if (_channel != null) {
       try {
         await _channel!.sink.close();
@@ -435,6 +458,11 @@ class IOClientWebSocketService implements ClientWebSocketService {
         debugPrint('Error closing channel: $e');
       }
       _channel = null;
+    }
+
+    // Notify disconnection
+    if (_connectionStatusController != null) {
+      _connectionStatusController!.add(ConnectionStatus.disconnected);
     }
 
     _isConnected = false;
@@ -477,73 +505,139 @@ class IOServerWebSocketService implements ServerWebSocketService {
       _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
       debugPrint('Server started on port $port');
 
-      _server!.transform(WebSocketTransformer()).listen((WebSocket webSocket) {
-        final clientInfo = ClientInfo(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          ipAddress: _server?.address.address ?? 'Unknown',
-          connectedAt: DateTime.now(),
-        );
+      _server!.listen((HttpRequest request) async {
+        if (WebSocketTransformer.isUpgradeRequest(request)) {
+          final webSocket = await WebSocketTransformer.upgrade(request);
 
-        _clients.add(webSocket);
-        _connectedClients.add(clientInfo);
+          // Get actual client IP address from the request
+          final clientIp =
+              request.connectionInfo?.remoteAddress.address ?? 'Unknown';
 
-        debugPrint('Client connected: ${clientInfo.ipAddress}');
-        _clientConnectionController.add(
-          ClientConnectionEvent(clientInfo: clientInfo, connected: true),
-        );
+          final clientInfo = ClientInfo(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            ipAddress: clientIp,
+            connectedAt: DateTime.now(),
+          );
 
-        webSocket.listen(
-          (data) {
-            if (data is String) {
-              try {
-                final message = Message.decode(data);
+          _clients.add(webSocket);
+          _connectedClients.add(clientInfo);
 
-                // Handle ping/pong messages to keep connection alive
-                if (message.type == MessageType.ping) {
-                  // Respond to ping with pong
-                  try {
-                    final pongMessage = Message(
-                      type: MessageType.pong,
-                      payload: {
-                        'timestamp': DateTime.now().millisecondsSinceEpoch,
-                      },
-                    );
-                    webSocket.add(pongMessage.encode());
+          debugPrint('Client connected from: $clientIp');
+          _clientConnectionController.add(
+            ClientConnectionEvent(clientInfo: clientInfo, connected: true),
+          );
+
+          webSocket.listen(
+            (data) {
+              if (data is String) {
+                try {
+                  final message = Message.decode(data);
+
+                  // Handle connect message to update device name
+                  if (message.type == MessageType.connect) {
                     debugPrint(
-                      'Responded to ping from ${clientInfo.ipAddress}',
+                      'Received connect message with payload: ${message.payload}',
                     );
-                  } catch (e) {
-                    debugPrint('Error sending pong: $e');
+                    if (message.payload != null &&
+                        message.payload is Map &&
+                        message.payload['deviceName'] != null) {
+                      // Update client info with device name
+                      final index = _connectedClients.indexOf(clientInfo);
+                      debugPrint(
+                        'Client index in list: $index, total clients: ${_connectedClients.length}',
+                      );
+                      if (index >= 0) {
+                        final newClientInfo = ClientInfo(
+                          id: clientInfo.id,
+                          ipAddress: clientInfo.ipAddress,
+                          connectedAt: clientInfo.connectedAt,
+                          deviceName: message.payload['deviceName'],
+                        );
+                        _connectedClients[index] = newClientInfo;
+                        debugPrint(
+                          'Updated client info - Device: ${newClientInfo.deviceName}, IP: ${newClientInfo.ipAddress}',
+                        );
+                        // Notify of updated client info
+                        _clientConnectionController.add(
+                          ClientConnectionEvent(
+                            clientInfo: newClientInfo,
+                            connected: true,
+                          ),
+                        );
+                        debugPrint(
+                          'Sent client connection event with updated name',
+                        );
+                      } else {
+                        debugPrint(
+                          'WARNING: Client not found in connected clients list!',
+                        );
+                      }
+                    } else {
+                      debugPrint(
+                        'WARNING: Connect message missing deviceName in payload',
+                      );
+                    }
+
+                    // Send acknowledgment back to the client
+                    try {
+                      webSocket.add(
+                        Message(type: MessageType.connectAck).encode(),
+                      );
+                      debugPrint(
+                        'Sent connectAck to client ${clientInfo.ipAddress}',
+                      );
+                    } catch (e) {
+                      debugPrint('Error sending connectAck: $e');
+                    }
+
+                    // Also add to message stream for app-level handling
+                    _messageController.add(message);
+                  } else if (message.type == MessageType.ping) {
+                    // Respond to ping with pong
+                    try {
+                      final pongMessage = Message(
+                        type: MessageType.pong,
+                        payload: {
+                          'timestamp': DateTime.now().millisecondsSinceEpoch,
+                        },
+                      );
+                      webSocket.add(pongMessage.encode());
+                      debugPrint(
+                        'Responded to ping from ${clientInfo.ipAddress}',
+                      );
+                    } catch (e) {
+                      debugPrint('Error sending pong: $e');
+                    }
+                  } else if (message.type == MessageType.pong) {
+                    // Client responded to our ping
+                    debugPrint('Received pong from ${clientInfo.ipAddress}');
+                  } else {
+                    // Forward other messages to the message stream
+                    _messageController.add(message);
                   }
-                } else if (message.type == MessageType.pong) {
-                  // Client responded to our ping
-                  debugPrint('Received pong from ${clientInfo.ipAddress}');
-                } else {
-                  // Forward other messages to the message stream
-                  _messageController.add(message);
+                } catch (e) {
+                  debugPrint('Error decoding message: $e');
                 }
-              } catch (e) {
-                debugPrint('Error decoding message: $e');
               }
-            }
-          },
-          onDone: () {
-            _clients.remove(webSocket);
-            _connectedClients.remove(clientInfo);
-            debugPrint('Client disconnected: ${clientInfo.ipAddress}');
-            _clientConnectionController.add(
-              ClientConnectionEvent(clientInfo: clientInfo, connected: false),
-            );
-          },
-          onError: (error) {
-            debugPrint('Client error: $error');
-            _clients.remove(webSocket);
-            _connectedClients.remove(clientInfo);
-            _clientConnectionController.add(
-              ClientConnectionEvent(clientInfo: clientInfo, connected: false),
-            );
-          },
-        );
+            },
+            onDone: () {
+              _clients.remove(webSocket);
+              _connectedClients.remove(clientInfo);
+              debugPrint('Client disconnected: ${clientInfo.ipAddress}');
+              _clientConnectionController.add(
+                ClientConnectionEvent(clientInfo: clientInfo, connected: false),
+              );
+            },
+            onError: (error) {
+              debugPrint('Client error: $error');
+              _clients.remove(webSocket);
+              _connectedClients.remove(clientInfo);
+              _clientConnectionController.add(
+                ClientConnectionEvent(clientInfo: clientInfo, connected: false),
+              );
+            },
+          );
+        }
       });
 
       return true;

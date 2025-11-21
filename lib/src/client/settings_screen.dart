@@ -97,7 +97,7 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: AppTheme.spaceXLarge),
 
           // Connection Settings Section
           _buildSection(
@@ -105,6 +105,8 @@ class SettingsScreen extends ConsumerWidget {
             title: 'Connection',
             icon: Icons.wifi_rounded,
             children: [
+              _buildDeviceNameSetting(context, ref),
+              const SizedBox(height: 16),
               _buildInfoCard(
                 context: context,
                 title: 'Auto-Reconnect',
@@ -196,6 +198,75 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDeviceNameSetting(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final deviceName = ref.watch(deviceNameProvider);
+
+    return ListTile(
+      leading: Icon(Icons.devices_rounded, color: colorScheme.secondary),
+      title: const Text(
+        'Device Name',
+        style: TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(deviceName),
+      trailing: IconButton(
+        icon: const Icon(Icons.edit_rounded),
+        onPressed: () => _showDeviceNameDialog(context, ref, deviceName),
+        tooltip: 'Change device name',
+      ),
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  Future<void> _showDeviceNameDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String currentName,
+  ) async {
+    final controller = TextEditingController(text: currentName);
+
+    return showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Change Device Name'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Device Name',
+                hintText: 'Enter a name for this device',
+              ),
+              maxLength: 30,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final newName = controller.text.trim();
+                  if (newName.isNotEmpty) {
+                    ref
+                        .read(deviceNameProvider.notifier)
+                        .setDeviceName(newName);
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Device name changed to "$newName"'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
     );
   }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,82 @@ import '../models/server_connection.dart';
 import '../network/websocket_service.dart';
 import '../network/discovery_service.dart';
 import '../network/discovery_service_stub.dart';
+
+/// Provider for device name
+final deviceNameProvider = NotifierProvider<DeviceNameNotifier, String>(
+  DeviceNameNotifier.new,
+);
+
+/// Notifier for device name
+class DeviceNameNotifier extends Notifier<String> {
+  /// Generate a random device name
+  String _generateRandomName() {
+    final adjectives = [
+      'Swift',
+      'Bright',
+      'Cool',
+      'Quick',
+      'Smart',
+      'Bold',
+      'Neat',
+      'Fast',
+      'Sleek',
+      'Sharp',
+    ];
+    final nouns = [
+      'Falcon',
+      'Tiger',
+      'Eagle',
+      'Phoenix',
+      'Dragon',
+      'Wolf',
+      'Hawk',
+      'Lion',
+      'Panther',
+      'Cobra',
+    ];
+
+    final random = Random();
+    final adjective = adjectives[random.nextInt(adjectives.length)];
+    final noun = nouns[random.nextInt(nouns.length)];
+    final number = random.nextInt(100);
+
+    return '$adjective $noun $number';
+  }
+
+  @override
+  String build() {
+    _loadDeviceName();
+    return _generateRandomName();
+  }
+
+  Future<void> _loadDeviceName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedName = prefs.getString('device_name');
+      if (savedName != null && savedName.isNotEmpty) {
+        state = savedName;
+      } else {
+        // Generate and save a random name
+        final randomName = _generateRandomName();
+        await prefs.setString('device_name', randomName);
+        state = randomName;
+      }
+    } catch (e) {
+      debugPrint('Error loading device name: $e');
+    }
+  }
+
+  Future<void> setDeviceName(String name) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('device_name', name);
+      state = name;
+    } catch (e) {
+      debugPrint('Error saving device name: $e');
+    }
+  }
+}
 
 /// Provider for the list of saved server connections
 final serverConnectionsProvider =
@@ -542,8 +619,14 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
       _cancelConnectionTimeout();
 
       if (success) {
-        // Send connect message
-        _webSocketService.sendMessage(Message(type: MessageType.connect));
+        // Send connect message with device name immediately
+        final deviceName = ref.read(deviceNameProvider);
+        _webSocketService.sendMessage(
+          Message(
+            type: MessageType.connect,
+            payload: {'deviceName': deviceName},
+          ),
+        );
 
         // Update the last connected time
         ref
@@ -668,8 +751,14 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
       );
 
       if (success) {
-        // Send connect message
-        _webSocketService.sendMessage(Message(type: MessageType.connect));
+        // Send connect message with device name
+        final deviceName = ref.read(deviceNameProvider);
+        _webSocketService.sendMessage(
+          Message(
+            type: MessageType.connect,
+            payload: {'deviceName': deviceName},
+          ),
+        );
 
         // Set ack timeout
         _setAckTimeout(state.connection!);
@@ -775,8 +864,19 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
     switch (message.type) {
       case MessageType.connectAck:
+        // Cancel the acknowledgment timeout
+        _cancelAckTimeout();
+
+        // Cancel any reconnection attempts
+        if (_isReconnecting) {
+          _isReconnecting = false;
+          _cancelReconnectAttemptCounter();
+        }
+
         // Update state to connected
         state = state.copyWith(status: ConnectionStatus.connected);
+
+        debugPrint('Connection acknowledged by server - now connected');
         break;
 
       case MessageType.buttonsResponse:
