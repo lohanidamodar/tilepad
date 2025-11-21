@@ -62,6 +62,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
 
   Future<void> _stopDiscovery() async {
     if (!_isDiscovering) return;
+    if (!mounted) return;
     await ref.read(discoveredServersProvider.notifier).stopDiscovery();
     setState(() => _isDiscovering = false);
   }
