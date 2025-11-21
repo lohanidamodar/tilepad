@@ -45,7 +45,7 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
     iconsMap['sign-out'] = FontAwesomeIcons.rightFromBracket;
     iconsMap['logout'] = FontAwesomeIcons.rightFromBracket;
     iconsMap['user'] = FontAwesomeIcons.user;
-    iconsMap['profile'] = FontAwesomeIcons.userLarge;
+    iconsMap['profile'] = FontAwesomeIcons.user;
     iconsMap['users'] = FontAwesomeIcons.users;
     iconsMap['search'] = FontAwesomeIcons.magnifyingGlass;
     iconsMap['plus'] = FontAwesomeIcons.plus;

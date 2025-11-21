@@ -138,7 +138,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
   }
 
-
   @override
   Widget build(BuildContext context) {
     final connectionState = ref.watch(connectionStateProvider);
@@ -159,7 +158,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
       // If we have buttons but the connection is gone, clear the buttons
       // This ensures we don't show stale buttons from a previous connection
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(pagesProvider.notifier).state = [];
+        ref.read(pagesProvider.notifier).set([]);
       });
     }
 
@@ -442,7 +441,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                             onPageChanged: (index) {
                               ref
                                   .read(selectedPageIndexProvider.notifier)
-                                  .state = index;
+                                  .set(index);
                             },
                             itemBuilder: (context, index) {
                               final page = pages[index];

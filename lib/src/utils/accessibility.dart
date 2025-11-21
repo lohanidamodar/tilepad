@@ -7,7 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class AccessibilityUtils {
   /// Announce a message to screen readers
   static void announce(BuildContext context, String message) {
-    SemanticsService.announce(message, TextDirection.ltr);
+    final view = View.of(context);
+    SemanticsService.sendAnnouncement(view, message, TextDirection.ltr);
   }
 
   /// Provide haptic feedback based on the action type
