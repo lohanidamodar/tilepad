@@ -101,7 +101,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
       try {
         _channel = IOWebSocketChannel.connect(
           Uri.parse(address),
-          pingInterval: const Duration(seconds: 10), // Less aggressive pinging
+          // Don't use automatic pingInterval - we handle health checks manually
           connectTimeout: const Duration(seconds: 10),
         );
       } catch (e) {
@@ -206,7 +206,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
   Future<bool> _verifyConnection() async {
     try {
       // Wait briefly for connection to stabilize
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Check if channel is still available
       if (_channel == null) {
@@ -214,6 +214,12 @@ class IOClientWebSocketService implements ClientWebSocketService {
         return false;
       }
 
+      // Simply verify the channel is open - don't require immediate pong response
+      // The health check will handle ongoing connectivity monitoring
+      debugPrint('Connection channel established');
+      return true;
+
+      /* Removed aggressive verification ping
       // Send verification ping with timeout
       final verificationCompleter = Completer<bool>();
       Timer? verificationTimeout;
@@ -225,40 +231,9 @@ class IOClientWebSocketService implements ClientWebSocketService {
         }
       });
 
-      // Listen for pong response
-      late StreamSubscription messageSubscription;
-      messageSubscription = _messageController.stream.listen((message) {
-        if (message.type == MessageType.pong &&
-            !verificationCompleter.isCompleted) {
-          verificationTimeout?.cancel();
-          messageSubscription.cancel();
-          verificationCompleter.complete(true);
-        }
-      });
-
-      // Send verification ping
-      try {
-        debugPrint('Sending verification ping');
-        _sendPing();
-
-        final success = await verificationCompleter.future;
-
-        verificationTimeout.cancel();
-        messageSubscription.cancel();
-
-        if (success) {
-          debugPrint('Connection verification successful');
-        } else {
-          debugPrint('Connection verification failed - timeout');
-        }
-
-        return success;
-      } catch (e) {
-        debugPrint('Error during verification ping: $e');
-        verificationTimeout.cancel();
-        messageSubscription.cancel();
-        return false;
-      }
+      */
+      
+      /* Old verification code removed - using simple channel check above */
     } catch (e) {
       debugPrint('Error during connection verification: $e');
       return false;
@@ -359,7 +334,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
   void _startHealthCheck() {
     _stopHealthCheck();
 
-    _healthCheckTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+    _healthCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (!_isConnected) {
         timer.cancel();
         return;
@@ -522,7 +497,27 @@ class IOServerWebSocketService implements ServerWebSocketService {
             if (data is String) {
               try {
                 final message = Message.decode(data);
-                _messageController.add(message);
+                
+                // Handle ping/pong messages to keep connection alive
+                if (message.type == MessageType.ping) {
+                  // Respond to ping with pong
+                  try {
+                    final pongMessage = Message(
+                      type: MessageType.pong,
+                      payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+                    );
+                    webSocket.add(pongMessage.encode());
+                    debugPrint('Responded to ping from ${clientInfo.ipAddress}');
+                  } catch (e) {
+                    debugPrint('Error sending pong: $e');
+                  }
+                } else if (message.type == MessageType.pong) {
+                  // Client responded to our ping
+                  debugPrint('Received pong from ${clientInfo.ipAddress}');
+                } else {
+                  // Forward other messages to the message stream
+                  _messageController.add(message);
+                }
               } catch (e) {
                 debugPrint('Error decoding message: $e');
               }

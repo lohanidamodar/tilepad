@@ -444,24 +444,48 @@ class CommandExecutor {
       // Get all network interfaces
       final interfaces = await NetworkInterface.list();
 
+      String? fallbackIp;
+
       // Filter out loopback interfaces and get IPv4 addresses
       for (var interface in interfaces) {
         // Skip loopback interfaces
-        if (interface.name.contains('loopback') ||
-            interface.name.contains('lo')) {
+        if (interface.name.toLowerCase().contains('loopback') ||
+            interface.name.toLowerCase() == 'lo') {
           continue;
         }
 
-        // Get IPv4 address
-        final ipv4Address =
+        // Get IPv4 addresses for this interface
+        final ipv4Addresses =
             interface.addresses
                 .where((addr) => addr.type == InternetAddressType.IPv4)
                 .map((addr) => addr.address)
-                .firstOrNull;
+                .toList();
 
-        if (ipv4Address != null) {
-          return ipv4Address;
+        if (ipv4Addresses.isEmpty) continue;
+
+        final ipAddress = ipv4Addresses.first;
+        final nameLower = interface.name.toLowerCase();
+
+        // Prefer Wi-Fi and Ethernet interfaces
+        if (nameLower.contains('wi-fi') ||
+            nameLower.contains('wifi') ||
+            nameLower.contains('wlan') ||
+            nameLower.contains('eth') ||
+            nameLower.contains('en0') ||
+            nameLower.contains('en1')) {
+          debugPrint(
+            'Found active network interface: ${interface.name} -> $ipAddress',
+          );
+          return ipAddress;
         }
+
+        // Keep first valid IP as fallback
+        fallbackIp ??= ipAddress;
+      }
+
+      if (fallbackIp != null) {
+        debugPrint('Using fallback IP address: $fallbackIp');
+        return fallbackIp;
       }
 
       return 'localhost';

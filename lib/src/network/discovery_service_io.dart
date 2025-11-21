@@ -12,7 +12,8 @@ class IODiscoveryService implements DiscoveryService {
   static const Duration _broadcastInterval = Duration(seconds: 3);
   static const Duration _serverTimeout = Duration(seconds: 10);
 
-  RawDatagramSocket? _socket;
+  RawDatagramSocket? _broadcastSocket;
+  RawDatagramSocket? _listenSocket;
   Timer? _broadcastTimer;
   Timer? _cleanupTimer;
   final _discoveredServersController =
@@ -35,10 +36,14 @@ class IODiscoveryService implements DiscoveryService {
       _serverName = serverName;
       _serverPort = port;
 
-      // Bind to any address on the discovery port
-      _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-      _socket!.broadcastEnabled = true;
-      _socket!.multicastLoopback = false;
+      // Bind to any address on a random port for broadcasting
+      _broadcastSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+      _broadcastSocket!.broadcastEnabled = true;
+      _broadcastSocket!.multicastLoopback =
+          true; // Enable for same-machine discovery
 
       debugPrint(
         'Server broadcasting on UDP port $_discoveryPort (multicast: $_multicastAddress)',
@@ -58,7 +63,8 @@ class IODiscoveryService implements DiscoveryService {
   }
 
   void _broadcast() {
-    if (_socket == null || _serverName == null || _serverPort == null) return;
+    if (_broadcastSocket == null || _serverName == null || _serverPort == null)
+      return;
 
     try {
       final message = jsonEncode({
@@ -71,10 +77,31 @@ class IODiscoveryService implements DiscoveryService {
       final bytes = utf8.encode(message);
 
       // Broadcast to multicast address
-      _socket!.send(bytes, InternetAddress(_multicastAddress), _discoveryPort);
+      final multicastSent = _broadcastSocket!.send(
+        bytes,
+        InternetAddress(_multicastAddress),
+        _discoveryPort,
+      );
+
+      // Broadcast to localhost for same-machine discovery
+      final localhostSent = _broadcastSocket!.send(
+        bytes,
+        InternetAddress.loopbackIPv4,
+        _discoveryPort,
+      );
 
       // Also broadcast to subnet broadcast address
-      _socket!.send(bytes, InternetAddress('255.255.255.255'), _discoveryPort);
+      final broadcastSent = _broadcastSocket!.send(
+        bytes,
+        InternetAddress('255.255.255.255'),
+        _discoveryPort,
+      );
+
+      if (multicastSent > 0 || broadcastSent > 0 || localhostSent > 0) {
+        debugPrint(
+          'Broadcasting server: $_serverName on port $_serverPort (multicast: $multicastSent, localhost: $localhostSent, broadcast: $broadcastSent)',
+        );
+      }
     } catch (e) {
       debugPrint('Error broadcasting: $e');
     }
@@ -84,8 +111,8 @@ class IODiscoveryService implements DiscoveryService {
   Future<void> stopBroadcasting() async {
     _broadcastTimer?.cancel();
     _broadcastTimer = null;
-    _socket?.close();
-    _socket = null;
+    _broadcastSocket?.close();
+    _broadcastSocket = null;
     _serverName = null;
     _serverPort = null;
     debugPrint('Server stopped broadcasting');
@@ -94,24 +121,28 @@ class IODiscoveryService implements DiscoveryService {
   @override
   Future<void> startDiscovery() async {
     try {
-      // Bind to the discovery port
-      _socket = await RawDatagramSocket.bind(
+      // Bind to the discovery port with address reuse enabled
+      _listenSocket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
         _discoveryPort,
+        reuseAddress: true,
+        reusePort: true,
       );
 
       // Join multicast group
       final multicastAddress = InternetAddress(_multicastAddress);
-      _socket!.joinMulticast(multicastAddress);
+      _listenSocket!.joinMulticast(multicastAddress);
+      _listenSocket!.multicastLoopback =
+          true; // Enable for same-machine discovery
 
       debugPrint(
         'Client listening for server broadcasts on port $_discoveryPort',
       );
 
       // Listen for incoming datagrams
-      _socket!.listen((event) {
+      _listenSocket!.listen((event) {
         if (event == RawSocketEvent.read) {
-          final datagram = _socket!.receive();
+          final datagram = _listenSocket!.receive();
           if (datagram != null) {
             _handleDiscoveryMessage(datagram);
           }
@@ -131,15 +162,25 @@ class IODiscoveryService implements DiscoveryService {
   void _handleDiscoveryMessage(Datagram datagram) {
     try {
       final message = utf8.decode(datagram.data);
+      debugPrint(
+        'Received discovery message from ${datagram.address.address}: $message',
+      );
+
       final data = jsonDecode(message) as Map<String, dynamic>;
 
-      if (data['type'] != 'marco_deck_server') return;
+      if (data['type'] != 'marco_deck_server') {
+        debugPrint('Ignoring non-marco_deck message');
+        return;
+      }
 
       final serverName = data['name'] as String?;
       final serverPort = data['port'] as int?;
       final ipAddress = datagram.address.address;
 
-      if (serverName == null || serverPort == null) return;
+      if (serverName == null || serverPort == null) {
+        debugPrint('Invalid server data: name=$serverName, port=$serverPort');
+        return;
+      }
 
       final key = '$ipAddress:$serverPort';
       final server = DiscoveredServer(
@@ -154,8 +195,14 @@ class IODiscoveryService implements DiscoveryService {
       _discoveredServers[key] = server;
 
       if (isNew) {
-        debugPrint('Discovered server: $serverName at $ipAddress:$serverPort');
+        debugPrint(
+          '✓ Discovered NEW server: $serverName at $ipAddress:$serverPort',
+        );
         _discoveredServersController.add(server);
+      } else {
+        debugPrint(
+          'Updated existing server: $serverName at $ipAddress:$serverPort',
+        );
       }
     } catch (e) {
       debugPrint('Error parsing discovery message: $e');
@@ -183,14 +230,14 @@ class IODiscoveryService implements DiscoveryService {
     _cleanupTimer?.cancel();
     _cleanupTimer = null;
 
-    if (_socket != null) {
+    if (_listenSocket != null) {
       try {
-        _socket!.leaveMulticast(InternetAddress(_multicastAddress));
+        _listenSocket!.leaveMulticast(InternetAddress(_multicastAddress));
       } catch (e) {
         debugPrint('Error leaving multicast group: $e');
       }
-      _socket!.close();
-      _socket = null;
+      _listenSocket!.close();
+      _listenSocket = null;
     }
 
     _discoveredServers.clear();

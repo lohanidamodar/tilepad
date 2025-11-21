@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/server_connection.dart';
+import '../network/discovery_service.dart';
 import 'client_providers.dart';
 
 /// Screen for connecting to a server
@@ -16,31 +17,52 @@ class ConnectionScreen extends ConsumerStatefulWidget {
   ConsumerState<ConnectionScreen> createState() => _ConnectionScreenState();
 }
 
-class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
+class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   bool _isConnecting = false;
+  bool _isDiscovering = false;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
 
-    // If editing an existing connection, load its values
+    // If editing an existing connection, load its values and show manual tab
     if (widget.existingConnection != null) {
       _nameController.text = widget.existingConnection!.name;
       _addressController.text = widget.existingConnection!.address;
+      _tabController.index = 1; // Manual tab
     } else {
       // Default name
       _nameController.text = 'My Server';
+      // Start discovery automatically
+      _startDiscovery();
     }
   }
 
   @override
   void dispose() {
+    _stopDiscovery();
     _nameController.dispose();
     _addressController.dispose();
+    _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _startDiscovery() async {
+    if (_isDiscovering) return;
+    setState(() => _isDiscovering = true);
+    await ref.read(discoveredServersProvider.notifier).startDiscovery();
+  }
+
+  Future<void> _stopDiscovery() async {
+    if (!_isDiscovering) return;
+    await ref.read(discoveredServersProvider.notifier).stopDiscovery();
+    setState(() => _isDiscovering = false);
   }
 
   /// Saves the server and optionally connects to it
@@ -106,114 +128,291 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existingConnection != null;
+    final colorScheme = Theme.of(context).colorScheme;
+    final discoveredServers = ref.watch(discoveredServersProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Server' : 'Add Server'),
         centerTitle: true,
+        bottom:
+            isEditing
+                ? null
+                : TabBar(
+                  controller: _tabController,
+                  tabs: const [
+                    Tab(icon: Icon(Icons.search), text: 'Discover'),
+                    Tab(icon: Icon(Icons.edit), text: 'Manual'),
+                  ],
+                ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Server Name',
-                  hintText: 'My Server',
-                  prefixIcon: const Icon(Icons.label),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a server name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _addressController,
-                decoration: InputDecoration(
-                  labelText: 'Server Address',
-                  hintText: '192.168.1.100:8080',
-                  prefixIcon: const Icon(Icons.computer),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                keyboardType: TextInputType.url,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a server address';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+      body:
+          isEditing
+              ? _buildManualForm(context)
+              : TabBarView(
+                controller: _tabController,
                 children: [
-                  TextButton(
-                    onPressed: () {
-                      _addressController.text = 'ws://localhost:8080';
-                    },
-                    child: const Text('Use localhost'),
-                  ),
+                  _buildDiscoveryTab(context, colorScheme, discoveredServers),
+                  _buildManualForm(context),
                 ],
               ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isConnecting ? null : () => _saveServer(),
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Save'),
+    );
+  }
+
+  Widget _buildDiscoveryTab(
+    BuildContext context,
+    ColorScheme colorScheme,
+    List<DiscoveredServer> discoveredServers,
+  ) {
+    return Column(
+      children: [
+        if (_isDiscovering)
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: colorScheme.primaryContainer,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Searching for servers on your network...',
+                    style: TextStyle(
+                      color: colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed:
-                          _isConnecting
-                              ? null
-                              : () => _saveServer(connectAfterSave: true),
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child:
-                          _isConnecting
-                              ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                              : const Text('Save & Connect'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+        Expanded(
+          child:
+              discoveredServers.isEmpty
+                  ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.wifi_find,
+                          size: 80,
+                          color: colorScheme.onSurfaceVariant.withAlpha(127),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          _isDiscovering
+                              ? 'Looking for servers...'
+                              : 'No servers found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Make sure the server is running\non the same network',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.tonalIcon(
+                          onPressed: _isDiscovering ? null : _startDiscovery,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                  : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: discoveredServers.length,
+                    itemBuilder: (context, index) {
+                      final server = discoveredServers[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(16),
+                          leading: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.computer,
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          title: Text(
+                            server.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('${server.ipAddress}:${server.port}'),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              OutlinedButton(
+                                onPressed: () => _addDiscoveredServer(server),
+                                child: const Text('Add'),
+                              ),
+                              const SizedBox(width: 8),
+                              FilledButton(
+                                onPressed:
+                                    () =>
+                                        _addAndConnectDiscoveredServer(server),
+                                child: const Text('Connect'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildManualForm(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Server Name',
+                hintText: 'My Server',
+                prefixIcon: const Icon(Icons.label),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a server name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _addressController,
+              decoration: InputDecoration(
+                labelText: 'Server Address',
+                hintText: '192.168.1.100:8080',
+                prefixIcon: const Icon(Icons.computer),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              keyboardType: TextInputType.url,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a server address';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    _addressController.text = 'ws://localhost:8080';
+                  },
+                  child: const Text('Use localhost'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isConnecting ? null : () => _saveServer(),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: FilledButton(
+                    onPressed:
+                        _isConnecting
+                            ? null
+                            : () => _saveServer(connectAfterSave: true),
+                    style: FilledButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child:
+                        _isConnecting
+                            ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : const Text('Save & Connect'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _addDiscoveredServer(DiscoveredServer server) {
+    final connection = ServerConnection(name: server.name, address: server.url);
+
+    ref.read(serverConnectionsProvider.notifier).addConnection(connection);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added "${server.name}" to your servers'),
+        behavior: SnackBarBehavior.floating,
+        showCloseIcon: true,
+      ),
+    );
+
+    Navigator.pop(context);
+  }
+
+  Future<void> _addAndConnectDiscoveredServer(DiscoveredServer server) async {
+    final connection = ServerConnection(name: server.name, address: server.url);
+
+    ref.read(serverConnectionsProvider.notifier).addConnection(connection);
+
+    await _connectToServer(connection);
   }
 }
