@@ -116,7 +116,9 @@ class _ServerScreenState extends State<ServerScreen> {
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(AppTheme.spaceSmall),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.spaceSmall)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.spaceSmall),
+        ),
       ),
     );
   }

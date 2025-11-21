@@ -309,7 +309,9 @@ class _AnimatedButtonState extends State<AnimatedButton>
                   ),
                   const SizedBox(height: AppTheme.spaceSmall),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceXSmall),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spaceXSmall,
+                    ),
                     child: Text(
                       widget.label,
                       textAlign: TextAlign.center,

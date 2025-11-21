@@ -376,10 +376,7 @@ ThemeData darkTheme = ThemeData(
     surfaceTintColor: Colors.transparent,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      side: BorderSide(
-        color: const Color(0xFF3A3A3C),
-        width: 1,
-      ),
+      side: BorderSide(color: const Color(0xFF3A3A3C), width: 1),
     ),
   ),
   inputDecorationTheme: InputDecorationTheme(

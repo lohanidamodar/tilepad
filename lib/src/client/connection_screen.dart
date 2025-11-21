@@ -238,14 +238,20 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                     itemBuilder: (context, index) {
                       final server = discoveredServers[index];
                       return Card(
-                        margin: const EdgeInsets.only(bottom: AppTheme.spaceMedium),
+                        margin: const EdgeInsets.only(
+                          bottom: AppTheme.spaceMedium,
+                        ),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.all(AppTheme.spaceLarge),
+                          contentPadding: const EdgeInsets.all(
+                            AppTheme.spaceLarge,
+                          ),
                           leading: Container(
                             padding: const EdgeInsets.all(AppTheme.spaceMedium),
                             decoration: BoxDecoration(
                               color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusMedium,
+                              ),
                             ),
                             child: Icon(
                               Icons.computer,
@@ -352,9 +358,13 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                     onPressed: _isConnecting ? null : () => _saveServer(),
                     style: OutlinedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spaceLarge),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppTheme.spaceLarge,
+                      ),
                     ),
                     child: const Text('Save'),
                   ),
@@ -368,9 +378,13 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                             : () => _saveServer(connectAfterSave: true),
                     style: FilledButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spaceLarge),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppTheme.spaceLarge,
+                      ),
                     ),
                     child:
                         _isConnecting

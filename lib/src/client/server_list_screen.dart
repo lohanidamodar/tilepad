@@ -126,7 +126,9 @@ class ServerListScreen extends ConsumerWidget {
                   backgroundColor: colorScheme.primary.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceMedium),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spaceMedium,
+                  ),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(
@@ -149,7 +151,9 @@ class ServerListScreen extends ConsumerWidget {
                   backgroundColor: colorScheme.tertiary.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceMedium),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spaceMedium,
+                  ),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(
@@ -172,7 +176,9 @@ class ServerListScreen extends ConsumerWidget {
                   backgroundColor: colorScheme.error.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceMedium),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spaceMedium,
+                  ),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(

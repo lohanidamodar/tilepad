@@ -322,7 +322,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         color: colorScheme.surfaceContainerHighest.withValues(
                           alpha: 0.5,
                         ),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                         border: Border.all(
                           color: colorScheme.outlineVariant,
                           width: 1,
