@@ -1,11 +1,11 @@
-# MarcoDeck - Remote Macro Control Application
+# MarcoDeck - Open Source Touch Portal Alternative
 
 <p align="center">
   <img src="assets/logo.png" alt="MarcoDeck Logo" width="120" height="120">
 </p>
 
 <p align="center">
-   <strong>An open-source alternative to Stream Deck with a Flutter-powered client + server</strong>
+   <strong>An open-source alternative to Touch Portal, built with Flutter</strong>
 </p>
 
 <p align="center">
