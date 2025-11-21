@@ -5,6 +5,8 @@ import '../models/button.dart';
 import '../models/message.dart';
 import '../models/client_info.dart';
 import '../network/websocket_service.dart';
+import '../network/discovery_service.dart';
+import '../network/discovery_service_stub.dart';
 import 'button_manager.dart';
 import 'command_executor.dart';
 
@@ -12,6 +14,9 @@ import 'command_executor.dart';
 class MarcoServer {
   /// The WebSocket service for client communication
   final ServerWebSocketService _webSocketService = ServerWebSocketService();
+
+  /// The UDP discovery service for broadcasting server presence
+  final DiscoveryService _discoveryService = createDiscoveryService();
 
   /// The button manager
   final ButtonManager _buttonManager = ButtonManager();
@@ -98,6 +103,14 @@ class MarcoServer {
         'Server started on port $_port',
       );
 
+      // Start UDP broadcasting for auto-discovery
+      final serverIp = await getServerIp();
+      await _discoveryService.startBroadcasting(
+        serverName: 'MarcoDeck Server ($serverIp)',
+        port: _port,
+      );
+      debugPrint('UDP discovery broadcasting started');
+
       // Listen for client messages
       _webSocketService.messageStream.listen(_handleClientMessage);
 
@@ -164,6 +177,10 @@ class MarcoServer {
   /// Stops the server
   Future<void> stop() async {
     if (_isRunning) {
+      // Stop UDP broadcasting
+      await _discoveryService.stopBroadcasting();
+      debugPrint('UDP discovery broadcasting stopped');
+
       await _webSocketService.close();
       _isRunning = false;
       _connectedClients = [];
@@ -347,6 +364,7 @@ class MarcoServer {
   /// Disposes the server resources
   void dispose() async {
     await stop();
+    await _discoveryService.dispose();
     await _clientsController.close();
     await _serverStatusController.close();
   }

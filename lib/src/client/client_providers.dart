@@ -9,6 +9,8 @@ import '../models/button.dart';
 import '../models/message.dart';
 import '../models/server_connection.dart';
 import '../network/websocket_service.dart';
+import '../network/discovery_service.dart';
+import '../network/discovery_service_stub.dart';
 
 /// Provider for the list of saved server connections
 final serverConnectionsProvider =
@@ -106,6 +108,72 @@ class CommandResultNotifier extends Notifier<CommandResultEvent?> {
 final keepAwakeProvider = NotifierProvider<KeepAwakeNotifier, bool>(
   KeepAwakeNotifier.new,
 );
+
+/// Provider for discovered servers via UDP
+final discoveredServersProvider =
+    NotifierProvider<DiscoveredServersNotifier, List<DiscoveredServer>>(
+      DiscoveredServersNotifier.new,
+    );
+
+/// Notifier for discovered servers
+class DiscoveredServersNotifier extends Notifier<List<DiscoveredServer>> {
+  DiscoveryService? _discoveryService;
+  StreamSubscription<DiscoveredServer>? _subscription;
+
+  @override
+  List<DiscoveredServer> build() {
+    ref.onDispose(() {
+      _subscription?.cancel();
+      _discoveryService?.dispose();
+    });
+    return [];
+  }
+
+  /// Start discovering servers
+  Future<void> startDiscovery() async {
+    try {
+      _discoveryService = createDiscoveryService();
+
+      // Listen for discovered servers
+      _subscription = _discoveryService!.discoveredServers.listen((server) {
+        final current = [...state];
+        // Add or update server in the list
+        final index = current.indexWhere(
+          (s) => s.ipAddress == server.ipAddress && s.port == server.port,
+        );
+        if (index >= 0) {
+          current[index] = server;
+        } else {
+          current.add(server);
+        }
+        state = current;
+      });
+
+      await _discoveryService!.startDiscovery();
+      debugPrint('Started UDP server discovery');
+    } catch (e) {
+      debugPrint('Error starting discovery: $e');
+    }
+  }
+
+  /// Stop discovering servers
+  Future<void> stopDiscovery() async {
+    try {
+      await _subscription?.cancel();
+      _subscription = null;
+      await _discoveryService?.stopDiscovery();
+      state = [];
+      debugPrint('Stopped UDP server discovery');
+    } catch (e) {
+      debugPrint('Error stopping discovery: $e');
+    }
+  }
+
+  /// Clear discovered servers list
+  void clear() {
+    state = [];
+  }
+}
 
 /// Notifier for the keep screen awake setting
 class KeepAwakeNotifier extends Notifier<bool> {

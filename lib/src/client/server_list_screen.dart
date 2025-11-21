@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../models/server_connection.dart';
+import '../network/discovery_service.dart';
 import '../utils/theme.dart';
 import 'client_providers.dart' as providers;
 import 'connection_screen.dart';
@@ -40,6 +41,18 @@ class ServerListScreen extends ConsumerWidget {
           // Connection status bar
           if (connectionState.status != providers.ConnectionStatus.disconnected)
             _buildConnectionStatusBar(context, connectionState),
+
+          // Discovery button
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: FilledButton.tonalIcon(
+              onPressed: () {
+                _showDiscoveryDialog(context, ref);
+              },
+              icon: const Icon(Icons.search),
+              label: const Text('Discover Servers'),
+            ),
+          ),
 
           // Server list
           Expanded(
@@ -210,75 +223,87 @@ class ServerListScreen extends ConsumerWidget {
   Widget _buildEmptyState(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        padding: const EdgeInsets.all(24),
-        margin: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: colorScheme.surface.withAlpha(127),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colorScheme.outlineVariant, width: 1),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: colorScheme.shadow.withAlpha(30),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+    return Consumer(
+      builder: (context, ref, child) {
+        return Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 320),
+            padding: const EdgeInsets.all(24),
+            margin: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: colorScheme.surface.withAlpha(127),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colorScheme.outlineVariant, width: 1),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.shadow.withAlpha(30),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Image.asset(
-                'assets/logo.png',
-                height: 80,
-                errorBuilder:
-                    (context, error, stackTrace) => Icon(
-                      Icons.devices,
-                      size: 80,
-                      color: colorScheme.primary,
-                    ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'No Saved Servers',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Add a server to connect to your MarcoDeck',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ConnectionScreen(),
+                  padding: const EdgeInsets.all(24),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    height: 80,
+                    errorBuilder:
+                        (context, error, stackTrace) => Icon(
+                          Icons.devices,
+                          size: 80,
+                          color: colorScheme.primary,
+                        ),
                   ),
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Server'),
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  'No Saved Servers',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Add a server manually or discover servers on your network',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const ConnectionScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Server'),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    _showDiscoveryDialog(context, ref);
+                  },
+                  icon: const Icon(Icons.search),
+                  label: const Text('Discover Servers'),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -710,6 +735,13 @@ class ServerListScreen extends ConsumerWidget {
     );
   }
 
+  void _showDiscoveryDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => const _DiscoveryDialog(),
+    );
+  }
+
   void _confirmDeleteServer(
     BuildContext context,
     WidgetRef ref,
@@ -774,5 +806,193 @@ class ServerListScreen extends ConsumerWidget {
         );
       },
     );
+  }
+}
+
+/// Dialog for discovering servers on the local network
+class _DiscoveryDialog extends ConsumerStatefulWidget {
+  const _DiscoveryDialog();
+
+  @override
+  ConsumerState<_DiscoveryDialog> createState() => _DiscoveryDialogState();
+}
+
+class _DiscoveryDialogState extends ConsumerState<_DiscoveryDialog> {
+  bool _isDiscovering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDiscovery();
+  }
+
+  @override
+  void dispose() {
+    _stopDiscovery();
+    super.dispose();
+  }
+
+  Future<void> _startDiscovery() async {
+    setState(() => _isDiscovering = true);
+    await ref
+        .read(providers.discoveredServersProvider.notifier)
+        .startDiscovery();
+  }
+
+  Future<void> _stopDiscovery() async {
+    await ref
+        .read(providers.discoveredServersProvider.notifier)
+        .stopDiscovery();
+    setState(() => _isDiscovering = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final discoveredServers = ref.watch(providers.discoveredServersProvider);
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.search, color: colorScheme.primary),
+          const SizedBox(width: 12),
+          const Text('Discover Servers'),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isDiscovering)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Searching for servers on your network...',
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 8),
+            Expanded(
+              child:
+                  discoveredServers.isEmpty
+                      ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.wifi_find,
+                              size: 64,
+                              color: colorScheme.onSurfaceVariant.withAlpha(
+                                127,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _isDiscovering
+                                  ? 'Looking for servers...'
+                                  : 'No servers found',
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 16,
+                              ),
+                            ),
+                            if (!_isDiscovering) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Make sure the server is running',
+                                style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                      : ListView.builder(
+                        itemCount: discoveredServers.length,
+                        itemBuilder: (context, index) {
+                          final server = discoveredServers[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: colorScheme.primaryContainer,
+                                child: Icon(
+                                  Icons.computer,
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                              title: Text(
+                                server.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${server.ipAddress}:${server.port}',
+                              ),
+                              trailing: FilledButton(
+                                onPressed: () {
+                                  _addDiscoveredServer(server);
+                                },
+                                child: const Text('Add'),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  void _addDiscoveredServer(DiscoveredServer server) {
+    // Create a server connection from the discovered server
+    final connection = ServerConnection(name: server.name, address: server.url);
+
+    // Add to saved connections
+    ref
+        .read(providers.serverConnectionsProvider.notifier)
+        .addConnection(connection);
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added "${server.name}" to your servers'),
+        behavior: SnackBarBehavior.floating,
+        showCloseIcon: true,
+      ),
+    );
+
+    Navigator.pop(context);
   }
 }
