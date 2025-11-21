@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  FLUTTER_VERSION: "3.24.0"
+  FLUTTER_VERSION: "3.38.1"
 
 jobs:
   build-apk:
@@ -28,7 +28,7 @@ jobs:
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
 
   build-windows:
     runs-on: windows-latest
@@ -55,7 +55,7 @@ jobs:
         with:
           files: build/artifacts/marcodeck-windows.zip
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
 
   build-linux:
     runs-on: ubuntu-latest
@@ -82,4 +82,4 @@ jobs:
         with:
           files: build/artifacts/marcodeck-linux.tar.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
