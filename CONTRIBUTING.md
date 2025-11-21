@@ -19,6 +19,8 @@ Thank you for your interest in contributing to MarcoDeck! This document provides
 
 ### Code Contributions
 
+> ⚖️ All contributions are made under the [BSD 3-Clause License](LICENSE). By submitting a pull request you confirm you have the right to license your work under these terms.
+
 #### Getting Started
 1. **Fork the repository**
 2. **Clone your fork**
@@ -30,9 +32,17 @@ Thank you for your interest in contributing to MarcoDeck! This document provides
    ```bash
    flutter pub get
    ```
-4. **Create a feature branch**
+4. **Create a feature branch** (use descriptive names such as `feature/auto-discovery-ui`)
    ```bash
    git checkout -b feature/your-feature-name
+   ```
+5. **Choose the correct entry point when running**
+   ```bash
+   # Desktop server
+   flutter run -d windows -t lib/src/server/main.dart
+
+   # Mobile/web client
+   flutter run -d android -t lib/src/client/main.dart
    ```
 
 #### Development Guidelines
@@ -61,11 +71,11 @@ lib/src/
 - **Files**: snake_case (`button_grid.dart`, `connection_manager.dart`)
 
 ##### Architecture Patterns
-- Use **Provider/Riverpod** for state management
-- Follow **Clean Architecture** principles
-- Separate platform-specific code using conditional imports
-- Use **Repository pattern** for data access
-- Implement **Command pattern** for macro actions
+- Use **Riverpod** for state management (new features should use providers in `client_providers.dart` or server equivalents)
+- Follow modular separation: client, server, shared models, network, utilities
+- Keep platform-specific code behind conditional imports
+- Keep WebSocket/UDP logic inside `lib/src/network/`
+- Prefer asynchronous APIs and cancellation-safe code (streams, disposables)
 
 #### Accessibility Requirements
 All UI contributions must meet accessibility standards:
@@ -305,13 +315,15 @@ Contributors are recognized in:
 
 ## 📜 Code of Conduct
 
-By participating in this project, you agree to abide by our code of conduct:
+We follow the [Contributor Covenant](CODE_OF_CONDUCT.md). In short:
 
 1. **Be respectful** to all community members
 2. **Be inclusive** of different viewpoints and experiences
 3. **Be collaborative** in discussions and reviews
 4. **Be constructive** in feedback and criticism
 5. **Be patient** with newcomers and learning processes
+
+Report unacceptable behavior to `security@appwriters.dev`.
 
 ## 🙏 Thank You
 

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>An open-source alternative to Stream Deck as a mobile app and desktop server</strong>
+   <strong>An open-source alternative to Stream Deck with a Flutter-powered client + server</strong>
 </p>
 
 <p align="center">
@@ -24,6 +24,7 @@
 ### Core Functionality
 - **Dual Architecture**: Server runs on desktop (Windows, macOS, Linux), client on mobile (Android, iOS) and web
 - **WebSocket Communication**: Real-time, reliable communication between server and client
+- **UDP Auto-discovery**: Phones find servers on the LAN automatically (manual entry still available)
 - **Custom Macro Buttons**: Create buttons with commands, keystrokes, and preset actions
 - **Multi-Page Support**: Organize buttons across multiple pages for better workflow management
 - **Cross-Platform**: Works seamlessly across all major platforms
@@ -49,6 +50,7 @@
 - **Connection Verification**: Timeout-based connection establishment verification
 - **Adaptive Retry Logic**: Smart retry mechanisms with configurable limits
 - **Real-time Status**: Live connection status indicators throughout the interface
+- **LAN Discovery**: Multicast + broadcast announcements so clients can join with one tap
 
 ### 🖥️ Server Features
 - **Real-time Dashboard**: Live view of connected clients and server status
@@ -80,19 +82,30 @@
    flutter pub get
    ```
 
-3. **Build verification** (optional)
+3. **Run the desktop server** (choose your platform)
+   ```bash
+   # Windows example
+   flutter run -d windows -t lib/src/server/main.dart
+
+   # macOS / Linux
+   flutter run -d macos -t lib/src/server/main.dart
+   flutter run -d linux  -t lib/src/server/main.dart
+   ```
+
+4. **Run the client** (mobile or web)
+   ```bash
+   # Android / iOS
+   flutter run -d android -t lib/src/client/main.dart
+   flutter run -d ios     -t lib/src/client/main.dart
+
+   # Web
+   flutter run -d chrome  -t lib/src/client/main.dart
+   ```
+
+5. *(Optional)* **Run build verification script** to ensure toolchains are healthy
    ```bash
    chmod +x build_verification.sh
    ./build_verification.sh
-   ```
-
-4. **Run the application**
-   ```bash
-   # For server (desktop)
-   flutter run -d windows  # or -d macos, -d linux
-   
-   # For client (mobile/web)
-   flutter run -d android  # or -d ios, -d chrome
    ```
 
 ## 📱 Installation
@@ -138,7 +151,7 @@ flutter build web --release
 ### Connecting the Client
 
 1. **Launch the client application** on your mobile device or web browser
-2. **Add a new server** by entering the connection URL from your server
+2. **Use auto-discovery** (the Discover tab) or manually enter the URL from your server
 3. **Connect to the server** - the app will automatically reconnect if connection is lost
 4. **Use your macro buttons** by tapping them on the client interface
 
@@ -271,10 +284,14 @@ We welcome contributions! Here's how you can help:
 - Update documentation as needed
 - Ensure accessibility compliance
 - Test across multiple platforms
+- Read the [Code of Conduct](CODE_OF_CONDUCT.md) before participating
+
+### Responsible Security Disclosure
+Please do not open public issues for security reports. See [SECURITY.md](SECURITY.md) for responsible disclosure instructions.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is distributed under the **BSD 3-Clause License**. See [LICENSE](LICENSE) for the full text.
 
 ## 🙏 Acknowledgments
 

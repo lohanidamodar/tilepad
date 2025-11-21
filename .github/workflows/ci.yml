@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: stable
+      - name: Flutter pub get
+        run: flutter pub get
+      - name: Flutter analyze
+        run: flutter analyze
+      - name: Flutter tests
+        run: flutter test
