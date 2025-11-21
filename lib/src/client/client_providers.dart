@@ -733,10 +733,24 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
   /// Refreshes the current connection
   Future<bool> refreshConnection() async {
-    if (state.connection != null) {
-      return connect(state.connection!);
+    if (state.connection == null) return false;
+
+    // Force a fresh reconnection: cancel any ongoing reconnection attempts,
+    // close any existing socket, wait briefly, then attempt a clean connect.
+    try {
+      cancelReconnection();
+
+      // Ensure socket is fully closed before reconnecting
+      await _webSocketService.close();
+
+      // Small delay to allow underlying resources to release
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      return await connect(state.connection!);
+    } catch (e) {
+      debugPrint('Error during refreshConnection: $e');
+      return false;
     }
-    return false;
   }
 
   /// Presses a button

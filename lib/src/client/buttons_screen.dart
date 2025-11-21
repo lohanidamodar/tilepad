@@ -621,8 +621,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
             ),
 
           // Command result display
-          if (_showResult && commandResult != null ||
-              commandResult != null && !_showResult)
+          if (_showResult && commandResult != null)
             Positioned(
               bottom: 0,
               left: 0,
