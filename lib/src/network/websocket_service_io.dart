@@ -232,7 +232,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
       });
 
       */
-      
+
       /* Old verification code removed - using simple channel check above */
     } catch (e) {
       debugPrint('Error during connection verification: $e');
@@ -497,17 +497,21 @@ class IOServerWebSocketService implements ServerWebSocketService {
             if (data is String) {
               try {
                 final message = Message.decode(data);
-                
+
                 // Handle ping/pong messages to keep connection alive
                 if (message.type == MessageType.ping) {
                   // Respond to ping with pong
                   try {
                     final pongMessage = Message(
                       type: MessageType.pong,
-                      payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+                      payload: {
+                        'timestamp': DateTime.now().millisecondsSinceEpoch,
+                      },
                     );
                     webSocket.add(pongMessage.encode());
-                    debugPrint('Responded to ping from ${clientInfo.ipAddress}');
+                    debugPrint(
+                      'Responded to ping from ${clientInfo.ipAddress}',
+                    );
                   } catch (e) {
                     debugPrint('Error sending pong: $e');
                   }
