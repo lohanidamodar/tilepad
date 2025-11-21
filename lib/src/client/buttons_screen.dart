@@ -25,7 +25,6 @@ class ButtonsScreen extends ConsumerStatefulWidget {
 }
 
 class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
-  bool _showResult = false;
   final PageController _pageController = PageController();
 
   // Reference to the WebSocket service
@@ -51,6 +50,148 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _showResultBottomSheet(BuildContext context, CommandResultEvent result) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.4,
+            minChildSize: 0.2,
+            maxChildSize: 0.9,
+            builder:
+                (context, scrollController) => Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.shadow.withAlpha(50),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Header with drag handle
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              result.success
+                                  ? colorScheme.primaryContainer
+                                  : colorScheme.errorContainer,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // Drag handle
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: (result.success
+                                          ? colorScheme.onPrimaryContainer
+                                          : colorScheme.onErrorContainer)
+                                      .withAlpha(100),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            // Title row
+                            Row(
+                              children: [
+                                Icon(
+                                  result.success
+                                      ? Icons.check_circle
+                                      : Icons.error,
+                                  color:
+                                      result.success
+                                          ? colorScheme.onPrimaryContainer
+                                          : colorScheme.onErrorContainer,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    result.success
+                                        ? 'Command Result'
+                                        : 'Command Error',
+                                    style: TextStyle(
+                                      color:
+                                          result.success
+                                              ? colorScheme.onPrimaryContainer
+                                              : colorScheme.onErrorContainer,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.close,
+                                    color:
+                                        result.success
+                                            ? colorScheme.onPrimaryContainer
+                                            : colorScheme.onErrorContainer,
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Content
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant,
+                                  width: 1,
+                                ),
+                              ),
+                              child: SelectableText(
+                                result.success
+                                    ? result.output
+                                    : 'Error: ${result.error}',
+                                style: TextStyle(
+                                  fontFamily: 'monospace',
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+          ),
+    );
   }
 
   void _showServerManager(BuildContext context) {
@@ -143,15 +284,13 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     final connectionState = ref.watch(connectionStateProvider);
     final pages = ref.watch(pagesProvider);
     final selectedPageIndex = ref.watch(selectedPageIndexProvider);
-    final commandResult = ref.watch(commandResultProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
     // Show result panel when commandResult changes
     ref.listen<CommandResultEvent?>(commandResultProvider, (previous, next) {
       if (next != null && mounted) {
-        setState(() {
-          _showResult = true;
-        });
+        // Show bottom sheet for result
+        _showResultBottomSheet(context, next);
       }
     });
 
@@ -461,11 +600,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                   ref
                                       .read(connectionStateProvider.notifier)
                                       .pressButton(buttonId);
-
-                                  // Clear any previous results when a button is pressed
-                                  setState(() {
-                                    _showResult = false;
-                                  });
                                 },
                               );
                             },
@@ -694,124 +828,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                         ),
                       ),
                     ],
-                  ],
-                ),
-              ),
-            ),
-
-          // Command result display
-          if (_showResult && commandResult != null)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Card(
-                margin: const EdgeInsets.all(12),
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                color: colorScheme.surface,
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            commandResult.success
-                                ? colorScheme.primaryContainer
-                                : colorScheme.errorContainer,
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorScheme.shadow.withAlpha(30),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                commandResult.success
-                                    ? Icons.check_circle
-                                    : Icons.error,
-                                color:
-                                    commandResult.success
-                                        ? colorScheme.onPrimaryContainer
-                                        : colorScheme.onErrorContainer,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                commandResult.success
-                                    ? 'Command Result'
-                                    : 'Command Error',
-                                style: TextStyle(
-                                  color:
-                                      commandResult.success
-                                          ? colorScheme.onPrimaryContainer
-                                          : colorScheme.onErrorContainer,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.close,
-                              color:
-                                  commandResult.success
-                                      ? colorScheme.onPrimaryContainer
-                                      : colorScheme.onErrorContainer,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _showResult = false;
-                              });
-                            },
-                            iconSize: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Container(
-                        constraints: const BoxConstraints(maxHeight: 150),
-                        child: SingleChildScrollView(
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: colorScheme.outlineVariant,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              commandResult.success
-                                  ? commandResult.output
-                                  : 'Error: ${commandResult.error}',
-                              style: TextStyle(
-                                fontFamily: 'monospace',
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

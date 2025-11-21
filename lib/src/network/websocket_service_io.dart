@@ -513,19 +513,49 @@ class IOServerWebSocketService implements ServerWebSocketService {
           final clientIp =
               request.connectionInfo?.remoteAddress.address ?? 'Unknown';
 
-          final clientInfo = ClientInfo(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            ipAddress: clientIp,
-            connectedAt: DateTime.now(),
+          // Check if a client with this IP already exists
+          final existingClientIndex = _connectedClients.indexWhere(
+            (client) => client.ipAddress == clientIp,
           );
 
-          _clients.add(webSocket);
-          _connectedClients.add(clientInfo);
+          ClientInfo clientInfo;
+          if (existingClientIndex >= 0) {
+            // Reuse existing client info but remove old WebSocket
+            clientInfo = _connectedClients[existingClientIndex];
+            debugPrint(
+              'Client reconnecting from: $clientIp (reusing existing client info)',
+            );
 
-          debugPrint('Client connected from: $clientIp');
-          _clientConnectionController.add(
-            ClientConnectionEvent(clientInfo: clientInfo, connected: true),
-          );
+            // Remove old WebSocket if it exists
+            if (existingClientIndex < _clients.length) {
+              try {
+                await _clients[existingClientIndex].close();
+              } catch (e) {
+                debugPrint('Error closing old WebSocket: $e');
+              }
+              _clients[existingClientIndex] = webSocket;
+            } else {
+              _clients.add(webSocket);
+            }
+          } else {
+            // New client
+            clientInfo = ClientInfo(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              ipAddress: clientIp,
+              connectedAt: DateTime.now(),
+            );
+            _clients.add(webSocket);
+            _connectedClients.add(clientInfo);
+            debugPrint('New client connected from: $clientIp');
+          }
+
+          // Send connection event (after websocket is fully set up)
+          // Small delay to ensure websocket listener is attached before events fire
+          Future.delayed(const Duration(milliseconds: 100), () {
+            _clientConnectionController.add(
+              ClientConnectionEvent(clientInfo: clientInfo, connected: true),
+            );
+          });
 
           webSocket.listen(
             (data) {
@@ -608,6 +638,18 @@ class IOServerWebSocketService implements ServerWebSocketService {
                     } catch (e) {
                       debugPrint('Error sending pong: $e');
                     }
+                  } else if (message.type == MessageType.disconnect) {
+                    // Client is intentionally disconnecting
+                    debugPrint(
+                      'Client ${clientInfo.ipAddress} sent disconnect message',
+                    );
+                    // Close the WebSocket cleanly (don't await in non-async callback)
+                    webSocket.close().catchError((e) {
+                      debugPrint(
+                        'Error closing WebSocket after disconnect: $e',
+                      );
+                    });
+                    // Note: onDone handler will handle cleanup
                   } else if (message.type == MessageType.pong) {
                     // Client responded to our ping
                     debugPrint('Received pong from ${clientInfo.ipAddress}');
@@ -621,20 +663,60 @@ class IOServerWebSocketService implements ServerWebSocketService {
               }
             },
             onDone: () {
-              _clients.remove(webSocket);
-              _connectedClients.remove(clientInfo);
-              debugPrint('Client disconnected: ${clientInfo.ipAddress}');
-              _clientConnectionController.add(
-                ClientConnectionEvent(clientInfo: clientInfo, connected: false),
+              debugPrint(
+                'WebSocket connection closed for ${clientInfo.ipAddress}',
               );
+
+              // Find and remove this specific WebSocket
+              final wsIndex = _clients.indexOf(webSocket);
+              if (wsIndex >= 0) {
+                _clients.removeAt(wsIndex);
+
+                // Find the matching client by IP address
+                final clientIndex = _connectedClients.indexWhere(
+                  (c) => c.ipAddress == clientInfo.ipAddress,
+                );
+
+                if (clientIndex >= 0) {
+                  final removedClient = _connectedClients[clientIndex];
+                  _connectedClients.removeAt(clientIndex);
+                  debugPrint(
+                    'Removed client: ${removedClient.deviceName ?? "Unknown Device"} (${removedClient.ipAddress})',
+                  );
+                  _clientConnectionController.add(
+                    ClientConnectionEvent(
+                      clientInfo: removedClient,
+                      connected: false,
+                    ),
+                  );
+                } else {
+                  debugPrint(
+                    'Warning: Client ${clientInfo.ipAddress} not found in connected clients list',
+                  );
+                }
+              }
             },
             onError: (error) {
-              debugPrint('Client error: $error');
+              debugPrint('Client error from ${clientInfo.ipAddress}: $error');
+
+              // Remove WebSocket
               _clients.remove(webSocket);
-              _connectedClients.remove(clientInfo);
-              _clientConnectionController.add(
-                ClientConnectionEvent(clientInfo: clientInfo, connected: false),
+
+              // Find and remove client by IP address
+              final clientIndex = _connectedClients.indexWhere(
+                (c) => c.ipAddress == clientInfo.ipAddress,
               );
+
+              if (clientIndex >= 0) {
+                final removedClient = _connectedClients[clientIndex];
+                _connectedClients.removeAt(clientIndex);
+                _clientConnectionController.add(
+                  ClientConnectionEvent(
+                    clientInfo: removedClient,
+                    connected: false,
+                  ),
+                );
+              }
             },
           );
         }

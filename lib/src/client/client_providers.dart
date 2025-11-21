@@ -802,6 +802,17 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
       _isReconnecting = false;
     }
 
+    // Send disconnect message to server before closing (if connected)
+    if (_webSocketService.isConnected) {
+      try {
+        _webSocketService.sendMessage(Message(type: MessageType.disconnect));
+        // Give the message time to send
+        await Future.delayed(const Duration(milliseconds: 100));
+      } catch (e) {
+        debugPrint('Error sending disconnect message: $e');
+      }
+    }
+
     // Close the WebSocket connection properly
     await _webSocketService.close();
 

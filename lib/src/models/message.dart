@@ -34,6 +34,9 @@ enum MessageType {
 
   /// Pong response to a ping message
   pong,
+
+  /// Client disconnect message
+  disconnect,
 }
 
 /// A message that can be sent between the client and server
