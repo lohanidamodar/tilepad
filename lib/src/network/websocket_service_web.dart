@@ -33,7 +33,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
   final int _maxReconnectAttempts = 15;
   DateTime? _lastPingTime;
   bool _awaitingPong = false;
-  
+
   // Adaptive reconnection timing
   static const int _baseReconnectDelay = 1000; // 1 second
   static const int _maxReconnectDelay = 30000; // 30 seconds
@@ -67,11 +67,11 @@ class WebClientWebSocketService implements ClientWebSocketService {
       _reconnectTimer = null;
       _isReconnecting = false;
       _reconnectAttempts = 0;
-      
+
       if (_onReconnectionStateChanged != null) {
         _onReconnectionStateChanged!(false);
       }
-      
+
       if (_connectionStatusController != null) {
         _connectionStatusController!.add(ConnectionStatus.disconnected);
       }
@@ -102,11 +102,11 @@ class WebClientWebSocketService implements ClientWebSocketService {
       } catch (e) {
         debugPrint('Web: Immediate connection failure: $e');
         _isConnected = false;
-        
+
         if (_connectionStatusController != null) {
           _connectionStatusController!.add(ConnectionStatus.error);
         }
-        
+
         return false;
       }
 
@@ -116,7 +116,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
           if (data is String) {
             try {
               final message = Message.decode(data);
-              
+
               // Handle different message types
               switch (message.type) {
                 case MessageType.ping:
@@ -150,7 +150,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
 
       // Enhanced connection verification with timeout
       final connectionSuccess = await _verifyConnection();
-      
+
       if (connectionSuccess) {
         _isConnected = true;
         _reconnectAttempts = 0;
@@ -168,7 +168,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
 
         // Start health monitoring
         _startHealthCheck();
-        
+
         if (_connectionStatusController != null) {
           _connectionStatusController!.add(ConnectionStatus.connected);
         }
@@ -178,21 +178,21 @@ class WebClientWebSocketService implements ClientWebSocketService {
         _isConnected = false;
         await _channel?.sink.close();
         _channel = null;
-        
+
         if (_connectionStatusController != null) {
           _connectionStatusController!.add(ConnectionStatus.error);
         }
-        
+
         return false;
       }
     } catch (e) {
       _isConnected = false;
       debugPrint('Web: Failed to connect: $e');
-      
+
       if (_connectionStatusController != null) {
         _connectionStatusController!.add(ConnectionStatus.error);
       }
-      
+
       return false;
     }
   }
@@ -202,7 +202,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
     try {
       // Wait briefly for connection to stabilize
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       // Check if channel is still available
       if (_channel == null) {
         debugPrint('Web: Channel closed during verification');
@@ -212,7 +212,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
       // Send verification ping with timeout
       final verificationCompleter = Completer<bool>();
       Timer? verificationTimeout;
-      
+
       // Set up timeout
       verificationTimeout = Timer(const Duration(seconds: 5), () {
         if (!verificationCompleter.isCompleted) {
@@ -223,7 +223,8 @@ class WebClientWebSocketService implements ClientWebSocketService {
       // Listen for pong response
       late StreamSubscription messageSubscription;
       messageSubscription = _messageController.stream.listen((message) {
-        if (message.type == MessageType.pong && !verificationCompleter.isCompleted) {
+        if (message.type == MessageType.pong &&
+            !verificationCompleter.isCompleted) {
           verificationTimeout?.cancel();
           messageSubscription.cancel();
           verificationCompleter.complete(true);
@@ -234,18 +235,18 @@ class WebClientWebSocketService implements ClientWebSocketService {
       try {
         debugPrint('Web: Sending verification ping');
         _sendPing();
-        
+
         final success = await verificationCompleter.future;
-        
+
         verificationTimeout.cancel();
         messageSubscription.cancel();
-        
+
         if (success) {
           debugPrint('Web: Connection verification successful');
         } else {
           debugPrint('Web: Connection verification failed - timeout');
         }
-        
+
         return success;
       } catch (e) {
         debugPrint('Web: Error during verification ping: $e');
@@ -263,7 +264,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
   void _handleDisconnection() {
     _isConnected = false;
     _stopHealthCheck();
-    
+
     if (_connectionStatusController != null) {
       _connectionStatusController!.add(ConnectionStatus.disconnected);
     }
@@ -279,7 +280,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
     if (_isReconnecting || _lastConnectedAddress == null) return;
 
     _isReconnecting = true;
-    
+
     if (_onReconnectionStateChanged != null) {
       _onReconnectionStateChanged!(true);
     }
@@ -297,11 +298,11 @@ class WebClientWebSocketService implements ClientWebSocketService {
       if (_reconnectAttempts >= _maxReconnectAttempts) {
         debugPrint('Web: Maximum reconnection attempts reached');
         _isReconnecting = false;
-        
+
         if (_onReconnectionStateChanged != null) {
           _onReconnectionStateChanged!(false);
         }
-        
+
         if (_connectionStatusController != null) {
           _connectionStatusController!.add(ConnectionStatus.disconnected);
         }
@@ -311,7 +312,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
 
     // Calculate adaptive delay
     final delay = _calculateReconnectDelay(_reconnectAttempts);
-    
+
     debugPrint(
       'Web: Scheduling reconnection attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts in ${delay}ms',
     );
@@ -321,13 +322,13 @@ class WebClientWebSocketService implements ClientWebSocketService {
       if (!_isReconnecting) return;
 
       _reconnectAttempts++;
-      
+
       debugPrint(
         'Web: Attempting reconnection $_reconnectAttempts/$_maxReconnectAttempts to $_lastConnectedAddress',
       );
 
       final success = await connect(_lastConnectedAddress!);
-      
+
       if (!success && _isReconnecting) {
         // Schedule next attempt
         _scheduleReconnection();
@@ -338,25 +339,27 @@ class WebClientWebSocketService implements ClientWebSocketService {
   /// Calculate adaptive reconnection delay
   int _calculateReconnectDelay(int attemptNumber) {
     // Exponential backoff with jitter
-    final baseDelay = _baseReconnectDelay * pow(_backoffMultiplier, attemptNumber);
+    final baseDelay =
+        _baseReconnectDelay * pow(_backoffMultiplier, attemptNumber);
     final cappedDelay = min(baseDelay, _maxReconnectDelay.toDouble()).toInt();
-    
+
     // Add jitter (±25%)
-    final jitter = (cappedDelay * 0.25 * (Random().nextDouble() * 2 - 1)).toInt();
-    
+    final jitter =
+        (cappedDelay * 0.25 * (Random().nextDouble() * 2 - 1)).toInt();
+
     return cappedDelay + jitter;
   }
 
   /// Start health check monitoring
   void _startHealthCheck() {
     _stopHealthCheck();
-    
+
     _healthCheckTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (!_isConnected) {
         timer.cancel();
         return;
       }
-      
+
       _performHealthCheck();
     });
   }
@@ -376,7 +379,9 @@ class WebClientWebSocketService implements ClientWebSocketService {
       if (_awaitingPong && _lastPingTime != null) {
         final timeSinceLastPing = DateTime.now().difference(_lastPingTime!);
         if (timeSinceLastPing.inSeconds > 30) {
-          debugPrint('Web: Health check failed - no pong received for 30 seconds');
+          debugPrint(
+            'Web: Health check failed - no pong received for 30 seconds',
+          );
           _handleDisconnection();
           return;
         }
@@ -397,11 +402,13 @@ class WebClientWebSocketService implements ClientWebSocketService {
     try {
       _lastPingTime = DateTime.now();
       _awaitingPong = true;
-      
-      sendMessage(Message(
-        type: MessageType.ping,
-        payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
-      ));
+
+      sendMessage(
+        Message(
+          type: MessageType.ping,
+          payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+        ),
+      );
     } catch (e) {
       debugPrint('Web: Error sending ping: $e');
       _handleDisconnection();
@@ -411,10 +418,12 @@ class WebClientWebSocketService implements ClientWebSocketService {
   /// Send pong message
   void _sendPong() {
     try {
-      sendMessage(Message(
-        type: MessageType.pong,
-        payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
-      ));
+      sendMessage(
+        Message(
+          type: MessageType.pong,
+          payload: {'timestamp': DateTime.now().millisecondsSinceEpoch},
+        ),
+      );
     } catch (e) {
       debugPrint('Web: Error sending pong: $e');
     }
@@ -440,7 +449,7 @@ class WebClientWebSocketService implements ClientWebSocketService {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _isReconnecting = false;
-    
+
     if (_channel != null) {
       try {
         await _channel!.sink.close();
@@ -449,9 +458,9 @@ class WebClientWebSocketService implements ClientWebSocketService {
       }
       _channel = null;
     }
-    
+
     _isConnected = false;
-    
+
     if (_connectionStatusController != null) {
       _connectionStatusController!.add(ConnectionStatus.disconnected);
     }
@@ -471,7 +480,8 @@ class WebServerWebSocketService implements ServerWebSocketService {
   Stream<Message> get messageStream => const Stream.empty();
 
   @override
-  Stream<ClientConnectionEvent> get clientConnectionStream => const Stream.empty();
+  Stream<ClientConnectionEvent> get clientConnectionStream =>
+      const Stream.empty();
 
   @override
   List<ClientInfo> get connectedClients => [];

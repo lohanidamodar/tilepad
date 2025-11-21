@@ -700,9 +700,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                   });
                                 },
                                 backgroundColor:
-                                    Theme.of(
-                                      context,
-                                    ).colorScheme.surface,
+                                    Theme.of(context).colorScheme.surface,
                                 selectedColor:
                                     Theme.of(context).colorScheme.primary,
                                 checkmarkColor:
