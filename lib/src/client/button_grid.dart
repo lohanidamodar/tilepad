@@ -27,6 +27,7 @@ class ButtonGrid extends ConsumerWidget {
       final codePoint = int.tryParse(iconName);
       if (codePoint != null) {
         // Use FontAwesomeSolid font family for FontAwesome icons
+        // Note: Non-const IconData - release builds need --no-tree-shake-icons
         return IconData(
           codePoint,
           fontFamily: 'FontAwesomeSolid',

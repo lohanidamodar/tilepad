@@ -22,7 +22,7 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
       - name: Build Android APK
-        run: flutter build apk --release -t lib/src/client/main.dart
+        run: flutter build apk --release --no-tree-shake-icons -t lib/src/client/main.dart
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
