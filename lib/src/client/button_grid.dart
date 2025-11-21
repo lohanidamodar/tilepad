@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/button.dart';
 import '../utils/accessibility.dart';
+import '../utils/theme.dart';
 import 'client_providers.dart';
 
 /// Widget that displays a grid of macro buttons with enhanced visual feedback
@@ -52,10 +53,10 @@ class ButtonGrid extends ConsumerWidget {
     if (buttons.isEmpty) {
       return Center(
         child: Container(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(AppTheme.spaceXXLarge),
           decoration: BoxDecoration(
             color: colorScheme.surface.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
             border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: Column(
@@ -66,7 +67,7 @@ class ButtonGrid extends ConsumerWidget {
                 size: 64,
                 color: colorScheme.primary.withValues(alpha: 0.6),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppTheme.spaceLarge),
               Text(
                 'No buttons available',
                 style: TextStyle(
@@ -75,7 +76,7 @@ class ButtonGrid extends ConsumerWidget {
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spaceSmall),
               Text(
                 'Buttons will appear here when connected to a server',
                 style: TextStyle(
@@ -91,11 +92,11 @@ class ButtonGrid extends ConsumerWidget {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppTheme.spaceLarge),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        crossAxisSpacing: AppTheme.spaceMedium,
+        mainAxisSpacing: AppTheme.spaceMedium,
         childAspectRatio: 1.0,
       ),
       itemCount: buttons.length,
@@ -261,12 +262,12 @@ class _AnimatedButtonState extends State<AnimatedButton>
           scale: _scaleAnimation.value,
           child: Material(
             color: effectiveColor,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
             elevation: widget.isEnabled ? _elevationAnimation.value : 1.0,
             shadowColor: widget.color.withValues(alpha: 0.4),
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -290,7 +291,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(AppTheme.spaceSmall),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(
                         alpha: widget.isEnabled ? 0.2 : 0.1,
@@ -306,9 +307,9 @@ class _AnimatedButtonState extends State<AnimatedButton>
                               : Colors.white.withValues(alpha: 0.6),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spaceSmall),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceXSmall),
                     child: Text(
                       widget.label,
                       textAlign: TextAlign.center,

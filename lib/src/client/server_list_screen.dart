@@ -100,13 +100,16 @@ class ServerListScreen extends ConsumerWidget {
 
     return Material(
       color: backgroundColor,
-      elevation: 2,
+      elevation: AppTheme.elevationMedium,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppTheme.spaceMedium,
+          horizontal: AppTheme.spaceLarge,
+        ),
         child: Row(
           children: [
             Icon(iconData, color: foregroundColor, size: 20),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppTheme.spaceMedium),
             Expanded(
               child: Text(
                 statusText,
@@ -123,7 +126,7 @@ class ServerListScreen extends ConsumerWidget {
                   backgroundColor: colorScheme.primary.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceMedium),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(
@@ -135,7 +138,7 @@ class ServerListScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.link_off, size: 16),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppTheme.spaceXSmall),
                     const Text('Disconnect'),
                   ],
                 ),
@@ -146,7 +149,7 @@ class ServerListScreen extends ConsumerWidget {
                   backgroundColor: colorScheme.tertiary.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceMedium),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(
@@ -158,7 +161,7 @@ class ServerListScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.cancel, size: 16),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppTheme.spaceXSmall),
                     const Text('Cancel'),
                   ],
                 ),
@@ -169,7 +172,7 @@ class ServerListScreen extends ConsumerWidget {
                   backgroundColor: colorScheme.error.withAlpha(50),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceMedium),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(
@@ -181,13 +184,13 @@ class ServerListScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.refresh, size: 16),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppTheme.spaceXSmall),
                     const Text('Dismiss'),
                   ],
                 ),
               ),
             if (connectionState.status == providers.ConnectionStatus.connected)
-              const SizedBox(width: 8),
+              const SizedBox(width: AppTheme.spaceSmall),
             if (connectionState.status == providers.ConnectionStatus.connected)
               IconButton.filled(
                 icon: const Icon(Icons.open_in_new, size: 18),
@@ -215,11 +218,11 @@ class ServerListScreen extends ConsumerWidget {
         return Center(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 320),
-            padding: const EdgeInsets.all(24),
-            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppTheme.spaceXLarge),
+            margin: const EdgeInsets.all(AppTheme.spaceXLarge),
             decoration: BoxDecoration(
               color: colorScheme.surface.withAlpha(127),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
               border: Border.all(color: colorScheme.outlineVariant, width: 1),
             ),
             child: Column(
@@ -238,7 +241,7 @@ class ServerListScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppTheme.spaceXLarge),
                   child: Image.asset(
                     'assets/logo.png',
                     height: 80,
@@ -309,11 +312,14 @@ class ServerListScreen extends ConsumerWidget {
         final isDefault = connection.id == defaultServerId;
 
         return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spaceLarge,
+            vertical: AppTheme.spaceSmall,
+          ),
           clipBehavior: Clip.antiAlias,
           elevation: 1,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
             side:
                 isConnected
                     ? BorderSide(color: colorScheme.primary, width: 2)
@@ -324,7 +330,7 @@ class ServerListScreen extends ConsumerWidget {
               _connectToServer(context, ref, connection);
             },
             child: Padding(
-              padding: const EdgeInsets.all(4.0),
+              padding: const EdgeInsets.all(AppTheme.spaceXSmall),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -335,11 +341,11 @@ class ServerListScreen extends ConsumerWidget {
                           isConnected
                               ? colorScheme.primaryContainer.withAlpha(127)
                               : null,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                     ),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                      horizontal: AppTheme.spaceLarge,
+                      vertical: AppTheme.spaceSmall,
                     ),
                     child: Row(
                       children: [

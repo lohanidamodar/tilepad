@@ -115,8 +115,8 @@ class _ServerScreenState extends State<ServerScreen> {
         ),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(AppTheme.spaceSmall),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.spaceSmall)),
       ),
     );
   }
@@ -440,10 +440,10 @@ class _ServerScreenState extends State<ServerScreen> {
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(AppTheme.spaceSmall),
               decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
+                color: colorScheme.primaryContainer.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
               ),
               child: Icon(
                 Icons.computer,
@@ -475,7 +475,7 @@ class _ServerScreenState extends State<ServerScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppTheme.spaceLarge),
         children: [
           // Server Status Card
           ServerStatusCard(

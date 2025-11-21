@@ -472,47 +472,75 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
               connectionState.status == ConnectionStatus.error ||
               connectionState.status == ConnectionStatus.reconnecting)
             Container(
-              color: colorScheme.scrim.withAlpha(200),
+              color: colorScheme.scrim.withValues(alpha: 0.85),
               alignment: Alignment.center,
               child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
                 margin: const EdgeInsets.all(32),
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: colorScheme.shadow.withAlpha(50),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
+                      color: colorScheme.shadow.withValues(alpha: 0.3),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                      spreadRadius: 2,
                     ),
                   ],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (connectionState.status == ConnectionStatus.reconnecting)
-                      // Pulsating reconnection animation
-                      TweenAnimationBuilder<double>(
-                        tween: Tween<double>(begin: 0.5, end: 1.0),
-                        duration: const Duration(milliseconds: 1000),
-                        builder: (context, value, child) {
-                          return Opacity(opacity: value, child: child);
-                        },
-                        child: Icon(
-                          Icons.sync,
-                          color: colorScheme.primary,
-                          size: 48,
-                        ),
-                      )
-                    else
-                      CircularProgressIndicator(
+                    // Icon with background
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
                         color:
-                            connectionState.status ==
-                                    ConnectionStatus.connecting
-                                ? colorScheme.primary
-                                : colorScheme.error,
+                            connectionState.status == ConnectionStatus.error
+                                ? colorScheme.errorContainer.withValues(
+                                  alpha: 0.3,
+                                )
+                                : colorScheme.primaryContainer.withValues(
+                                  alpha: 0.3,
+                                ),
+                        shape: BoxShape.circle,
                       ),
+                      child:
+                          connectionState.status ==
+                                  ConnectionStatus.reconnecting
+                              ? TweenAnimationBuilder<double>(
+                                tween: Tween<double>(begin: 0.0, end: 1.0),
+                                duration: const Duration(milliseconds: 1500),
+                                onEnd: () {
+                                  // Loop the animation
+                                },
+                                builder: (context, value, child) {
+                                  return Transform.rotate(
+                                    angle:
+                                        value *
+                                        6.28318, // 2*pi for full rotation
+                                    child: Icon(
+                                      Icons.sync,
+                                      color: colorScheme.primary,
+                                      size: 56,
+                                    ),
+                                  );
+                                },
+                              )
+                              : Icon(
+                                connectionState.status == ConnectionStatus.error
+                                    ? Icons.error_outline
+                                    : Icons.wifi_find,
+                                color:
+                                    connectionState.status ==
+                                            ConnectionStatus.error
+                                        ? colorScheme.error
+                                        : colorScheme.primary,
+                                size: 56,
+                              ),
+                    ),
                     const SizedBox(height: 24),
                     Text(
                       connectionState.status == ConnectionStatus.connecting
@@ -520,101 +548,143 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           : connectionState.status ==
                               ConnectionStatus.reconnecting
                           ? 'Reconnecting...'
-                          : 'Connection Error',
+                          : 'Connection Failed',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color:
                             connectionState.status == ConnectionStatus.error
                                 ? colorScheme.error
-                                : colorScheme.primary,
+                                : colorScheme.onSurface,
                       ),
                     ),
-                    if (connectionState.errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.all(12.0),
+                    if (connectionState.errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.5,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: Text(
                           connectionState.errorMessage!,
-                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (connectionState.status == ConnectionStatus.error)
-                          FilledButton.icon(
-                            onPressed: () {
-                              ref
-                                  .read(connectionStateProvider.notifier)
-                                  .refreshConnection();
-                            },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
-                          ),
-                        if (connectionState.status ==
-                            ConnectionStatus.reconnecting) ...[
-                          FilledButton.icon(
-                            onPressed: () {
-                              // Cancel the automatic reconnection and manually reconnect
-                              ref
-                                  .read(connectionStateProvider.notifier)
-                                  .cancelReconnection();
-                              if (connectionState.connection != null) {
-                                ref
-                                    .read(connectionStateProvider.notifier)
-                                    .connect(connectionState.connection!);
-                              }
-                            },
-                            icon: const Icon(Icons.sync),
-                            label: const Text('Reconnect Now'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: colorScheme.primaryContainer,
-                              foregroundColor: colorScheme.onPrimaryContainer,
+                    ],
+                    const SizedBox(height: 28),
+                    // Action buttons
+                    if (connectionState.status == ConnectionStatus.error) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            ref
+                                .read(connectionStateProvider.notifier)
+                                .refreshConnection();
+                          },
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Retry Connection'),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              // Cancel the reconnection attempt
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            ref
+                                .read(connectionStateProvider.notifier)
+                                .resetErrorState();
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                          label: const Text('Dismiss'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ] else if (connectionState.status ==
+                        ConnectionStatus.reconnecting) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            ref
+                                .read(connectionStateProvider.notifier)
+                                .cancelReconnection();
+                            if (connectionState.connection != null) {
                               ref
                                   .read(connectionStateProvider.notifier)
-                                  .cancelReconnection();
-                            },
-                            icon: const Icon(Icons.cancel),
-                            label: const Text('Cancel'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: colorScheme.error,
+                                  .connect(connectionState.connection!);
+                            }
+                          },
+                          icon: const Icon(Icons.flash_on_rounded),
+                          label: const Text('Reconnect Now'),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: colorScheme.primaryContainer,
+                            foregroundColor: colorScheme.onPrimaryContainer,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ] else ...[
-                          const SizedBox(width: 12),
-                          OutlinedButton(
-                            onPressed: () {
-                              if (connectionState.status ==
-                                  ConnectionStatus.connecting) {
-                                // Cancel connection attempt
-                                ref
-                                    .read(connectionStateProvider.notifier)
-                                    .cancelConnection();
-                              } else {
-                                // Dismiss error
-                                ref
-                                    .read(connectionStateProvider.notifier)
-                                    .resetErrorState();
-                              }
-                            },
-                            child: Text(
-                              connectionState.status ==
-                                      ConnectionStatus.connecting
-                                  ? 'Cancel'
-                                  : 'Dismiss',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            ref
+                                .read(connectionStateProvider.notifier)
+                                .cancelReconnection();
+                          },
+                          icon: const Icon(Icons.cancel_rounded),
+                          label: const Text('Cancel'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            foregroundColor: colorScheme.error,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ],
-                      ],
-                    ),
+                        ),
+                      ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            ref
+                                .read(connectionStateProvider.notifier)
+                                .cancelConnection();
+                          },
+                          icon: const Icon(Icons.cancel_rounded),
+                          label: const Text('Cancel'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

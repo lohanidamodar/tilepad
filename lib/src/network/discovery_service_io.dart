@@ -63,8 +63,11 @@ class IODiscoveryService implements DiscoveryService {
   }
 
   void _broadcast() {
-    if (_broadcastSocket == null || _serverName == null || _serverPort == null)
+    if (_broadcastSocket == null ||
+        _serverName == null ||
+        _serverPort == null) {
       return;
+    }
 
     try {
       final message = jsonEncode({

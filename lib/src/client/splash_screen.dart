@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../utils/theme.dart';
 import 'buttons_screen.dart';
 import 'client_providers.dart' as providers;
 
@@ -232,7 +233,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         child: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(32.0),
+              padding: const EdgeInsets.all(AppTheme.spaceXXLarge),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -278,7 +279,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     },
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AppTheme.spaceXXLarge),
 
                   // App title with fade animation
                   FadeTransition(
@@ -293,7 +294,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spaceSmall),
 
                   // Subtitle
                   FadeTransition(
@@ -307,21 +308,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 48),
+                  const SizedBox(height: AppTheme.spaceXXLarge * 1.5),
 
                   // Status message
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                        horizontal: AppTheme.spaceLarge + 4,
+                        vertical: AppTheme.spaceMedium,
                       ),
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainerHighest.withValues(
                           alpha: 0.5,
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                         border: Border.all(
                           color: colorScheme.outlineVariant,
                           width: 1,
@@ -340,7 +341,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppTheme.spaceMedium),
                           Text(
                             _statusMessage,
                             style: textTheme.bodyMedium?.copyWith(
@@ -353,7 +354,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spaceXLarge),
 
                   // Progress bar
                   FadeTransition(
@@ -383,7 +384,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 80),
+                  const SizedBox(height: AppTheme.spaceXXLarge * 2.5),
 
                   // Version info
                   FadeTransition(

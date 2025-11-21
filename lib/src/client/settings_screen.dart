@@ -35,7 +35,7 @@ class SettingsScreen extends ConsumerWidget {
         centerTitle: false,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppTheme.spaceLarge),
         children: [
           // Display Settings Section
           _buildSection(
@@ -44,7 +44,7 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.display_settings_rounded,
             children: [
               _buildThemeSelector(context, ref, themeMode),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppTheme.spaceLarge),
               _buildToggleSetting(
                 context: context,
                 title: 'Keep Screen Awake',
@@ -56,7 +56,7 @@ class SettingsScreen extends ConsumerWidget {
                   ref.read(keepAwakeProvider.notifier).setKeepAwake(value);
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppTheme.spaceLarge),
               _buildToggleSetting(
                 context: context,
                 title: 'High Contrast Mode',
@@ -72,7 +72,7 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: AppTheme.spaceXLarge),
 
           // Accessibility Settings Section
           _buildSection(
@@ -178,7 +178,7 @@ class SettingsScreen extends ConsumerWidget {
           child: Row(
             children: [
               Icon(icon, size: 20, color: colorScheme.primary),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppTheme.spaceSmall),
               Text(
                 title,
                 style: textTheme.titleMedium?.copyWith(
@@ -191,7 +191,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppTheme.spaceLarge),
             child: Column(children: children),
           ),
         ),
@@ -353,12 +353,15 @@ class SettingsScreen extends ConsumerWidget {
           isSelected
               ? colorScheme.primaryContainer
               : colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppTheme.spaceMedium,
+            horizontal: AppTheme.spaceSmall,
+          ),
           child: Column(
             children: [
               Icon(
@@ -368,7 +371,7 @@ class SettingsScreen extends ConsumerWidget {
                         ? colorScheme.onPrimaryContainer
                         : colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.spaceXSmall),
               Text(
                 label,
                 style: TextStyle(

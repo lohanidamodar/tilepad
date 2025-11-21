@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/server_connection.dart';
 import '../network/discovery_service.dart';
+import '../utils/theme.dart';
 import 'client_providers.dart';
 
 /// Screen for connecting to a server
@@ -168,7 +169,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
       children: [
         if (_isDiscovering)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppTheme.spaceLarge),
             color: colorScheme.primaryContainer,
             child: Row(
               children: [
@@ -180,7 +181,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                     color: colorScheme.onPrimaryContainer,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppTheme.spaceMedium),
                 Expanded(
                   child: Text(
                     'Searching for servers on your network...',
@@ -205,7 +206,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                           size: 80,
                           color: colorScheme.onSurfaceVariant.withAlpha(127),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppTheme.spaceXLarge),
                         Text(
                           _isDiscovering
                               ? 'Looking for servers...'
@@ -216,13 +217,13 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                             color: colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spaceSmall),
                         Text(
                           'Make sure the server is running\non the same network',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: colorScheme.onSurfaceVariant),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppTheme.spaceXLarge),
                         FilledButton.tonalIcon(
                           onPressed: _isDiscovering ? null : _startDiscovery,
                           icon: const Icon(Icons.refresh),
@@ -232,19 +233,19 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                     ),
                   )
                   : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppTheme.spaceLarge),
                     itemCount: discoveredServers.length,
                     itemBuilder: (context, index) {
                       final server = discoveredServers[index];
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
+                        margin: const EdgeInsets.only(bottom: AppTheme.spaceMedium),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
+                          contentPadding: const EdgeInsets.all(AppTheme.spaceLarge),
                           leading: Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(AppTheme.spaceMedium),
                             decoration: BoxDecoration(
                               color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                             ),
                             child: Icon(
                               Icons.computer,
@@ -269,7 +270,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                                 onPressed: () => _addDiscoveredServer(server),
                                 child: const Text('Add'),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: AppTheme.spaceSmall),
                               FilledButton(
                                 onPressed:
                                     () =>
@@ -289,7 +290,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
 
   Widget _buildManualForm(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(AppTheme.spaceLarge),
       child: Form(
         key: _formKey,
         child: Column(
@@ -302,7 +303,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 hintText: 'My Server',
                 prefixIcon: const Icon(Icons.label),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 ),
               ),
               validator: (value) {
@@ -312,7 +313,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppTheme.spaceLarge),
             TextFormField(
               controller: _addressController,
               decoration: InputDecoration(
@@ -320,7 +321,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 hintText: '192.168.1.100:8080',
                 prefixIcon: const Icon(Icons.computer),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 ),
               ),
               keyboardType: TextInputType.url,
@@ -331,7 +332,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.spaceSmall),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -343,7 +344,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppTheme.spaceXLarge),
             Row(
               children: [
                 Expanded(
@@ -351,14 +352,14 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                     onPressed: _isConnecting ? null : () => _saveServer(),
                     style: OutlinedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spaceLarge),
                     ),
                     child: const Text('Save'),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: AppTheme.spaceLarge),
                 Expanded(
                   child: FilledButton(
                     onPressed:
@@ -367,9 +368,9 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                             : () => _saveServer(connectAfterSave: true),
                     style: FilledButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spaceLarge),
                     ),
                     child:
                         _isConnecting
