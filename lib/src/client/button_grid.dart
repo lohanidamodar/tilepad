@@ -15,10 +15,21 @@ class ButtonGrid extends ConsumerWidget {
   /// Called when a button is pressed
   final Function(String buttonId)? onButtonPressed;
 
-  /// Function to convert a hex color string to a Color object
+  /// Function to convert a hex color string to a Color object.
+  ///
+  /// Defensive against malformed values received over the network: falls back
+  /// to the default button color instead of throwing and crashing the grid.
   Color _hexToColor(String hexString) {
-    final hexColor = hexString.replaceAll('#', '');
-    return Color(int.parse('FF$hexColor', radix: 16));
+    var hexColor = hexString.replaceAll('#', '').trim();
+    // Allow shorthand and ARGB strings, otherwise normalise to RRGGBB.
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    final value = int.tryParse(hexColor, radix: 16);
+    if (value == null || hexColor.length != 8) {
+      return const Color(0xFF4285F4); // Default Google blue
+    }
+    return Color(value);
   }
 
   /// Function to convert an icon name string to an IconData object
@@ -172,8 +183,8 @@ class ButtonGrid extends ConsumerWidget {
       onPressed: () {
         // Check if connection is active before sending command
         if (isConnected) {
-          // Provide haptic feedback
-          AccessibilityUtils.provideFeedback(FeedbackType.light);
+          // Note: AccessibleButton already provides light haptic feedback on
+          // tap-down, so we avoid a duplicate buzz here.
 
           // Announce button press to screen readers
           AccessibilityUtils.announce(context, 'Activated ${button.name}');

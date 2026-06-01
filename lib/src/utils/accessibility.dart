@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Accessibility utilities for the MarcoDeck application
 class AccessibilityUtils {
@@ -141,21 +142,55 @@ extension HighContrastTheme on ThemeData {
 /// Accessibility settings provider
 /// Settings for accessibility options
 class AccessibilitySettings extends Notifier<AccessibilityState> {
+  static const _highContrastKey = 'a11y_high_contrast';
+  static const _reduceAnimationsKey = 'a11y_reduce_animations';
+  static const _textScaleKey = 'a11y_text_scale';
+
   @override
   AccessibilityState build() {
+    _load();
     return AccessibilityState();
+  }
+
+  /// Loads persisted accessibility preferences.
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = AccessibilityState(
+        highContrastMode: prefs.getBool(_highContrastKey) ?? false,
+        reduceAnimations: prefs.getBool(_reduceAnimationsKey) ?? false,
+        textScale: (prefs.getDouble(_textScaleKey) ?? 1.0).clamp(0.8, 2.0),
+      );
+    } catch (e) {
+      debugPrint('Error loading accessibility settings: $e');
+    }
+  }
+
+  /// Persists the current accessibility preferences.
+  Future<void> _persist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_highContrastKey, state.highContrastMode);
+      await prefs.setBool(_reduceAnimationsKey, state.reduceAnimations);
+      await prefs.setDouble(_textScaleKey, state.textScale);
+    } catch (e) {
+      debugPrint('Error saving accessibility settings: $e');
+    }
   }
 
   void toggleHighContrast() {
     state = state.copyWith(highContrastMode: !state.highContrastMode);
+    _persist();
   }
 
   void toggleReduceAnimations() {
     state = state.copyWith(reduceAnimations: !state.reduceAnimations);
+    _persist();
   }
 
   void setTextScale(double scale) {
     state = state.copyWith(textScale: scale.clamp(0.8, 2.0));
+    _persist();
   }
 }
 

@@ -228,7 +228,7 @@ class SettingsScreen extends ConsumerWidget {
   ) async {
     final controller = TextEditingController(text: currentName);
 
-    return showDialog(
+    await showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
@@ -254,8 +254,11 @@ class SettingsScreen extends ConsumerWidget {
                     ref
                         .read(deviceNameProvider.notifier)
                         .setDeviceName(newName);
+                    // Capture the messenger before popping the dialog so the
+                    // snackbar is shown via the still-mounted parent scaffold.
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('Device name changed to "$newName"'),
                         behavior: SnackBarBehavior.floating,
@@ -268,6 +271,8 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
     );
+
+    controller.dispose();
   }
 
   Widget _buildToggleSetting({

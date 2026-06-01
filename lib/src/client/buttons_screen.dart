@@ -521,7 +521,9 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                 dotHeight: 8,
                                 dotWidth: 8,
                                 activeDotColor: colorScheme.primary,
-                                dotColor: colorScheme.surface,
+                                // Use a contrasting colour so inactive dots are
+                                // visible against the surface background.
+                                dotColor: colorScheme.outlineVariant,
                                 spacing: 8,
                                 radius: 4,
                               ),
@@ -860,7 +862,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withAlpha(305),
+                    color: colorScheme.shadow.withValues(alpha: 0.2),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),

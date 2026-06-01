@@ -114,7 +114,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
       final button = Button(
         id: widget.button?.id,
-        name: _nameController.text,
+        name: _nameController.text.trim(),
         iconName: _selectedIcon,
         actions: _actions,
         color: _selectedColor,
@@ -131,10 +131,18 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
     return '#${color.value.toRadixString(16).substring(2)}';
   }
 
-  /// Converts a hex string to a Color
+  /// Converts a hex string to a Color, falling back to the default colour
+  /// when the stored value is malformed.
   Color _hexToColor(String hexString) {
-    final hexColor = hexString.replaceAll('#', '');
-    return Color(int.parse('FF$hexColor', radix: 16));
+    var hexColor = hexString.replaceAll('#', '').trim();
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    final value = int.tryParse(hexColor, radix: 16);
+    if (value == null || hexColor.length != 8) {
+      return const Color(0xFF4285F4);
+    }
+    return Color(value);
   }
 
   /// Handles icon selection and stores the code point
@@ -266,13 +274,16 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
             // Button name
             TextFormField(
               controller: _nameController,
+              textInputAction: TextInputAction.done,
               decoration: const InputDecoration(
                 labelText: 'Button Name',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.edit),
               ),
+              // Rebuild so the live button preview reflects the typed name.
+              onChanged: (_) => setState(() {}),
               validator: (value) {
-                if (value == null || value.isEmpty) {
+                if (value == null || value.trim().isEmpty) {
                   return 'Please enter a name';
                 }
                 return null;

@@ -307,6 +307,9 @@ class PagesAndButtonsSection extends StatelessWidget {
 
     return ReorderableListView.builder(
       shrinkWrap: true,
+      // This list lives inside the outer scrolling ListView of ServerScreen,
+      // so defer scrolling to the parent to avoid nested-scroll conflicts.
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       onReorder: onReorderButtons,
       itemCount: selectedPage!.buttons.length,
@@ -440,10 +443,18 @@ class PagesAndButtonsSection extends StatelessWidget {
     );
   }
 
-  /// Converts a hex string to a Color
+  /// Converts a hex string to a Color, falling back to the default colour
+  /// when the stored value is malformed.
   Color _hexToColor(String hexString) {
-    final hexColor = hexString.replaceAll('#', '');
-    return Color(int.parse('FF$hexColor', radix: 16));
+    var hexColor = hexString.replaceAll('#', '').trim();
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    final value = int.tryParse(hexColor, radix: 16);
+    if (value == null || hexColor.length != 8) {
+      return const Color(0xFF4285F4);
+    }
+    return Color(value);
   }
 
   /// Gets an icon from a string code point

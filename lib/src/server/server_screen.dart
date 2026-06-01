@@ -57,6 +57,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
     // Subscribe to client connection updates
     _clientsSubscription = widget.server.clientsStream.listen((clients) {
+      if (!mounted) return;
       setState(() {
         _connectedClients = clients;
       });
@@ -66,11 +67,11 @@ class _ServerScreenState extends State<ServerScreen> {
     _serverStatusSubscription = widget.server.serverStatusStream.listen((
       status,
     ) {
-      setState(() {
-        if (mounted) {
-          _showStatusMessage(status);
-        }
-      });
+      // Showing a snackbar does not change widget state, so don't wrap it in
+      // setState; just guard against the widget being disposed.
+      if (mounted) {
+        _showStatusMessage(status);
+      }
     });
   }
 
@@ -128,6 +129,7 @@ class _ServerScreenState extends State<ServerScreen> {
     try {
       final ip = await widget.server.getServerIp();
 
+      if (!mounted) return;
       setState(() {
         _serverIp = ip;
         _serverPort = widget.server.serverPort;
@@ -136,6 +138,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
       final success = await widget.server.start();
 
+      if (!mounted) return;
       setState(() {
         _isRunning = success;
         _connectedClients = widget.server.connectedClients;
@@ -166,6 +169,7 @@ class _ServerScreenState extends State<ServerScreen> {
   /// Restarts the server with the current port
   Future<void> _restartServer() async {
     final success = await widget.server.restart();
+    if (!mounted) return;
     setState(() {
       _isRunning = success;
     });
@@ -176,11 +180,13 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _toggleServer() async {
     if (_isRunning) {
       await widget.server.stop();
+      if (!mounted) return;
       setState(() {
         _isRunning = false;
       });
     } else {
       final success = await widget.server.start();
+      if (!mounted) return;
       setState(() {
         _isRunning = success;
       });
@@ -246,12 +252,14 @@ class _ServerScreenState extends State<ServerScreen> {
                       final success = await widget.server.restart(
                         newPort: newPort,
                       );
+                      if (!mounted) return;
                       setState(() {
                         _isRunning = success;
                         _serverPort = newPort;
                       });
                     } else {
                       await widget.server.setPort(newPort);
+                      if (!mounted) return;
                       setState(() {
                         _serverPort = newPort;
                       });
