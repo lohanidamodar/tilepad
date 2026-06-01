@@ -325,11 +325,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _actions.length,
-                      onReorder: (oldIndex, newIndex) {
+                      onReorderItem: (oldIndex, newIndex) {
                         setState(() {
-                          if (oldIndex < newIndex) {
-                            newIndex -= 1;
-                          }
                           final item = _actions.removeAt(oldIndex);
                           _actions.insert(newIndex, item);
                         });

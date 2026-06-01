@@ -427,14 +427,13 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
-  /// Reorders buttons within the selected page
+  /// Reorders buttons within the selected page.
+  ///
+  /// Wired to [ReorderableListView]'s `onReorderItem`, which already adjusts
+  /// `newIndex` for the removed item, so no manual adjustment is needed.
   void _reorderButtons(int oldIndex, int newIndex) {
     setState(() {
       if (_selectedPage == null) return;
-
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
 
       final button = _selectedPage!.buttons.removeAt(oldIndex);
       _selectedPage!.buttons.insert(newIndex, button);

@@ -315,7 +315,7 @@ class PagesAndButtonsSection extends StatelessWidget {
       // so defer scrolling to the parent to avoid nested-scroll conflicts.
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      onReorder: onReorderButtons,
+      onReorderItem: onReorderButtons,
       itemCount: selectedPage!.buttons.length,
       itemBuilder: (context, index) {
         final button = selectedPage!.buttons[index];

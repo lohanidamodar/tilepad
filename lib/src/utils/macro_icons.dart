@@ -22,6 +22,9 @@ class MacroIcons {
     final codePoint = int.tryParse(iconName);
     if (codePoint != null && codePoint > 0) {
       return IconData(
+        // Icons are stored dynamically (a parsed code point), so this cannot
+        // be a const argument; tree-shaking is disabled via build flags.
+        // ignore: non_const_argument_for_const_parameter
         codePoint,
         fontFamily: _fontFamily,
         fontPackage: _fontPackage,

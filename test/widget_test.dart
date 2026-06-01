@@ -18,6 +18,16 @@ void main() {
   testWidgets('App boots and renders a MaterialApp', (
     WidgetTester tester,
   ) async {
+    // The client is portrait-locked, so use a representative portrait phone
+    // surface rather than the default 800x600 (which is landscape-ish and
+    // causes the connection screens to overflow vertically).
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     // Provide an empty persisted store so preference loads resolve cleanly.
     SharedPreferences.setMockInitialValues({});
 

@@ -45,6 +45,9 @@ class MarcoServer {
   List<ClientInfo> _connectedClients = [];
 
   /// Creates a new server
+  // A named parameter can't be a private initializing formal (`this._port`),
+  // so assign it in the initializer list instead.
+  // ignore: prefer_initializing_formals
   MarcoServer({int port = 8080}) : _port = port;
 
   /// Gets the server's IP address
