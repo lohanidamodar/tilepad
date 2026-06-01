@@ -1,21 +1,22 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:system_tray/system_tray.dart';
+import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Manager for system tray functionality
-class SystemTrayManager {
+/// Menu item keys for the system tray context menu.
+const String _kMenuKeyShow = 'show_window';
+const String _kMenuKeyExit = 'exit_app';
+
+/// Manager for system tray functionality.
+class SystemTrayManager with TrayListener, WindowListener {
   static final SystemTrayManager _instance = SystemTrayManager._internal();
   factory SystemTrayManager() => _instance;
 
   SystemTrayManager._internal();
 
-  final SystemTray _systemTray = SystemTray();
-  final Menu _menu = Menu();
-  final AppWindow appWindow = AppWindow();
   bool _isInitialized = false;
 
-  /// Initialize the system tray
+  /// Initialize the system tray.
   Future<void> initSystemTray() async {
     if (_isInitialized) return;
 
@@ -36,8 +37,9 @@ class SystemTrayManager {
       await windowManager.focus();
     });
 
-    // Add window manager listener for close event
-    windowManager.addListener(_WindowManagerListener(this));
+    // Listen for window and tray events.
+    windowManager.addListener(this);
+    trayManager.addListener(this);
 
     try {
       // Prepare the tray icon
@@ -46,27 +48,11 @@ class SystemTrayManager {
       debugPrint('Using tray icon: $iconPath');
 
       // Initialize system tray
-      await _systemTray.initSystemTray(
-        iconPath: iconPath,
-        title: 'MarcoDeck Server',
-        toolTip: 'MarcoDeck Server',
-      );
+      await trayManager.setIcon(iconPath);
+      await trayManager.setToolTip('MarcoDeck Server');
 
       // Create menu items
       await _createMenu();
-
-      // Handle system tray events
-      _systemTray.registerSystemTrayEventHandler((eventName) {
-        if (eventName == kSystemTrayEventClick) {
-          Platform.isWindows
-              ? appWindow.show()
-              : _systemTray.popUpContextMenu();
-        } else if (eventName == kSystemTrayEventRightClick) {
-          Platform.isWindows
-              ? _systemTray.popUpContextMenu()
-              : appWindow.show();
-        }
-      });
 
       _isInitialized = true;
       debugPrint('System tray initialized successfully');
@@ -75,31 +61,19 @@ class SystemTrayManager {
     }
   }
 
-  /// Create a system tray menu
+  /// Create a system tray menu.
   Future<void> _createMenu() async {
-    // Create menu items
-    final showItem = MenuItemLabel(
-      label: 'Show MarcoDeck',
-      onClicked: (base) async {
-        await showWindow();
-      },
+    final menu = Menu(
+      items: [
+        MenuItem(key: _kMenuKeyShow, label: 'Show MarcoDeck'),
+        MenuItem.separator(),
+        MenuItem(key: _kMenuKeyExit, label: 'Exit'),
+      ],
     );
-
-    final exitItem = MenuItemLabel(
-      label: 'Exit',
-      onClicked: (base) async {
-        exitApplication();
-      },
-    );
-
-    // Add items to menu
-    await _menu.buildFrom([showItem, MenuSeparator(), exitItem]);
-
-    // Set the menu
-    await _systemTray.setContextMenu(_menu);
+    await trayManager.setContextMenu(menu);
   }
 
-  /// Show the application window
+  /// Show the application window.
   Future<void> showWindow() async {
     try {
       await windowManager.show();
@@ -109,7 +83,7 @@ class SystemTrayManager {
     }
   }
 
-  /// Hide the application window to tray
+  /// Hide the application window to tray.
   Future<void> hideToTray() async {
     try {
       // Make sure system tray is initialized
@@ -118,11 +92,11 @@ class SystemTrayManager {
       }
 
       // Hide the window
-      await appWindow.hide();
+      await windowManager.hide();
 
       // Show notification in system tray (if possible)
       try {
-        await _systemTray.setToolTip(
+        await trayManager.setToolTip(
           'MarcoDeck Server is running in the background',
         );
       } catch (_) {}
@@ -131,20 +105,49 @@ class SystemTrayManager {
     }
   }
 
-  /// Exit the application
+  /// Exit the application.
   void exitApplication() {
     exit(0);
   }
-}
 
-/// Custom window manager listener
-class _WindowManagerListener extends WindowListener {
-  final SystemTrayManager _trayManager;
+  // --- TrayListener ---
 
-  _WindowManagerListener(this._trayManager);
+  @override
+  void onTrayIconMouseDown() {
+    // Left click: show the window on Windows, open the menu elsewhere.
+    if (Platform.isWindows) {
+      showWindow();
+    } else {
+      trayManager.popUpContextMenu();
+    }
+  }
+
+  @override
+  void onTrayIconRightMouseDown() {
+    // Right click: open the menu on Windows, show the window elsewhere.
+    if (Platform.isWindows) {
+      trayManager.popUpContextMenu();
+    } else {
+      showWindow();
+    }
+  }
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) {
+    switch (menuItem.key) {
+      case _kMenuKeyShow:
+        showWindow();
+        break;
+      case _kMenuKeyExit:
+        exitApplication();
+        break;
+    }
+  }
+
+  // --- WindowListener ---
 
   @override
   void onWindowClose() async {
-    await _trayManager.hideToTray();
+    await hideToTray();
   }
 }

@@ -21,7 +21,7 @@ class Win32Commands {
 
       // Get device context
       final hdcScreen = GetDC(hwnd);
-      if (hdcScreen == NULL) return false;
+      if (hdcScreen.address == 0) return false;
 
       // Get screen dimensions
       final screenWidth = GetSystemMetrics(SM_CXSCREEN);
@@ -29,7 +29,7 @@ class Win32Commands {
 
       // Create compatible DC and bitmap
       final hdcMemDC = CreateCompatibleDC(hdcScreen);
-      if (hdcMemDC == NULL) {
+      if (hdcMemDC.address == 0) {
         ReleaseDC(hwnd, hdcScreen);
         return false;
       }
@@ -39,16 +39,16 @@ class Win32Commands {
         screenWidth,
         screenHeight,
       );
-      if (hbmScreen == NULL) {
+      if (hbmScreen.address == 0) {
         DeleteDC(hdcMemDC);
         ReleaseDC(hwnd, hdcScreen);
         return false;
       }
 
       // Select bitmap into compatible DC
-      final hOldBitmap = SelectObject(hdcMemDC, hbmScreen);
-      if (hOldBitmap == NULL) {
-        DeleteObject(hbmScreen);
+      final hOldBitmap = SelectObject(hdcMemDC, HGDIOBJ(hbmScreen));
+      if (hOldBitmap.address == 0) {
+        DeleteObject(HGDIOBJ(hbmScreen));
         DeleteDC(hdcMemDC);
         ReleaseDC(hwnd, hdcScreen);
         return false;
@@ -95,7 +95,7 @@ class Win32Commands {
       if (dibSuccess != 0) {
         // Clean up GDI resources first
         SelectObject(hdcMemDC, hOldBitmap);
-        DeleteObject(hbmScreen);
+        DeleteObject(HGDIOBJ(hbmScreen));
         DeleteDC(hdcMemDC);
         ReleaseDC(hwnd, hdcScreen);
         calloc.free(bmpInfo);
@@ -107,13 +107,13 @@ class Win32Commands {
 
       // Clean up GDI resources
       SelectObject(hdcMemDC, hOldBitmap);
-      DeleteObject(hbmScreen);
+      DeleteObject(HGDIOBJ(hbmScreen));
       DeleteDC(hdcMemDC);
       ReleaseDC(hwnd, hdcScreen);
       calloc.free(bmpInfo);
       calloc.free(lpBits);
 
-      return success != 0 && await _takeScreenshotFallback(savePath);
+      return success.value && await _takeScreenshotFallback(savePath);
     } catch (e) {
       debugPrint('Error taking screenshot: $e');
       return false;
@@ -129,7 +129,7 @@ class Win32Commands {
       // Press PrintScreen key
       inputs[0].type = INPUT_KEYBOARD;
       inputs[0].ki.wVk = VK_SNAPSHOT;
-      inputs[0].ki.dwFlags = 0; // Key down
+      inputs[0].ki.dwFlags = const KEYBD_EVENT_FLAGS(0); // Key down
 
       // Release PrintScreen key
       inputs[1].type = INPUT_KEYBOARD;
@@ -139,7 +139,7 @@ class Win32Commands {
       final result = SendInput(2, inputs, sizeOf<INPUT>());
       calloc.free(inputs);
 
-      if (result != 2) return false;
+      if (result.value != 2) return false;
 
       // Wait for screenshot to be processed
       await Future.delayed(const Duration(milliseconds: 100));
@@ -227,7 +227,7 @@ class Win32Commands {
 
     try {
       final result = LockWorkStation();
-      return result != 0;
+      return result.value;
     } catch (e) {
       debugPrint('Error locking workstation: $e');
       return false;
@@ -240,7 +240,7 @@ class Win32Commands {
 
     try {
       final inputs = calloc<INPUT>(2);
-      int vk;
+      VIRTUAL_KEY vk;
 
       switch (action.toLowerCase()) {
         case 'up':
@@ -260,7 +260,7 @@ class Win32Commands {
       // Press key
       inputs[0].type = INPUT_KEYBOARD;
       inputs[0].ki.wVk = vk;
-      inputs[0].ki.dwFlags = 0; // Key down
+      inputs[0].ki.dwFlags = const KEYBD_EVENT_FLAGS(0); // Key down
 
       // Release key
       inputs[1].type = INPUT_KEYBOARD;
@@ -270,7 +270,7 @@ class Win32Commands {
       final result = SendInput(2, inputs, sizeOf<INPUT>());
       calloc.free(inputs);
 
-      return result == 2;
+      return result.value == 2;
     } catch (e) {
       debugPrint('Error adjusting volume: $e');
       return false;

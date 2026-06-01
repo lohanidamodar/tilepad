@@ -310,7 +310,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
                       shape: BoxShape.circle,
                     ),
                     child: FaIcon(
-                      widget.icon,
+                      FaIconData(widget.icon),
                       size: 28,
                       color:
                           widget.isEnabled

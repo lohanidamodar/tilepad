@@ -53,7 +53,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'pmset sleepnow',
       'linux': 'systemctl suspend',
     },
-    icon: FontAwesomeIcons.powerOff,
+    icon: FontAwesomeIcons.powerOff.data,
   ),
   PredefinedCommand(
     name: 'Shutdown Computer',
@@ -63,7 +63,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'sudo shutdown -h now',
       'linux': 'sudo shutdown -h now',
     },
-    icon: FontAwesomeIcons.powerOff,
+    icon: FontAwesomeIcons.powerOff.data,
   ),
   PredefinedCommand(
     name: 'Restart Computer',
@@ -73,7 +73,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'sudo shutdown -r now',
       'linux': 'sudo reboot',
     },
-    icon: FontAwesomeIcons.arrowsRotate,
+    icon: FontAwesomeIcons.arrowsRotate.data,
   ),
   PredefinedCommand(
     name: 'Lock Screen',
@@ -83,7 +83,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'pmset displaysleepnow',
       'linux': 'xdg-screensaver lock',
     },
-    icon: FontAwesomeIcons.lock,
+    icon: FontAwesomeIcons.lock.data,
   ),
   PredefinedCommand(
     name: 'Copy Selection',
@@ -95,7 +95,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e \'tell application "System Events" to keystroke "c" using command down\'',
       'linux': 'xdotool key ctrl+c',
     },
-    icon: FontAwesomeIcons.copy,
+    icon: FontAwesomeIcons.copy.data,
   ),
   PredefinedCommand(
     name: 'Paste',
@@ -107,7 +107,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e \'tell application "System Events" to keystroke "v" using command down\'',
       'linux': 'xdotool key ctrl+v',
     },
-    icon: FontAwesomeIcons.paste,
+    icon: FontAwesomeIcons.paste.data,
   ),
   PredefinedCommand(
     name: 'Take Screenshot',
@@ -118,7 +118,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'screencapture -i ~/Desktop/screenshot.png',
       'linux': 'gnome-screenshot -i',
     },
-    icon: FontAwesomeIcons.camera,
+    icon: FontAwesomeIcons.camera.data,
   ),
   PredefinedCommand(
     name: 'Volume Up',
@@ -130,7 +130,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e "set volume output volume (output volume of (get volume settings) + 10) --100%"',
       'linux': 'pactl set-sink-volume @DEFAULT_SINK@ +10%',
     },
-    icon: FontAwesomeIcons.volumeHigh,
+    icon: FontAwesomeIcons.volumeHigh.data,
   ),
   PredefinedCommand(
     name: 'Volume Down',
@@ -142,7 +142,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e "set volume output volume (output volume of (get volume settings) - 10) --100%"',
       'linux': 'pactl set-sink-volume @DEFAULT_SINK@ -10%',
     },
-    icon: FontAwesomeIcons.volumeLow,
+    icon: FontAwesomeIcons.volumeLow.data,
   ),
   PredefinedCommand(
     name: 'Mute/Unmute',
@@ -153,7 +153,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'osascript -e "set volume with output muted"',
       'linux': 'pactl set-sink-mute @DEFAULT_SINK@ toggle',
     },
-    icon: FontAwesomeIcons.volumeXmark,
+    icon: FontAwesomeIcons.volumeXmark.data,
   ),
 ];
 

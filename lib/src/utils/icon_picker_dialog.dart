@@ -13,7 +13,7 @@ class IconPickerDialog extends StatefulWidget {
 class _IconPickerDialogState extends State<IconPickerDialog> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  final List<MapEntry<String, IconData>> _allIcons = [];
+  final List<MapEntry<String, FaIconData>> _allIcons = [];
 
   @override
   void initState() {
@@ -31,7 +31,7 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
   /// Loads all the Font Awesome icons into the list
   void _loadIcons() {
     // Create a map of named icons
-    final iconsMap = <String, IconData>{};
+    final iconsMap = <String, FaIconData>{};
 
     // INTERFACE ICONS
     iconsMap['home'] = FontAwesomeIcons.house;
@@ -236,7 +236,7 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
     });
   }
 
-  List<MapEntry<String, IconData>> get _filteredIcons {
+  List<MapEntry<String, FaIconData>> get _filteredIcons {
     if (_searchQuery.isEmpty) {
       return _allIcons;
     }
@@ -301,7 +301,9 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
                           final entry = _filteredIcons[index];
                           return InkWell(
                             onTap: () {
-                              Navigator.of(context).pop(entry.value);
+                              // Return the underlying IconData so callers can
+                              // keep working with plain IconData.
+                              Navigator.of(context).pop(entry.value.data);
                             },
                             borderRadius: BorderRadius.circular(8),
                             child: Column(

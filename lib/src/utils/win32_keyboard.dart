@@ -115,20 +115,20 @@ class Win32Keyboard {
           final modifierCode = modifierKeyCodes[modifier.toLowerCase()]!;
           inputs[inputIndex].type = INPUT_KEYBOARD;
           inputs[inputIndex].ki.wVk = modifierCode;
-          inputs[inputIndex].ki.dwFlags = 0; // Key down
+          inputs[inputIndex].ki.dwFlags = const KEYBD_EVENT_FLAGS(0); // Key down
           inputIndex++;
         }
       }
 
       // Press the main key
       inputs[inputIndex].type = INPUT_KEYBOARD;
-      inputs[inputIndex].ki.wVk = keyCode;
-      inputs[inputIndex].ki.dwFlags = 0; // Key down
+      inputs[inputIndex].ki.wVk = VIRTUAL_KEY(keyCode);
+      inputs[inputIndex].ki.dwFlags = const KEYBD_EVENT_FLAGS(0); // Key down
       inputIndex++;
 
       // Release the main key
       inputs[inputIndex].type = INPUT_KEYBOARD;
-      inputs[inputIndex].ki.wVk = keyCode;
+      inputs[inputIndex].ki.wVk = VIRTUAL_KEY(keyCode);
       inputs[inputIndex].ki.dwFlags = KEYEVENTF_KEYUP; // Key up
       inputIndex++;
 
@@ -149,7 +149,7 @@ class Win32Keyboard {
       // Free the allocated memory
       calloc.free(inputs);
 
-      return result == inputIndex;
+      return result.value == inputIndex;
     } catch (e) {
       debugPrint('Error sending Win32 keystroke: $e');
       return false;

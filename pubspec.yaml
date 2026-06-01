@@ -16,18 +16,18 @@ dependencies:
   process_run: ^1.2.4  # For executing shell commands
   shared_preferences: ^2.2.2  # For storing preferences
   path_provider: ^2.1.1  # For file system access
-  font_awesome_flutter: ^10.6.0  # For custom icons
+  font_awesome_flutter: ^11.0.0  # For custom icons
   provider: ^6.1.1  # For state management
   flutter_riverpod: ^3.0.3 # For improved state management
   uuid: ^4.0.0  # For generating unique IDs
-  win32: ^5.12.0
+  win32: ^6.3.0
   ffi: ^2.1.4
   flutter_colorpicker: ^1.1.0  # For color picking in button group editor
-  system_tray: ^2.0.3  # For system tray integration
+  tray_manager: ^0.5.2  # For system tray integration
   window_manager: ^0.5.1  # For window management integration
   intl: ^0.20.2  # For date formatting
-  smooth_page_indicator: ^1.1.0  # For page indicators in multi-page view
-  wakelock_plus: ^1.1.4  # For keeping the screen awake
+  smooth_page_indicator: ^2.0.1  # For page indicators in multi-page view
+  wakelock_plus: ^1.6.1  # For keeping the screen awake
 
 dev_dependencies:
   flutter_test:
