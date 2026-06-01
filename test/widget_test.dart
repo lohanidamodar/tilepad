@@ -1,21 +1,38 @@
-// This is a basic Flutter widget test.
+// Basic Flutter widget test for the MarcoDeck client app.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// The client app is a Riverpod app whose first screen (the splash screen)
+// drives animations, persisted-preference loads, and a navigation transition.
+// The test therefore:
+//   * provides a mock SharedPreferences store so the providers can initialise,
+//   * wraps the app in a ProviderScope (required for ConsumerWidgets), and
+//   * settles all scheduled timers/animations before asserting.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:marco_deck/src/client/main.dart';
 
 void main() {
-  testWidgets('App smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MarcoDeckClientApp());
+  testWidgets('App boots and renders a MaterialApp', (
+    WidgetTester tester,
+  ) async {
+    // Provide an empty persisted store so preference loads resolve cleanly.
+    SharedPreferences.setMockInitialValues({});
 
-    // Verify that the app starts successfully
+    await tester.pumpWidget(
+      const ProviderScope(child: MarcoDeckClientApp()),
+    );
+
+    // Verify the app shell is present immediately.
+    expect(find.byType(MaterialApp), findsOneWidget);
+
+    // Drain the splash-screen animations, preference loads, and the
+    // navigation transition so the test does not leave pending timers.
+    await tester.pumpAndSettle();
+
+    // The app should still be mounted after initialisation completes.
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 }

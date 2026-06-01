@@ -127,8 +127,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
   /// Converts a color to a hex string
   String _colorToHex(Color color) {
-    // ignore: deprecated_member_use
-    return '#${color.value.toRadixString(16).substring(2)}';
+    return '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
   }
 
   /// Converts a hex string to a Color, falling back to the default colour
