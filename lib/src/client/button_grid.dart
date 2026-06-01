@@ -246,8 +246,8 @@ class AnimatedButton extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final tile = constraints.biggest.shortestSide;
-        final iconSize = (tile * 0.30).clamp(20.0, 40.0);
-        final fontSize = (tile * 0.115).clamp(11.0, 15.0);
+        final iconSize = (tile * 0.42).clamp(28.0, 56.0);
+        final fontSize = (tile * 0.115).clamp(10.0, 14.0);
 
         return Material(
           color: effectiveColor,
@@ -274,15 +274,8 @@ class AnimatedButton extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(tile * 0.07),
-                    decoration: BoxDecoration(
-                      color: onColor.withValues(alpha: isEnabled ? 0.18 : 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, size: iconSize, color: fg),
-                  ),
-                  SizedBox(height: tile * 0.06),
+                  Icon(icon, size: iconSize, color: fg),
+                  SizedBox(height: tile * 0.05),
                   Flexible(
                     child: Text(
                       label,
@@ -292,8 +285,8 @@ class AnimatedButton extends StatelessWidget {
                       style: TextStyle(
                         color: fg,
                         fontSize: fontSize,
-                        fontWeight: FontWeight.w600,
-                        height: 1.1,
+                        fontWeight: FontWeight.w700,
+                        height: 1.05,
                       ),
                     ),
                   ),

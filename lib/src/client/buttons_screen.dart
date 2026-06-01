@@ -428,9 +428,12 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Text(
-              connectionState.connection?.name ?? 'MarcoDeck',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Flexible(
+              child: Text(
+                connectionState.connection?.name ?? 'MarcoDeck',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (isConnected)
               Container(
@@ -569,52 +572,26 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           if (isConnected)
             Column(
               children: [
-                // Page name and indicator container
-                if (pages.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.shadow.withAlpha(30),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                // Page name and indicator
+                if (pages.isNotEmpty && selectedPageIndex < pages.length)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
                     child: Column(
                       children: [
-                        // Page name
-                        if (pages.isNotEmpty &&
-                            selectedPageIndex < pages.length)
-                          Container(
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 24.0,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0,
-                              vertical: 6.0,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              pages[selectedPageIndex].name,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onPrimaryContainer,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
+                        Text(
+                          pages[selectedPageIndex].name,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                            color: colorScheme.onSurface,
                           ),
-
+                          textAlign: TextAlign.center,
+                        ),
                         // Page indicator dots
                         if (pages.length > 1)
                           Padding(
-                            padding: const EdgeInsets.only(top: 12.0),
+                            padding: const EdgeInsets.only(top: 10.0),
                             child: SmoothPageIndicator(
                               controller: _pageController,
                               count: pages.length,
@@ -622,8 +599,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                 dotHeight: 8,
                                 dotWidth: 8,
                                 activeDotColor: colorScheme.primary,
-                                // Use a contrasting colour so inactive dots are
-                                // visible against the surface background.
                                 dotColor: colorScheme.outlineVariant,
                                 spacing: 8,
                                 radius: 4,

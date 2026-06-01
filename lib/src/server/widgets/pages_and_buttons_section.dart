@@ -308,6 +308,9 @@ class PagesAndButtonsSection extends StatelessWidget {
 
     return ReorderableListView.builder(
       shrinkWrap: true,
+      // Use our own drag handle instead of the platform default so desktop
+      // doesn't render a second, redundant handle.
+      buildDefaultDragHandles: false,
       // This list lives inside the outer scrolling ListView of ServerScreen,
       // so defer scrolling to the parent to avoid nested-scroll conflicts.
       physics: const NeverScrollableScrollPhysics(),
@@ -406,7 +409,13 @@ class PagesAndButtonsSection extends StatelessWidget {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.drag_handle, color: colorScheme.onSurfaceVariant),
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: Icon(
+                      Icons.drag_indicator,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                   PopupMenuButton(
                     itemBuilder:
                         (context) => [
