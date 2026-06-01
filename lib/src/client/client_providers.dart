@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +11,7 @@ import '../models/server_connection.dart';
 import '../network/websocket_service.dart';
 import '../network/discovery_service.dart';
 import '../network/discovery_service_stub.dart';
+import '../utils/friendly_name.dart';
 
 /// Provider for device name
 final deviceNameProvider = NotifierProvider<DeviceNameNotifier, String>(
@@ -20,45 +20,10 @@ final deviceNameProvider = NotifierProvider<DeviceNameNotifier, String>(
 
 /// Notifier for device name
 class DeviceNameNotifier extends Notifier<String> {
-  /// Generate a random device name
-  String _generateRandomName() {
-    final adjectives = [
-      'Swift',
-      'Bright',
-      'Cool',
-      'Quick',
-      'Smart',
-      'Bold',
-      'Neat',
-      'Fast',
-      'Sleek',
-      'Sharp',
-    ];
-    final nouns = [
-      'Falcon',
-      'Tiger',
-      'Eagle',
-      'Phoenix',
-      'Dragon',
-      'Wolf',
-      'Hawk',
-      'Lion',
-      'Panther',
-      'Cobra',
-    ];
-
-    final random = Random();
-    final adjective = adjectives[random.nextInt(adjectives.length)];
-    final noun = nouns[random.nextInt(nouns.length)];
-    final number = random.nextInt(100);
-
-    return '$adjective $noun $number';
-  }
-
   @override
   String build() {
     _loadDeviceName();
-    return _generateRandomName();
+    return generateFriendlyName();
   }
 
   Future<void> _loadDeviceName() async {
@@ -69,7 +34,7 @@ class DeviceNameNotifier extends Notifier<String> {
         state = savedName;
       } else {
         // Generate and save a random name
-        final randomName = _generateRandomName();
+        final randomName = generateFriendlyName();
         await prefs.setString('device_name', randomName);
         state = randomName;
       }

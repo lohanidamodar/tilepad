@@ -25,7 +25,8 @@ class SystemTrayManager with TrayListener, WindowListener {
     // Initialize window manager
     await windowManager.ensureInitialized();
     const windowOptions = WindowOptions(
-      size: Size(800, 600),
+      size: Size(1120, 740),
+      minimumSize: Size(640, 560),
       center: true,
       title: 'MarcoDeck Server',
       skipTaskbar: false,

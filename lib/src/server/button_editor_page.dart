@@ -1,6 +1,6 @@
 // filepath: g:\dev\projects\macro-deck\lib\src\server\button_editor_page.dart
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../utils/macro_icons.dart';
 
 import '../models/button.dart';
 import '../utils/icon_picker_dialog.dart';
@@ -24,7 +24,7 @@ class ButtonEditorPage extends StatefulWidget {
 class _ButtonEditorPageState extends State<ButtonEditorPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  String _selectedIcon = FontAwesomeIcons.lightbulb.codePoint.toString();
+  String _selectedIcon = MacroIcons.defaultId;
   String _selectedColor = '#4285F4';
 
   // List of actions for this button
@@ -43,28 +43,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
     const Color(0xFF607D8B), // Blue Grey
   ];
 
-  final List<IconData> _presetIcons = [
-    FontAwesomeIcons.lightbulb.data,
-    FontAwesomeIcons.computer.data,
-    FontAwesomeIcons.play.data,
-    FontAwesomeIcons.stop.data,
-    FontAwesomeIcons.volumeHigh.data,
-    FontAwesomeIcons.volumeXmark.data,
-    FontAwesomeIcons.display.data,
-    FontAwesomeIcons.fire.data,
-    FontAwesomeIcons.powerOff.data,
-    FontAwesomeIcons.windowRestore.data,
-    FontAwesomeIcons.folderOpen.data,
-    FontAwesomeIcons.terminal.data,
-    FontAwesomeIcons.circlePlay.data,
-    FontAwesomeIcons.clockRotateLeft.data,
-    FontAwesomeIcons.desktop.data,
-    FontAwesomeIcons.keyboard.data,
-    FontAwesomeIcons.cameraRetro.data,
-    FontAwesomeIcons.solidEnvelope.data,
-    FontAwesomeIcons.penToSquare.data,
-    FontAwesomeIcons.code.data,
-  ];
+  final List<IconData> _presetIcons = MacroIcons.presets;
 
   @override
   void initState() {
@@ -606,22 +585,6 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
     );
   }
 
-  /// Gets an IconData from a string code point
-  IconData _getIconData(String iconName) {
-    try {
-      // Try to parse the icon as a code point
-      final codePoint = int.tryParse(iconName);
-      if (codePoint != null) {
-        // Use FontAwesomeSolid font family for FontAwesome icons
-        return IconData(
-          codePoint,
-          fontFamily: 'FontAwesomeSolid',
-          fontPackage: 'font_awesome_flutter',
-        );
-      }
-      return Icons.smart_button;
-    } catch (e) {
-      return Icons.smart_button;
-    }
-  }
+  /// Resolves a stored icon identifier to its Phosphor [IconData].
+  IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
 }

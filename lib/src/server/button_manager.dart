@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:picons/picons.dart';
 
 import '../models/button.dart';
 
@@ -261,7 +261,7 @@ class ButtonManager {
     final defaultButtons = [
       Button(
         name: 'Open Browser',
-        iconName: FontAwesomeIcons.globe.codePoint.toString(),
+        iconName: PiconsRegular.globe.codePoint.toString(),
         command:
             Platform.isWindows
                 ? 'start chrome'
@@ -271,7 +271,7 @@ class ButtonManager {
       ),
       Button(
         name: 'Open Notepad',
-        iconName: FontAwesomeIcons.noteSticky.codePoint.toString(),
+        iconName: PiconsRegular.note.codePoint.toString(),
         command:
             Platform.isWindows
                 ? 'notepad'
@@ -283,14 +283,14 @@ class ButtonManager {
     final systemButtons = [
       Button(
         name: 'System Info',
-        iconName: FontAwesomeIcons.computer.codePoint.toString(),
+        iconName: PiconsRegular.desktop.codePoint.toString(),
         command:
             Platform.isWindows ? 'systeminfo' : 'uname -a && lsb_release -a',
         color: '#FFC107',
       ),
       Button(
         name: 'Power Options',
-        iconName: FontAwesomeIcons.powerOff.codePoint.toString(),
+        iconName: PiconsRegular.power.codePoint.toString(),
         type: ButtonType.commandPreset,
         command:
             Platform.isWindows

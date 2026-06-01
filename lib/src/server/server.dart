@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart'; // Add Flutter foundation import
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/button.dart';
 import '../models/message.dart';
@@ -7,6 +8,7 @@ import '../models/client_info.dart';
 import '../network/websocket_service.dart';
 import '../network/discovery_service.dart';
 import '../network/discovery_service_stub.dart';
+import '../utils/friendly_name.dart';
 import 'button_manager.dart';
 import 'command_executor.dart';
 
@@ -33,6 +35,9 @@ class MarcoServer {
   /// The port to listen on
   int _port;
 
+  /// The server's friendly name (shown to clients during discovery).
+  String _name = 'MarcoDeck Server';
+
   /// Whether the server is running
   bool _isRunning = false;
 
@@ -49,6 +54,40 @@ class MarcoServer {
 
   /// Gets the server's port
   int get serverPort => _port;
+
+  /// The server's friendly name shown to clients.
+  String get name => _name;
+
+  /// Loads the persisted server name, generating a random friendly one on
+  /// first run (mirrors how the client names itself).
+  Future<void> loadName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('server_name');
+      if (saved != null && saved.isNotEmpty) {
+        _name = saved;
+      } else {
+        _name = generateFriendlyName();
+        await prefs.setString('server_name', _name);
+      }
+    } catch (e) {
+      debugPrint('Error loading server name: $e');
+    }
+  }
+
+  /// Updates and persists the server's friendly name. The new name is
+  /// broadcast to clients after the next server (re)start.
+  Future<void> setName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    _name = trimmed;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('server_name', trimmed);
+    } catch (e) {
+      debugPrint('Error saving server name: $e');
+    }
+  }
 
   /// Sets the server port
   Future<void> setPort(int port) async {
@@ -84,6 +123,9 @@ class MarcoServer {
         return true;
       }
 
+      // Make sure we have a friendly name to advertise.
+      await loadName();
+
       // Initialize button manager
       await _buttonManager.initialize();
 
@@ -106,7 +148,7 @@ class MarcoServer {
       // Start UDP broadcasting for auto-discovery
       final serverIp = await getServerIp();
       await _discoveryService.startBroadcasting(
-        serverName: 'MarcoDeck Server ($serverIp)',
+        serverName: '$_name ($serverIp)',
         port: _port,
       );
       debugPrint('UDP discovery broadcasting started');

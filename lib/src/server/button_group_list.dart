@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/button.dart';
 import '../models/button_group.dart';
+import '../utils/macro_icons.dart';
 import 'button_editor_dialog.dart';
 import 'button_group_editor_dialog.dart';
 
@@ -142,12 +143,7 @@ class _ButtonGroupListState extends State<ButtonGroupList> {
                       return ListTile(
                         leading:
                             button.iconName.isNotEmpty
-                                ? Icon(
-                                  IconData(
-                                    int.parse(button.iconName),
-                                    fontFamily: 'MaterialIcons',
-                                  ),
-                                )
+                                ? Icon(MacroIcons.resolve(button.iconName))
                                 : const Icon(Icons.touch_app),
                         title: Text(button.name),
                         subtitle: Text(button.command),

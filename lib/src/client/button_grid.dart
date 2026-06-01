@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/button.dart';
 import '../utils/accessibility.dart';
+import '../utils/macro_icons.dart';
 import '../utils/theme.dart';
 import 'client_providers.dart';
 
@@ -32,27 +32,8 @@ class ButtonGrid extends ConsumerWidget {
     return Color(value);
   }
 
-  /// Function to convert an icon name string to an IconData object
-  IconData _getIconData(String iconName) {
-    try {
-      // Try to parse the icon as a code point
-      final codePoint = int.tryParse(iconName);
-      if (codePoint != null) {
-        // Use FontAwesomeSolid font family for FontAwesome icons
-        // Note: Non-const IconData - release builds need --no-tree-shake-icons
-        return IconData(
-          codePoint,
-          fontFamily: 'FontAwesomeSolid',
-          fontPackage: 'font_awesome_flutter',
-        );
-      }
-
-      // Default to a placeholder icon
-      return Icons.smart_button;
-    } catch (e) {
-      return Icons.smart_button;
-    }
-  }
+  /// Resolves a stored icon identifier to its Phosphor [IconData].
+  IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
 
   /// Creates a new button grid
   const ButtonGrid({super.key, required this.buttons, this.onButtonPressed});
@@ -102,20 +83,38 @@ class ButtonGrid extends ConsumerWidget {
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppTheme.spaceLarge),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: AppTheme.spaceMedium,
-        mainAxisSpacing: AppTheme.spaceMedium,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: buttons.length,
-      itemBuilder: (context, index) {
-        final button = buttons[index];
-        return _buildButton(context, button, ref);
+    // Adapt the column count to the available width so the grid feels right
+    // on small phones, large phones in landscape, and tablets alike.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = _columnCountForWidth(constraints.maxWidth);
+        return GridView.builder(
+          padding: const EdgeInsets.all(AppTheme.spaceLarge),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: AppTheme.spaceMedium,
+            mainAxisSpacing: AppTheme.spaceMedium,
+            childAspectRatio: 1.0,
+          ),
+          itemCount: buttons.length,
+          itemBuilder: (context, index) {
+            final button = buttons[index];
+            return _buildButton(context, button, ref);
+          },
+        );
       },
     );
+  }
+
+  /// Chooses a comfortable column count for the available [width] so the macro
+  /// grid adapts across phones (portrait/landscape) and tablets.
+  static int _columnCountForWidth(double width) {
+    if (width < 320) return 2;
+    if (width < 480) return 3; // standard phone portrait
+    if (width < 600) return 4; // large / landscape phone
+    if (width < 840) return 5; // small tablet / wide landscape
+    if (width < 1080) return 6;
+    return 7;
   }
 
   /// Handles connection loss and shows a reconnection dialog
@@ -210,8 +209,12 @@ class ButtonGrid extends ConsumerWidget {
   }
 }
 
-/// Enhanced animated button widget with accessibility support
-class AnimatedButton extends StatefulWidget {
+/// Visual representation of a macro button.
+///
+/// Press scaling and haptics are handled by the surrounding [AccessibleButton];
+/// this widget is purely visual. Sizing scales with the available tile size so
+/// the same button looks right whether the grid shows 2 columns or 7.
+class AnimatedButton extends StatelessWidget {
   final Color color;
   final IconData icon;
   final String label;
@@ -228,123 +231,69 @@ class AnimatedButton extends StatefulWidget {
   });
 
   @override
-  State<AnimatedButton> createState() => _AnimatedButtonState();
-}
-
-class _AnimatedButtonState extends State<AnimatedButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _elevationAnimation;
-  final bool _isPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 150),
-      vsync: this,
-    );
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
-    _elevationAnimation = Tween<double>(begin: 4.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final effectiveColor =
-        widget.isEnabled ? widget.color : widget.color.withValues(alpha: 0.5);
+        isEnabled ? color : color.withValues(alpha: 0.45);
 
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Material(
-            color: effectiveColor,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            elevation: widget.isEnabled ? _elevationAnimation.value : 1.0,
-            shadowColor: widget.color.withValues(alpha: 0.4),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
+    // Pick a legible foreground (light or dark) for the button's colour so
+    // labels stay readable on both bright and dark custom button colours.
+    final onColor =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF1A1A1A);
+    final fg = isEnabled ? onColor : onColor.withValues(alpha: 0.6);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tile = constraints.biggest.shortestSide;
+        final iconSize = (tile * 0.30).clamp(20.0, 40.0);
+        final fontSize = (tile * 0.115).clamp(11.0, 15.0);
+
+        return Material(
+          color: effectiveColor,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          elevation: isEnabled ? 3 : 0,
+          shadowColor: color.withValues(alpha: 0.4),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  effectiveColor,
+                  Color.alphaBlend(
+                    Colors.black.withValues(alpha: 0.14),
                     effectiveColor,
-                    effectiveColor.withValues(alpha: 0.8),
-                  ],
-                ),
-                boxShadow:
-                    _isPressed || !widget.isEnabled
-                        ? []
-                        : [
-                          BoxShadow(
-                            color: widget.color.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                  ),
+                ],
               ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spaceSmall),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(AppTheme.spaceSmall),
+                    padding: EdgeInsets.all(tile * 0.07),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(
-                        alpha: widget.isEnabled ? 0.2 : 0.1,
-                      ),
+                      color: onColor.withValues(alpha: isEnabled ? 0.18 : 0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: FaIcon(
-                      FaIconData(widget.icon),
-                      size: 28,
-                      color:
-                          widget.isEnabled
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.6),
-                    ),
+                    child: Icon(icon, size: iconSize, color: fg),
                   ),
-                  const SizedBox(height: AppTheme.spaceSmall),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spaceXSmall,
-                    ),
+                  SizedBox(height: tile * 0.06),
+                  Flexible(
                     child: Text(
-                      widget.label,
+                      label,
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color:
-                            widget.isEnabled
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.6),
-                        fontSize: 12,
+                        color: fg,
+                        fontSize: fontSize,
                         fontWeight: FontWeight.w600,
-                        shadows:
-                            widget.isEnabled
-                                ? [
-                                  const Shadow(
-                                    color: Colors.black26,
-                                    offset: Offset(0, 1),
-                                    blurRadius: 2,
-                                  ),
-                                ]
-                                : [],
+                        height: 1.1,
                       ),
                     ),
                   ),

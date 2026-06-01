@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/button.dart' as models;
+import '../../utils/macro_icons.dart';
 
 /// A widget that displays the pages and buttons section
 class PagesAndButtonsSection extends StatelessWidget {
@@ -457,22 +458,8 @@ class PagesAndButtonsSection extends StatelessWidget {
     return Color(value);
   }
 
-  /// Gets an icon from a string code point
-  IconData _getIconData(String iconName) {
-    try {
-      final codePoint = int.tryParse(iconName);
-      if (codePoint != null) {
-        return IconData(
-          codePoint,
-          fontFamily: 'FontAwesomeSolid',
-          fontPackage: 'font_awesome_flutter',
-        );
-      }
-      return Icons.smart_button;
-    } catch (e) {
-      return Icons.smart_button;
-    }
-  }
+  /// Resolves a stored icon identifier to its Phosphor [IconData].
+  IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
 
   /// Gets a description of a button action
   String _getActionDescription(models.ButtonAction action) {
