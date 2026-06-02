@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../design/design.dart';
 import '../../models/client_info.dart';
 
 /// A card widget that displays connected clients
@@ -10,20 +11,20 @@ class ConnectedClientsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      margin: EdgeInsets.symmetric(vertical: t.space.sm),
       child: Card(
         clipBehavior: Clip.antiAlias,
-        elevation: 2,
+        elevation: 0,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(colorScheme),
+            _buildHeader(context, t),
             Padding(
-              padding: const EdgeInsets.all(20),
-              child: _buildClientsList(colorScheme),
+              padding: EdgeInsets.all(t.space.xl),
+              child: _buildClientsList(context, t),
             ),
           ],
         ),
@@ -31,83 +32,69 @@ class ConnectedClientsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(ColorScheme colorScheme) {
+  Widget _buildHeader(BuildContext context, AppTokens t) {
+    final hasClients = connectedClients.isNotEmpty;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.secondaryContainer,
-            colorScheme.secondaryContainer.withValues(alpha: 0.8),
-          ],
-        ),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.space.xl,
+        vertical: t.space.lg,
       ),
+      decoration: BoxDecoration(color: t.color.accentSubtle),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(t.space.sm),
             decoration: BoxDecoration(
-              color: colorScheme.secondary.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
+              color: t.color.accent.withValues(alpha: t.opacity.subtle),
+              borderRadius: t.radius.brSm,
             ),
             child: Icon(
               Icons.devices_rounded,
-              color: colorScheme.onSecondaryContainer,
-              size: 20,
+              color: t.color.accent,
+              size: t.icon.lg,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: t.space.md),
           Text(
             'Connected Clients',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSecondaryContainer,
-            ),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: t.color.textPrimary,
+                ),
           ),
           const Spacer(),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(
+              horizontal: t.space.md,
+              vertical: t.space.xs,
+            ),
             decoration: BoxDecoration(
-              color:
-                  connectedClients.isNotEmpty
-                      ? Colors.green.withValues(alpha: 0.2)
-                      : colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.5,
-                      ),
-              borderRadius: BorderRadius.circular(16),
+              color: hasClients ? t.color.successSubtle : t.color.surfaceSubtle,
+              borderRadius: t.radius.brLg,
               border: Border.all(
-                color:
-                    connectedClients.isNotEmpty
-                        ? Colors.green
-                        : colorScheme.outline.withValues(alpha: 0.3),
+                color: hasClients ? t.color.success : t.color.border,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: t.space.sm,
+                  height: t.space.sm,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color:
-                        connectedClients.isNotEmpty
-                            ? Colors.green
-                            : colorScheme.outline,
+                    color: hasClients ? t.color.success : t.color.textMuted,
                   ),
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: t.space.xs),
                 Text(
                   '${connectedClients.length}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color:
-                        connectedClients.isNotEmpty
-                            ? Colors.green.shade800
-                            : colorScheme.onSurfaceVariant,
-                  ),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: hasClients
+                            ? t.color.success
+                            : t.color.textSecondary,
+                      ),
                 ),
               ],
             ),
@@ -117,9 +104,9 @@ class ConnectedClientsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildClientsList(ColorScheme colorScheme) {
+  Widget _buildClientsList(BuildContext context, AppTokens t) {
     if (connectedClients.isEmpty) {
-      return _buildEmptyState(colorScheme);
+      return _buildEmptyState(context, t);
     }
 
     final dateFormat = DateFormat('h:mm:ss a');
@@ -128,7 +115,7 @@ class ConnectedClientsCard extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: connectedClients.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => SizedBox(height: t.space.md),
       itemBuilder: (context, index) {
         final client = connectedClients[index];
         final connectionDuration = DateTime.now().difference(
@@ -137,29 +124,23 @@ class ConnectedClientsCard extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                colorScheme.surface.withValues(alpha: 0.8),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-            ),
+            color: t.color.surfaceSubtle,
+            borderRadius: t.radius.brMd,
+            border: Border.all(color: t.color.border),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(t.space.lg),
             child: Row(
               children: [
-                _buildDeviceIcon(colorScheme),
-                const SizedBox(width: 16),
+                _buildDeviceIcon(t),
+                SizedBox(width: t.space.lg),
                 Expanded(
                   child: _buildClientInfo(
+                    context,
+                    t,
                     client,
                     dateFormat,
                     connectionDuration,
-                    colorScheme,
                   ),
                 ),
               ],
@@ -170,15 +151,15 @@ class ConnectedClientsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(ColorScheme colorScheme) {
+  Widget _buildEmptyState(BuildContext context, AppTokens t) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(t.space.xxl),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        color: t.color.surfaceSubtle,
+        borderRadius: t.radius.brMd,
         border: Border.all(
-          color: colorScheme.outlineVariant,
+          color: t.color.border,
           style: BorderStyle.solid,
         ),
       ),
@@ -186,34 +167,31 @@ class ConnectedClientsCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(t.space.lg),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              color: t.color.surfaceRaised,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.smartphone_rounded,
-              size: 32,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+              size: t.space.xxxl,
+              color: t.color.textMuted,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: t.space.lg),
           Text(
             'No clients connected',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: t.color.textSecondary,
+                ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: t.space.sm),
           Text(
             'Clients will appear here when they connect to the server',
-            style: TextStyle(
-              fontSize: 14,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-              fontStyle: FontStyle.italic,
-            ),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: t.color.textMuted,
+                  fontStyle: FontStyle.italic,
+                ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -221,38 +199,27 @@ class ConnectedClientsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDeviceIcon(ColorScheme colorScheme) {
+  Widget _buildDeviceIcon(AppTokens t) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(t.space.md),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.primaryContainer,
-            colorScheme.primaryContainer.withValues(alpha: 0.7),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withValues(alpha: 0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: t.color.accentSubtle,
+        borderRadius: t.radius.brMd,
       ),
       child: Icon(
         Icons.smartphone_rounded,
-        size: 24,
-        color: colorScheme.onPrimaryContainer,
+        size: t.icon.xl,
+        color: t.color.accent,
       ),
     );
   }
 
   Widget _buildClientInfo(
+    BuildContext context,
+    AppTokens t,
     ClientInfo client,
     DateFormat dateFormat,
     Duration connectionDuration,
-    ColorScheme colorScheme,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,60 +229,64 @@ class ConnectedClientsCard extends StatelessWidget {
             Expanded(
               child: Text(
                 client.deviceName ?? 'Unknown Device',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: t.color.textPrimary,
+                    ),
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: EdgeInsets.symmetric(
+                horizontal: t.space.sm,
+                vertical: t.space.xs,
+              ),
               decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+                color: t.color.successSubtle,
+                borderRadius: t.radius.brMd,
+                border: Border.all(color: t.color.success),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
+                    width: t.space.xs + t.space.xxs,
+                    height: t.space.xs + t.space.xxs,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.green,
+                      color: t.color.success,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Text(
+                  SizedBox(width: t.space.xs),
+                  Text(
                     'Online',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.green,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: t.color.success,
+                        ),
                   ),
                 ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: t.space.sm),
         Wrap(
-          spacing: 16,
-          runSpacing: 4,
+          spacing: t.space.lg,
+          runSpacing: t.space.xs,
           children: [
-            _buildInfoChip(Icons.location_on, client.ipAddress, colorScheme),
+            _buildInfoChip(context, t, Icons.location_on, client.ipAddress,
+                mono: true),
             _buildInfoChip(
+              context,
+              t,
               Icons.access_time,
               dateFormat.format(client.connectedAt),
-              colorScheme,
+              mono: true,
             ),
             _buildInfoChip(
+              context,
+              t,
               Icons.timer,
               _formatDuration(connectionDuration),
-              colorScheme,
+              mono: true,
             ),
           ],
         ),
@@ -323,15 +294,28 @@ class ConnectedClientsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String text, ColorScheme colorScheme) {
+  Widget _buildInfoChip(
+    BuildContext context,
+    AppTokens t,
+    IconData icon,
+    String text, {
+    bool mono = false,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: colorScheme.secondary),
-        const SizedBox(width: 4),
+        Icon(icon, size: t.icon.xs, color: t.color.accent),
+        SizedBox(width: t.space.xs),
         Text(
           text,
-          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+          style: mono
+              ? AppTypography.mono(
+                  fontSize: t.typeScale.label,
+                  color: t.color.textSecondary,
+                )
+              : Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: t.color.textSecondary,
+                  ),
         ),
       ],
     );

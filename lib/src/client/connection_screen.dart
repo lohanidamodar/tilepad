@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../design/design.dart';
 import '../models/server_connection.dart';
 import '../network/discovery_service.dart';
-import '../utils/theme.dart';
 import 'client_providers.dart';
 
 /// Screen for connecting to a server
@@ -79,17 +79,16 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
     // Ensure address starts with ws:// or wss://
     final formattedAddress =
         address.startsWith('ws://') || address.startsWith('wss://')
-            ? address
-            : 'ws://$address';
+        ? address
+        : 'ws://$address';
 
     // Create or update the server connection
-    final connection =
-        widget.existingConnection != null
-            ? widget.existingConnection!.copyWith(
-              name: name,
-              address: formattedAddress,
-            )
-            : ServerConnection(name: name, address: formattedAddress);
+    final connection = widget.existingConnection != null
+        ? widget.existingConnection!.copyWith(
+            name: name,
+            address: formattedAddress,
+          )
+        : ServerConnection(name: name, address: formattedAddress);
 
     // Save the connection
     ref.read(serverConnectionsProvider.notifier).addConnection(connection);
@@ -119,9 +118,9 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
       Navigator.pop(context);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to connect to server'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Failed to connect to server'),
+          backgroundColor: context.tokens.color.danger,
         ),
       );
     }
@@ -130,65 +129,63 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existingConnection != null;
-    final colorScheme = Theme.of(context).colorScheme;
     final discoveredServers = ref.watch(discoveredServersProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Server' : 'Add Server'),
         centerTitle: true,
-        bottom:
-            isEditing
-                ? null
-                : TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(icon: Icon(Icons.search), text: 'Discover'),
-                    Tab(icon: Icon(Icons.edit), text: 'Manual'),
-                  ],
-                ),
-      ),
-      body:
-          isEditing
-              ? _buildManualForm(context)
-              : TabBarView(
+        bottom: isEditing
+            ? null
+            : TabBar(
                 controller: _tabController,
-                children: [
-                  _buildDiscoveryTab(context, colorScheme, discoveredServers),
-                  _buildManualForm(context),
+                tabs: const [
+                  Tab(icon: Icon(Icons.search), text: 'Discover'),
+                  Tab(icon: Icon(Icons.edit), text: 'Manual'),
                 ],
               ),
+      ),
+      body: isEditing
+          ? _buildManualForm(context)
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildDiscoveryTab(context, discoveredServers),
+                _buildManualForm(context),
+              ],
+            ),
     );
   }
 
   Widget _buildDiscoveryTab(
     BuildContext context,
-    ColorScheme colorScheme,
     List<DiscoveredServer> discoveredServers,
   ) {
+    final tokens = context.tokens;
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       children: [
         if (_isDiscovering)
           Container(
-            padding: const EdgeInsets.all(AppTheme.spaceLarge),
-            color: colorScheme.primaryContainer,
+            padding: EdgeInsets.all(tokens.space.lg),
+            color: tokens.color.accentSubtle,
             child: Row(
               children: [
                 SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: tokens.icon.lg,
+                  height: tokens.icon.lg,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colorScheme.onPrimaryContainer,
+                    strokeWidth: tokens.border.focus,
+                    color: tokens.color.accent,
                   ),
                 ),
-                const SizedBox(width: AppTheme.spaceMedium),
+                SizedBox(width: tokens.space.md),
                 Expanded(
                   child: Text(
                     'Searching for servers on your network...',
-                    style: TextStyle(
-                      color: colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w500,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: tokens.color.accent,
+                      fontWeight: tokens.typeScale.wMedium,
                     ),
                   ),
                 ),
@@ -196,108 +193,100 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
             ),
           ),
         Expanded(
-          child:
-              discoveredServers.isEmpty
-                  ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.wifi_find,
-                          size: 80,
-                          color: colorScheme.onSurfaceVariant.withAlpha(127),
+          child: discoveredServers.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.wifi_find,
+                        size: tokens.space.huge,
+                        color: tokens.color.textMuted,
+                      ),
+                      SizedBox(height: tokens.space.xl),
+                      Text(
+                        _isDiscovering
+                            ? 'Looking for servers...'
+                            : 'No servers found',
+                        style: textTheme.titleMedium?.copyWith(
+                          color: tokens.color.textSecondary,
                         ),
-                        const SizedBox(height: AppTheme.spaceXLarge),
-                        Text(
-                          _isDiscovering
-                              ? 'Looking for servers...'
-                              : 'No servers found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                      ),
+                      SizedBox(height: tokens.space.sm),
+                      Text(
+                        'Make sure the server is running\non the same network',
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: tokens.color.textSecondary,
                         ),
-                        const SizedBox(height: AppTheme.spaceSmall),
-                        Text(
-                          'Make sure the server is running\non the same network',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: colorScheme.onSurfaceVariant),
-                        ),
-                        const SizedBox(height: AppTheme.spaceXLarge),
-                        FilledButton.tonalIcon(
-                          onPressed: _isDiscovering ? null : _startDiscovery,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                  : ListView.builder(
-                    padding: const EdgeInsets.all(AppTheme.spaceLarge),
-                    itemCount: discoveredServers.length,
-                    itemBuilder: (context, index) {
-                      final server = discoveredServers[index];
-                      return Card(
-                        margin: const EdgeInsets.only(
-                          bottom: AppTheme.spaceMedium,
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(
-                            AppTheme.spaceLarge,
-                          ),
-                          leading: Container(
-                            padding: const EdgeInsets.all(AppTheme.spaceMedium),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusMedium,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.computer,
-                              color: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          title: Text(
-                            server.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text('${server.ipAddress}:${server.port}'),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              OutlinedButton(
-                                onPressed: () => _addDiscoveredServer(server),
-                                child: const Text('Add'),
-                              ),
-                              const SizedBox(width: AppTheme.spaceSmall),
-                              FilledButton(
-                                onPressed:
-                                    () =>
-                                        _addAndConnectDiscoveredServer(server),
-                                child: const Text('Connect'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                      ),
+                      SizedBox(height: tokens.space.xl),
+                      FilledButton.tonalIcon(
+                        onPressed: _isDiscovering ? null : _startDiscovery,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    ],
                   ),
+                )
+              : ListView.builder(
+                  padding: EdgeInsets.all(tokens.space.lg),
+                  itemCount: discoveredServers.length,
+                  itemBuilder: (context, index) {
+                    final server = discoveredServers[index];
+                    return Card(
+                      margin: EdgeInsets.only(bottom: tokens.space.md),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.all(tokens.space.lg),
+                        leading: Container(
+                          padding: EdgeInsets.all(tokens.space.md),
+                          decoration: BoxDecoration(
+                            color: tokens.color.accentSubtle,
+                            borderRadius: tokens.radius.brMd,
+                          ),
+                          child: Icon(
+                            Icons.computer,
+                            color: tokens.color.accent,
+                          ),
+                        ),
+                        title: Text(server.name, style: textTheme.titleMedium),
+                        subtitle: Padding(
+                          padding: EdgeInsets.only(top: tokens.space.xs),
+                          child: Text(
+                            '${server.ipAddress}:${server.port}',
+                            style: AppTypography.mono(
+                              color: tokens.color.textSecondary,
+                            ),
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            OutlinedButton(
+                              onPressed: () => _addDiscoveredServer(server),
+                              child: const Text('Add'),
+                            ),
+                            SizedBox(width: tokens.space.sm),
+                            FilledButton(
+                              onPressed: () =>
+                                  _addAndConnectDiscoveredServer(server),
+                              child: const Text('Connect'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );
   }
 
   Widget _buildManualForm(BuildContext context) {
+    final tokens = context.tokens;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppTheme.spaceLarge),
+      padding: EdgeInsets.all(tokens.space.lg),
       child: Form(
         key: _formKey,
         child: Column(
@@ -309,9 +298,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 labelText: 'Server Name',
                 hintText: 'My Server',
                 prefixIcon: const Icon(Icons.label),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
+                border: OutlineInputBorder(borderRadius: tokens.radius.brMd),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -320,18 +307,17 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 return null;
               },
             ),
-            const SizedBox(height: AppTheme.spaceLarge),
+            SizedBox(height: tokens.space.lg),
             TextFormField(
               controller: _addressController,
               decoration: InputDecoration(
                 labelText: 'Server Address',
                 hintText: '192.168.1.100:8080',
                 prefixIcon: const Icon(Icons.computer),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
+                border: OutlineInputBorder(borderRadius: tokens.radius.brMd),
               ),
               keyboardType: TextInputType.url,
+              style: AppTypography.mono(color: tokens.color.textPrimary),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a server address';
@@ -339,7 +325,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 return null;
               },
             ),
-            const SizedBox(height: AppTheme.spaceSmall),
+            SizedBox(height: tokens.space.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -351,7 +337,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                 ),
               ],
             ),
-            const SizedBox(height: AppTheme.spaceXLarge),
+            SizedBox(height: tokens.space.xl),
             Row(
               children: [
                 Expanded(
@@ -359,45 +345,35 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                     onPressed: _isConnecting ? null : () => _saveServer(),
                     style: OutlinedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
+                        borderRadius: tokens.radius.brMd,
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppTheme.spaceLarge,
-                      ),
+                      padding: EdgeInsets.symmetric(vertical: tokens.space.lg),
                     ),
                     child: const Text('Save'),
                   ),
                 ),
-                const SizedBox(width: AppTheme.spaceLarge),
+                SizedBox(width: tokens.space.lg),
                 Expanded(
                   child: FilledButton(
-                    onPressed:
-                        _isConnecting
-                            ? null
-                            : () => _saveServer(connectAfterSave: true),
+                    onPressed: _isConnecting
+                        ? null
+                        : () => _saveServer(connectAfterSave: true),
                     style: FilledButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
+                        borderRadius: tokens.radius.brMd,
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppTheme.spaceLarge,
-                      ),
+                      padding: EdgeInsets.symmetric(vertical: tokens.space.lg),
                     ),
-                    child:
-                        _isConnecting
-                            ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                            : const Text('Save & Connect'),
+                    child: _isConnecting
+                        ? SizedBox(
+                            height: tokens.icon.lg,
+                            width: tokens.icon.lg,
+                            child: CircularProgressIndicator(
+                              strokeWidth: tokens.border.focus,
+                              color: tokens.color.onAccent,
+                            ),
+                          )
+                        : const Text('Save & Connect'),
                   ),
                 ),
               ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../design/design.dart';
+
 /// A card widget that displays the server status and controls
 class ServerStatusCard extends StatelessWidget {
   final String serverIp;
@@ -22,46 +24,35 @@ class ServerStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+      duration: t.motion.slow,
       child: Card(
         clipBehavior: Clip.antiAlias,
-        elevation: isRunning ? 4 : 2,
-        shadowColor:
-            isRunning
-                ? colorScheme.primary.withValues(alpha: 0.2)
-                : colorScheme.shadow.withValues(alpha: 0.1),
+        elevation: 0,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatusHeader(colorScheme),
-            _buildStatusContent(colorScheme),
+            _buildStatusHeader(context, t),
+            _buildStatusContent(context, t),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusHeader(ColorScheme colorScheme) {
+  Widget _buildStatusHeader(BuildContext context, AppTokens t) {
+    final statusColor = isRunning ? t.color.success : t.color.danger;
+    final headerBg = isRunning ? t.color.successSubtle : t.color.dangerSubtle;
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors:
-              isRunning
-                  ? [
-                    colorScheme.primaryContainer,
-                    colorScheme.primaryContainer.withValues(alpha: 0.8),
-                  ]
-                  : [
-                    colorScheme.errorContainer,
-                    colorScheme.errorContainer.withValues(alpha: 0.8),
-                  ],
-        ),
+      duration: t.motion.slow,
+      padding: EdgeInsets.symmetric(
+        horizontal: t.space.xl,
+        vertical: t.space.lg,
       ),
+      decoration: BoxDecoration(color: headerBg),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -69,58 +60,45 @@ class ServerStatusCard extends StatelessWidget {
             children: [
               Icon(
                 Icons.dns_rounded,
-                color:
-                    isRunning
-                        ? colorScheme.onPrimaryContainer
-                        : colorScheme.onErrorContainer,
-                size: 24,
+                color: statusColor,
+                size: t.icon.xl,
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: t.space.md),
               Text(
                 'Server Status',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color:
-                      isRunning
-                          ? colorScheme.onPrimaryContainer
-                          : colorScheme.onErrorContainer,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: statusColor,
+                    ),
               ),
             ],
           ),
           Row(
             children: [
               AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 16,
-                height: 16,
+                duration: t.motion.slow,
+                width: t.space.lg,
+                height: t.space.lg,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isRunning ? colorScheme.primary : colorScheme.error,
-                  boxShadow:
-                      isRunning
-                          ? [
-                            BoxShadow(
-                              color: colorScheme.primary.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              spreadRadius: 2,
-                            ),
-                          ]
-                          : [],
+                  color: statusColor,
+                  boxShadow: isRunning
+                      ? [
+                          BoxShadow(
+                            color: statusColor
+                                .withValues(alpha: t.opacity.subtle),
+                            blurRadius: t.space.sm,
+                            spreadRadius: t.space.xxs,
+                          ),
+                        ]
+                      : [],
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: t.space.md),
               Text(
                 isRunning ? 'Running' : 'Stopped',
-                style: TextStyle(
-                  color:
-                      isRunning
-                          ? colorScheme.onPrimaryContainer
-                          : colorScheme.onErrorContainer,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: statusColor,
+                    ),
               ),
             ],
           ),
@@ -129,54 +107,51 @@ class ServerStatusCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusContent(ColorScheme colorScheme) {
+  Widget _buildStatusContent(BuildContext context, AppTokens t) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(t.space.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildConnectionInfo(colorScheme),
-          const SizedBox(height: 20),
-          _buildConnectionUrl(colorScheme),
-          const SizedBox(height: 20),
-          _buildControlButtons(colorScheme),
+          _buildConnectionInfo(context, t),
+          SizedBox(height: t.space.xl),
+          _buildConnectionUrl(context, t),
+          SizedBox(height: t.space.xl),
+          _buildControlButtons(context, t),
         ],
       ),
     );
   }
 
-  Widget _buildConnectionInfo(ColorScheme colorScheme) {
+  Widget _buildConnectionInfo(BuildContext context, AppTokens t) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(t.space.lg),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
-          ],
+        borderRadius: t.radius.brMd,
+        color: t.color.surfaceSubtle,
+        border: Border.all(
+          color: t.color.border,
+          width: t.border.hairline,
         ),
-        border: Border.all(color: colorScheme.outlineVariant, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Connection Details',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: t.color.textSecondary,
+                ),
           ),
-          const SizedBox(height: 16),
-          _buildInfoRow(Icons.router, 'IP Address', serverIp, colorScheme),
-          const SizedBox(height: 12),
+          SizedBox(height: t.space.lg),
+          _buildInfoRow(context, t, Icons.router, 'IP Address', serverIp),
+          SizedBox(height: t.space.md),
           _buildInfoRow(
+            context,
+            t,
             Icons.settings_ethernet,
             'Port',
             serverPort.toString(),
-            colorScheme,
           ),
         ],
       ),
@@ -184,102 +159,87 @@ class ServerStatusCard extends StatelessWidget {
   }
 
   Widget _buildInfoRow(
+    BuildContext context,
+    AppTokens t,
     IconData icon,
     String label,
     String value,
-    ColorScheme colorScheme,
   ) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: colorScheme.primary),
-        const SizedBox(width: 12),
+        Icon(icon, size: t.icon.lg, color: t.color.accent),
+        SizedBox(width: t.space.md),
         Text(
           '$label: ',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: t.typeScale.wMedium,
+                color: t.color.textSecondary,
+              ),
         ),
         Expanded(
           child: Text(
             value,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: AppTypography.mono(color: t.color.textSecondary),
           ),
         ),
         if (label == 'Port')
           IconButton(
             onPressed: onChangePort,
             icon: const Icon(Icons.edit),
-            iconSize: 16,
+            iconSize: t.icon.sm,
             tooltip: 'Change Port',
           ),
       ],
     );
   }
 
-  Widget _buildConnectionUrl(ColorScheme colorScheme) {
+  Widget _buildConnectionUrl(BuildContext context, AppTokens t) {
     final url = 'http://$serverIp:$serverPort';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(t.space.lg),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.primaryContainer,
-            colorScheme.primaryContainer.withValues(alpha: 0.7),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: t.radius.brMd,
+        color: t.color.accentSubtle,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.link, color: colorScheme.onPrimaryContainer, size: 20),
-              const SizedBox(width: 8),
+              Icon(Icons.link, color: t.color.accent, size: t.icon.lg),
+              SizedBox(width: t.space.sm),
               Text(
                 'Connection URL',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onPrimaryContainer,
-                ),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: t.color.accent,
+                    ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: t.space.md),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(t.space.md),
             decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
+              color: t.color.surface,
+              borderRadius: t.radius.brSm,
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     url,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 14,
+                    style: AppTypography.mono(
+                      fontSize: t.typeScale.body,
+                      color: t.color.textPrimary,
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: () => _copyToClipboard(url),
                   icon: const Icon(Icons.copy),
-                  iconSize: 16,
+                  iconSize: t.icon.sm,
                   tooltip: 'Copy URL',
                 ),
               ],
@@ -290,7 +250,7 @@ class ServerStatusCard extends StatelessWidget {
     );
   }
 
-  Widget _buildControlButtons(ColorScheme colorScheme) {
+  Widget _buildControlButtons(BuildContext context, AppTokens t) {
     return Row(
       children: [
         Expanded(
@@ -299,19 +259,17 @@ class ServerStatusCard extends StatelessWidget {
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Restart Server'),
             style: FilledButton.styleFrom(
-              backgroundColor: colorScheme.tertiaryContainer,
-              foregroundColor: colorScheme.onTertiaryContainer,
-              disabledBackgroundColor: colorScheme.surface.withValues(
-                alpha: 0.3,
-              ),
-              disabledForegroundColor: colorScheme.onSurfaceVariant.withValues(
-                alpha: 0.5,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: t.color.accentSubtle,
+              foregroundColor: t.color.accent,
+              disabledBackgroundColor:
+                  t.color.surfaceSubtle.withValues(alpha: t.opacity.disabled),
+              disabledForegroundColor:
+                  t.color.textMuted.withValues(alpha: t.opacity.disabled),
+              padding: EdgeInsets.symmetric(vertical: t.space.lg),
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: t.space.lg),
         Expanded(
           child: FilledButton.icon(
             onPressed: onToggleServer,
@@ -321,14 +279,10 @@ class ServerStatusCard extends StatelessWidget {
             label: Text(isRunning ? 'Stop Server' : 'Start Server'),
             style: FilledButton.styleFrom(
               backgroundColor:
-                  isRunning
-                      ? colorScheme.errorContainer
-                      : colorScheme.primaryContainer,
+                  isRunning ? t.color.dangerSubtle : t.color.successSubtle,
               foregroundColor:
-                  isRunning
-                      ? colorScheme.onErrorContainer
-                      : colorScheme.onPrimaryContainer,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+                  isRunning ? t.color.danger : t.color.success,
+              padding: EdgeInsets.symmetric(vertical: t.space.lg),
             ),
           ),
         ),

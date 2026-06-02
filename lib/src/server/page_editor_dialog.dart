@@ -1,5 +1,6 @@
 // filepath: g:\dev\projects\macro-deck\lib\src\server\page_editor_dialog.dart
 import 'package:flutter/material.dart';
+import '../design/design.dart';
 import '../models/button.dart' as models;
 
 /// Dialog for creating and editing pages of buttons
@@ -52,7 +53,7 @@ class _PageEditorDialogState extends State<PageEditorDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(context.tokens.space.lg),
         constraints: const BoxConstraints(maxWidth: 400),
         child: Form(
           key: _formKey,
@@ -64,7 +65,7 @@ class _PageEditorDialogState extends State<PageEditorDialog> {
                 widget.page == null ? 'Create Page' : 'Edit Page',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: context.tokens.space.lg),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -79,7 +80,7 @@ class _PageEditorDialogState extends State<PageEditorDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: context.tokens.space.xxl),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -87,7 +88,7 @@ class _PageEditorDialogState extends State<PageEditorDialog> {
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: context.tokens.space.lg),
                   ElevatedButton(
                     onPressed: _savePage,
                     child: const Text('Save'),

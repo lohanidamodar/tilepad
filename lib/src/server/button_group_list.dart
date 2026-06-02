@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../design/design.dart';
 import '../models/button.dart';
 import '../models/button_group.dart';
 import '../utils/macro_icons.dart';
@@ -42,9 +43,9 @@ class _ButtonGroupListState extends State<ButtonGroupList> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Button Groups',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             ElevatedButton.icon(
               icon: const Icon(Icons.add),
@@ -53,12 +54,14 @@ class _ButtonGroupListState extends State<ButtonGroupList> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: context.tokens.space.lg),
         if (_buttonGroups.isEmpty)
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('No button groups yet. Create one to get started.'),
+              padding: EdgeInsets.all(context.tokens.space.lg),
+              child: const Text(
+                'No button groups yet. Create one to get started.',
+              ),
             ),
           )
         else
@@ -80,11 +83,11 @@ class _ButtonGroupListState extends State<ButtonGroupList> {
     final groupColor = Color(colorValue);
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      margin: EdgeInsets.symmetric(vertical: context.tokens.space.sm),
       child: ExpansionTile(
         leading: Container(
-          width: 24,
-          height: 24,
+          width: context.tokens.icon.xl,
+          height: context.tokens.icon.xl,
           decoration: BoxDecoration(color: groupColor, shape: BoxShape.circle),
         ),
         title: Text(group.name),
@@ -101,14 +104,14 @@ class _ButtonGroupListState extends State<ButtonGroupList> {
               tooltip: 'Delete Group',
               onPressed: () => _deleteGroup(groupIndex),
             ),
-            const SizedBox(width: 32), // Space for expansion icon
+            SizedBox(width: context.tokens.space.xxxl), // Space for expansion icon
           ],
         ),
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.tokens.space.lg,
+              vertical: context.tokens.space.sm,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,9 +119,9 @@ class _ButtonGroupListState extends State<ButtonGroupList> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Buttons',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.add),
@@ -127,11 +130,11 @@ class _ButtonGroupListState extends State<ButtonGroupList> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: context.tokens.space.sm),
                 if (group.buttons.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Text('No buttons in this group.'),
+                  Padding(
+                    padding: EdgeInsets.all(context.tokens.space.sm),
+                    child: const Text('No buttons in this group.'),
                   )
                 else
                   ListView.builder(

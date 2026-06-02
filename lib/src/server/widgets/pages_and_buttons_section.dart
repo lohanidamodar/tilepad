@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design/design.dart';
 import '../../models/button.dart' as models;
 import '../../utils/macro_icons.dart';
 
@@ -31,78 +32,74 @@ class PagesAndButtonsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
 
     return Container(
-      margin: const EdgeInsets.only(top: 8),
+      margin: EdgeInsets.only(top: t.space.sm),
       child: Card(
         clipBehavior: Clip.antiAlias,
-        elevation: 2,
+        elevation: 0,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildHeader(colorScheme),
-            if (pages.isNotEmpty) _buildPageTabs(colorScheme),
-            _buildButtonsHeader(colorScheme),
-            _buildButtonsList(colorScheme),
+            _buildHeader(context, t),
+            if (pages.isNotEmpty) _buildPageTabs(context, t),
+            _buildButtonsHeader(context, t),
+            _buildButtonsList(context, t),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(ColorScheme colorScheme) {
+  Widget _buildHeader(BuildContext context, AppTokens t) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.tertiaryContainer,
-            colorScheme.tertiaryContainer.withValues(alpha: 0.8),
-          ],
-        ),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.space.xl,
+        vertical: t.space.lg,
       ),
+      decoration: BoxDecoration(color: t.color.accentSubtle),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(t.space.sm),
                 decoration: BoxDecoration(
-                  color: colorScheme.tertiary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  color: t.color.accent.withValues(alpha: t.opacity.subtle),
+                  borderRadius: t.radius.brSm,
                 ),
                 child: Icon(
                   Icons.dashboard_rounded,
-                  color: colorScheme.onTertiaryContainer,
-                  size: 20,
+                  color: t.color.accent,
+                  size: t.icon.lg,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: t.space.md),
               Text(
                 'Button Pages',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onTertiaryContainer,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: t.color.textPrimary,
+                    ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: t.space.sm),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(
+                  horizontal: t.space.sm,
+                  vertical: t.space.xs,
+                ),
                 decoration: BoxDecoration(
-                  color: colorScheme.tertiary.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
+                  color: t.color.accent.withValues(alpha: t.opacity.subtle),
+                  borderRadius: t.radius.brMd,
                 ),
                 child: Text(
                   '${pages.length}',
-                  style: TextStyle(
-                    color: colorScheme.onTertiaryContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: t.color.accent,
+                      ),
                 ),
               ),
             ],
@@ -114,25 +111,25 @@ class PagesAndButtonsSection extends StatelessWidget {
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('New Page'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.tertiary.withValues(alpha: 0.3),
-                  foregroundColor: colorScheme.onTertiaryContainer,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 12,
+                  backgroundColor:
+                      t.color.accent.withValues(alpha: t.opacity.subtle),
+                  foregroundColor: t.color.accent,
+                  padding: EdgeInsets.symmetric(
+                    vertical: t.space.sm,
+                    horizontal: t.space.md,
                   ),
                 ),
               ),
               if (selectedPage != null) ...[
-                const SizedBox(width: 8),
+                SizedBox(width: t.space.sm),
                 IconButton(
                   onPressed: () => onEditPage(selectedPage!),
                   icon: const Icon(Icons.edit),
                   tooltip: 'Edit Page',
                   style: IconButton.styleFrom(
-                    backgroundColor: colorScheme.tertiary.withValues(
-                      alpha: 0.2,
-                    ),
-                    foregroundColor: colorScheme.onTertiaryContainer,
+                    backgroundColor:
+                        t.color.accent.withValues(alpha: t.opacity.subtle),
+                    foregroundColor: t.color.accent,
                   ),
                 ),
                 IconButton(
@@ -140,8 +137,8 @@ class PagesAndButtonsSection extends StatelessWidget {
                   icon: const Icon(Icons.delete),
                   tooltip: 'Delete Page',
                   style: IconButton.styleFrom(
-                    backgroundColor: colorScheme.error.withValues(alpha: 0.2),
-                    foregroundColor: colorScheme.error,
+                    backgroundColor: t.color.dangerSubtle,
+                    foregroundColor: t.color.danger,
                   ),
                 ),
               ],
@@ -152,33 +149,30 @@ class PagesAndButtonsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildPageTabs(ColorScheme colorScheme) {
+  Widget _buildPageTabs(BuildContext context, AppTokens t) {
     return Container(
-      height: 48,
-      margin: const EdgeInsets.only(top: 12, bottom: 8),
+      height: t.space.huge,
+      margin: EdgeInsets.only(top: t.space.md, bottom: t.space.sm),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: EdgeInsets.symmetric(horizontal: t.space.lg),
         itemCount: pages.length,
         itemBuilder: (context, index) {
           final page = pages[index];
           final isSelected = selectedPage?.id == page.id;
 
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: EdgeInsets.only(right: t.space.sm),
             child: Material(
-              color:
-                  isSelected
-                      ? colorScheme.primaryContainer
-                      : colorScheme.surface.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(16),
+              color: isSelected ? t.color.accentSubtle : t.color.surfaceSubtle,
+              borderRadius: t.radius.brLg,
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () => onPageSelected(page),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.space.lg,
+                    vertical: t.space.sm,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -186,45 +180,43 @@ class PagesAndButtonsSection extends StatelessWidget {
                       if (isSelected)
                         Icon(
                           Icons.circle,
-                          size: 8,
-                          color: colorScheme.onPrimaryContainer,
+                          size: t.space.sm,
+                          color: t.color.accent,
                         ),
-                      if (isSelected) const SizedBox(width: 8),
+                      if (isSelected) SizedBox(width: t.space.sm),
                       Text(
                         page.name,
-                        style: TextStyle(
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color:
-                              isSelected
-                                  ? colorScheme.onPrimaryContainer
-                                  : colorScheme.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: isSelected
+                                  ? t.typeScale.wSemibold
+                                  : t.typeScale.wRegular,
+                              color: isSelected
+                                  ? t.color.accent
+                                  : t.color.textSecondary,
+                            ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: t.space.sm),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: t.space.xs + t.space.xxs,
+                          vertical: t.space.xxs,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              isSelected
-                                  ? colorScheme.primary.withValues(alpha: 0.3)
-                                  : colorScheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(8),
+                          color: isSelected
+                              ? t.color.accent
+                                  .withValues(alpha: t.opacity.subtle)
+                              : t.color.surfaceRaised,
+                          borderRadius: t.radius.brSm,
                         ),
                         child: Text(
                           '${page.buttons.length}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                isSelected
-                                    ? colorScheme.onPrimaryContainer
-                                    : colorScheme.onSurfaceVariant,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    fontWeight: t.typeScale.wSemibold,
+                                    color: isSelected
+                                        ? t.color.accent
+                                        : t.color.textSecondary,
+                                  ),
                         ),
                       ),
                     ],
@@ -238,51 +230,51 @@ class PagesAndButtonsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildButtonsHeader(ColorScheme colorScheme) {
+  Widget _buildButtonsHeader(BuildContext context, AppTokens t) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: t.space.lg,
+        vertical: t.space.md,
+      ),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant),
-          bottom: BorderSide(color: colorScheme.outlineVariant),
+          top: BorderSide(color: t.color.border),
+          bottom: BorderSide(color: t.color.border),
         ),
-        color: colorScheme.surface,
+        color: t.color.surface,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              Icon(Icons.touch_app, color: colorScheme.primary, size: 20),
-              const SizedBox(width: 8),
+              Icon(Icons.touch_app, color: t.color.accent, size: t.icon.lg),
+              SizedBox(width: t.space.sm),
               Text(
                 selectedPage != null
                     ? '${selectedPage!.name} Buttons'
                     : 'Buttons',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: t.color.textSecondary,
+                    ),
               ),
               if (selectedPage != null) ...[
-                const SizedBox(width: 8),
+                SizedBox(width: t.space.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: t.space.sm,
+                    vertical: t.space.xxs,
                   ),
                   decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    color: t.color.accentSubtle,
+                    borderRadius: t.radius.brMd,
                   ),
                   child: Text(
                     '${selectedPage!.buttons.length}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: t.typeScale.wSemibold,
+                          color: t.color.accent,
+                        ),
                   ),
                 ),
               ],
@@ -293,7 +285,10 @@ class PagesAndButtonsSection extends StatelessWidget {
             icon: const Icon(Icons.add),
             label: const Text('Add Button'),
             style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: t.space.md,
+                vertical: t.space.sm,
+              ),
             ),
           ),
         ],
@@ -301,9 +296,9 @@ class PagesAndButtonsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildButtonsList(ColorScheme colorScheme) {
+  Widget _buildButtonsList(BuildContext context, AppTokens t) {
     if (selectedPage == null || selectedPage!.buttons.isEmpty) {
-      return _buildEmptyButtonsState(colorScheme);
+      return _buildEmptyButtonsState(context, t);
     }
 
     return ReorderableListView.builder(
@@ -314,26 +309,29 @@ class PagesAndButtonsSection extends StatelessWidget {
       // This list lives inside the outer scrolling ListView of ServerScreen,
       // so defer scrolling to the parent to avoid nested-scroll conflicts.
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: EdgeInsets.symmetric(
+        vertical: t.space.sm,
+        horizontal: t.space.lg,
+      ),
       onReorderItem: onReorderButtons,
       itemCount: selectedPage!.buttons.length,
       itemBuilder: (context, index) {
         final button = selectedPage!.buttons[index];
-        return _buildButtonCard(button, index, colorScheme);
+        return _buildButtonCard(context, t, button, index);
       },
     );
   }
 
-  Widget _buildEmptyButtonsState(ColorScheme colorScheme) {
+  Widget _buildEmptyButtonsState(BuildContext context, AppTokens t) {
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 300),
-        padding: const EdgeInsets.all(24),
-        margin: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(t.space.xxl),
+        margin: EdgeInsets.all(t.space.lg),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: colorScheme.surface.withValues(alpha: 0.5),
-          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: t.radius.brLg,
+          color: t.color.surfaceSubtle,
+          border: Border.all(color: t.color.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -342,30 +340,30 @@ class PagesAndButtonsSection extends StatelessWidget {
               selectedPage == null
                   ? Icons.dashboard_customize
                   : Icons.touch_app,
-              size: 48,
-              color: colorScheme.primary.withValues(alpha: 0.7),
+              size: t.space.huge,
+              color: t.color.textMuted,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.space.lg),
             Text(
               selectedPage == null
                   ? 'No page selected'
                   : 'No buttons on this page yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: t.color.textSecondary,
+                  ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: t.space.sm),
             Text(
               selectedPage == null
                   ? 'Please create or select a page first'
                   : 'Click "Add Button" to create your first button',
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: t.color.textSecondary,
+                  ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: t.space.lg),
             FilledButton.icon(
               onPressed: selectedPage == null ? onAddPage : onAddButton,
               icon: Icon(selectedPage == null ? Icons.add_circle : Icons.add),
@@ -378,14 +376,15 @@ class PagesAndButtonsSection extends StatelessWidget {
   }
 
   Widget _buildButtonCard(
+    BuildContext context,
+    AppTokens t,
     models.Button button,
     int index,
-    ColorScheme colorScheme,
   ) {
     return Card(
       key: ValueKey(button.id),
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
+      margin: EdgeInsets.only(bottom: t.space.sm),
+      elevation: 0,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => onEditButton(button),
@@ -395,11 +394,14 @@ class PagesAndButtonsSection extends StatelessWidget {
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: _hexToColor(button.color),
-                child: Icon(_getIconData(button.iconName), color: Colors.white),
+                child: Icon(
+                  _getIconData(button.iconName),
+                  color: t.color.onAccent,
+                ),
               ),
               title: Text(
                 button.name,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.titleSmall,
               ),
               subtitle: Text(
                 button.actions.isNotEmpty
@@ -413,36 +415,35 @@ class PagesAndButtonsSection extends StatelessWidget {
                     index: index,
                     child: Icon(
                       Icons.drag_indicator,
-                      color: colorScheme.onSurfaceVariant,
+                      color: t.color.textSecondary,
                     ),
                   ),
                   PopupMenuButton(
-                    itemBuilder:
-                        (context) => [
-                          PopupMenuItem(
-                            onTap: () => onEditButton(button),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.edit),
-                                SizedBox(width: 8),
-                                Text('Edit'),
-                              ],
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        onTap: () => onEditButton(button),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit),
+                            SizedBox(width: t.space.sm),
+                            const Text('Edit'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        onTap: () => onDeleteButton(button.id),
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: t.color.danger),
+                            SizedBox(width: t.space.sm),
+                            Text(
+                              'Delete',
+                              style: TextStyle(color: t.color.danger),
                             ),
-                          ),
-                          PopupMenuItem(
-                            onTap: () => onDeleteButton(button.id),
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete, color: colorScheme.error),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Delete',
-                                  style: TextStyle(color: colorScheme.error),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

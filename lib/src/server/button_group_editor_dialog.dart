@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:uuid/uuid.dart';
 
+import '../design/design.dart';
 import '../models/button_group.dart';
 
 /// Dialog for creating or editing button groups
@@ -19,18 +20,31 @@ class ButtonGroupEditorDialog extends StatefulWidget {
 
 class _ButtonGroupEditorDialogState extends State<ButtonGroupEditorDialog> {
   late final TextEditingController _nameController;
-  late Color _groupColor;
   final _formKey = GlobalKey<FormState>();
+
+  late Color _groupColor;
+  bool _groupColorInitialized = false;
 
   @override
   void initState() {
     super.initState();
     // Initialize with existing group data or defaults
     _nameController = TextEditingController(text: widget.group?.name ?? '');
-    _groupColor =
-        widget.group?.color != null
-            ? Color(int.parse(widget.group!.color.replaceFirst('#', '0xff')))
-            : Colors.blue;
+    if (widget.group?.color != null) {
+      _groupColor =
+          Color(int.parse(widget.group!.color.replaceFirst('#', '0xff')));
+      _groupColorInitialized = true;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Default the swatch to the themed accent when creating a new group.
+    if (!_groupColorInitialized) {
+      _groupColor = context.tokens.color.accent;
+      _groupColorInitialized = true;
+    }
   }
 
   @override
@@ -64,18 +78,21 @@ class _ButtonGroupEditorDialogState extends State<ButtonGroupEditorDialog> {
               },
               autofocus: true,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.tokens.space.lg),
             Text('Group Color'),
-            const SizedBox(height: 8),
+            SizedBox(height: context.tokens.space.sm),
             GestureDetector(
               onTap: _showColorPicker,
               child: Container(
-                width: 40,
-                height: 40,
+                width: context.tokens.icon.xl + context.tokens.space.lg,
+                height: context.tokens.icon.xl + context.tokens.space.lg,
                 decoration: BoxDecoration(
                   color: _groupColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(
+                    color: context.tokens.color.border,
+                    width: context.tokens.border.hairline,
+                  ),
                 ),
               ),
             ),

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../design/design.dart';
 import '../models/server_connection.dart';
-import '../utils/theme.dart';
 import 'client_providers.dart' as providers;
 import 'connection_screen.dart';
 
@@ -16,7 +16,6 @@ class ServerListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final connections = ref.watch(providers.serverConnectionsProvider);
     final connectionState = ref.watch(providers.connectionStateProvider);
-    final themeMode = ref.watch(themeModeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -26,12 +25,10 @@ class ServerListScreen extends ConsumerWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          // Theme mode selector
-          ThemeModeSelector(
-            currentThemeMode: themeMode,
-            onThemeModeChanged: (mode) {
-              ref.read(themeModeProvider.notifier).setThemeMode(mode);
-            },
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: 'Appearance',
+            onPressed: () => _showAppearanceSheet(context),
           ),
         ],
       ),
@@ -43,10 +40,9 @@ class ServerListScreen extends ConsumerWidget {
 
           // Server list
           Expanded(
-            child:
-                connections.isEmpty
-                    ? _buildEmptyState(context)
-                    : _buildServerList(context, ref, connections),
+            child: connections.isEmpty
+                ? _buildEmptyState(context)
+                : _buildServerList(context, ref, connections),
           ),
         ],
       ),
@@ -62,60 +58,95 @@ class ServerListScreen extends ConsumerWidget {
     );
   }
 
+  /// Opens the shared appearance picker (theme mode, accent, density).
+  void _showAppearanceSheet(BuildContext context) {
+    final t = context.tokens;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            t.space.xl,
+            t.space.sm,
+            t.space.xl,
+            t.space.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Appearance',
+                  style: Theme.of(context).textTheme.titleLarge),
+              SizedBox(height: t.space.lg),
+              const PersonalizationPanel(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildConnectionStatusBar(
     BuildContext context,
     providers.ConnectionState connectionState,
   ) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    final textTheme = Theme.of(context).textTheme;
     Color backgroundColor;
     Color foregroundColor;
+    Color accentColor;
     String statusText;
     IconData iconData;
 
     switch (connectionState.status) {
       case providers.ConnectionStatus.connected:
-        backgroundColor = colorScheme.primaryContainer;
-        foregroundColor = colorScheme.onPrimaryContainer;
+        backgroundColor = tokens.color.successSubtle;
+        foregroundColor = tokens.color.success;
+        accentColor = tokens.color.success;
         statusText = 'Connected to ${connectionState.connection?.name}';
         iconData = Icons.check_circle;
         break;
       case providers.ConnectionStatus.connecting:
-        backgroundColor = colorScheme.tertiaryContainer;
-        foregroundColor = colorScheme.onTertiaryContainer;
+        backgroundColor = tokens.color.warningSubtle;
+        foregroundColor = tokens.color.warning;
+        accentColor = tokens.color.warning;
         statusText = 'Connecting to ${connectionState.connection?.name}...';
         iconData = Icons.pending;
         break;
       case providers.ConnectionStatus.error:
-        backgroundColor = colorScheme.errorContainer;
-        foregroundColor = colorScheme.onErrorContainer;
+        backgroundColor = tokens.color.dangerSubtle;
+        foregroundColor = tokens.color.danger;
+        accentColor = tokens.color.danger;
         statusText = connectionState.errorMessage ?? 'Connection error';
         iconData = Icons.error;
         break;
       default:
-        backgroundColor = colorScheme.surface;
-        foregroundColor = colorScheme.onSurfaceVariant;
+        backgroundColor = tokens.color.surface;
+        foregroundColor = tokens.color.textSecondary;
+        accentColor = tokens.color.accent;
         statusText = 'Not connected';
         iconData = Icons.info;
     }
 
     return Material(
       color: backgroundColor,
-      elevation: AppTheme.elevationMedium,
+      elevation: 0,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: AppTheme.spaceMedium,
-          horizontal: AppTheme.spaceLarge,
+        padding: EdgeInsets.symmetric(
+          vertical: tokens.space.md,
+          horizontal: tokens.space.lg,
         ),
         child: Row(
           children: [
-            Icon(iconData, color: foregroundColor, size: 20),
-            const SizedBox(width: AppTheme.spaceMedium),
+            Icon(iconData, color: foregroundColor, size: tokens.icon.lg),
+            SizedBox(width: tokens.space.md),
             Expanded(
               child: Text(
                 statusText,
-                style: TextStyle(
+                style: textTheme.bodyMedium?.copyWith(
                   color: foregroundColor,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: tokens.typeScale.wMedium,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -123,12 +154,12 @@ class ServerListScreen extends ConsumerWidget {
             if (connectionState.status == providers.ConnectionStatus.connected)
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.primary.withAlpha(50),
+                  backgroundColor: accentColor.withValues(
+                    alpha: tokens.opacity.subtle,
+                  ),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spaceMedium,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: tokens.space.md),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(
@@ -139,8 +170,8 @@ class ServerListScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.link_off, size: 16),
-                    const SizedBox(width: AppTheme.spaceXSmall),
+                    Icon(Icons.link_off, size: tokens.icon.sm),
+                    SizedBox(width: tokens.space.xs),
                     const Text('Disconnect'),
                   ],
                 ),
@@ -148,12 +179,12 @@ class ServerListScreen extends ConsumerWidget {
             if (connectionState.status == providers.ConnectionStatus.connecting)
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.tertiary.withAlpha(50),
+                  backgroundColor: accentColor.withValues(
+                    alpha: tokens.opacity.subtle,
+                  ),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spaceMedium,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: tokens.space.md),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(
@@ -164,8 +195,8 @@ class ServerListScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.cancel, size: 16),
-                    const SizedBox(width: AppTheme.spaceXSmall),
+                    Icon(Icons.cancel, size: tokens.icon.sm),
+                    SizedBox(width: tokens.space.xs),
                     const Text('Cancel'),
                   ],
                 ),
@@ -173,12 +204,12 @@ class ServerListScreen extends ConsumerWidget {
             if (connectionState.status == providers.ConnectionStatus.error)
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.error.withAlpha(50),
+                  backgroundColor: accentColor.withValues(
+                    alpha: tokens.opacity.subtle,
+                  ),
                   foregroundColor: foregroundColor,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spaceMedium,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: tokens.space.md),
                 ),
                 onPressed: () {
                   final notifier = ProviderScope.containerOf(
@@ -189,21 +220,21 @@ class ServerListScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.refresh, size: 16),
-                    const SizedBox(width: AppTheme.spaceXSmall),
+                    Icon(Icons.refresh, size: tokens.icon.sm),
+                    SizedBox(width: tokens.space.xs),
                     const Text('Dismiss'),
                   ],
                 ),
               ),
             if (connectionState.status == providers.ConnectionStatus.connected)
-              const SizedBox(width: AppTheme.spaceSmall),
+              SizedBox(width: tokens.space.sm),
             if (connectionState.status == providers.ConnectionStatus.connected)
               IconButton.filled(
-                icon: const Icon(Icons.open_in_new, size: 18),
+                icon: Icon(Icons.open_in_new, size: tokens.icon.md),
                 tooltip: 'Go to Buttons',
                 style: IconButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
+                  backgroundColor: tokens.color.accent,
+                  foregroundColor: tokens.color.onAccent,
                 ),
                 onPressed: () {
                   // Navigate back to ButtonsScreen
@@ -217,19 +248,23 @@ class ServerListScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    final textTheme = Theme.of(context).textTheme;
 
     return Consumer(
       builder: (context, ref, child) {
         return Center(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 320),
-            padding: const EdgeInsets.all(AppTheme.spaceXLarge),
-            margin: const EdgeInsets.all(AppTheme.spaceXLarge),
+            padding: EdgeInsets.all(tokens.space.xl),
+            margin: EdgeInsets.all(tokens.space.xl),
             decoration: BoxDecoration(
-              color: colorScheme.surface.withAlpha(127),
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              border: Border.all(color: colorScheme.outlineVariant, width: 1),
+              color: tokens.color.surfaceRaised,
+              borderRadius: tokens.radius.brLg,
+              border: Border.all(
+                color: tokens.color.border,
+                width: tokens.border.hairline,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -237,45 +272,37 @@ class ServerListScreen extends ConsumerWidget {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
+                    color: tokens.color.accentSubtle,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.shadow.withAlpha(30),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: tokens.shadowSm,
                   ),
-                  padding: const EdgeInsets.all(AppTheme.spaceXLarge),
+                  padding: EdgeInsets.all(tokens.space.xl),
                   child: Image.asset(
                     'assets/logo.png',
-                    height: 80,
-                    errorBuilder:
-                        (context, error, stackTrace) => Icon(
-                          Icons.devices,
-                          size: 80,
-                          color: colorScheme.primary,
-                        ),
+                    height: tokens.space.huge + tokens.space.xxxl,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.devices,
+                      size: tokens.space.huge + tokens.space.xxxl,
+                      color: tokens.color.accent,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: tokens.space.xxxl),
                 Text(
                   'No Saved Servers',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurfaceVariant,
+                  style: textTheme.titleLarge?.copyWith(
+                    color: tokens.color.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: tokens.space.md),
                 Text(
                   'Add a server to discover or enter manually',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: tokens.color.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: tokens.space.xxxl),
                 FilledButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
@@ -302,10 +329,14 @@ class ServerListScreen extends ConsumerWidget {
   ) {
     final connectionState = ref.watch(providers.connectionStateProvider);
     final defaultServerId = ref.watch(providers.defaultServerIdProvider);
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    final textTheme = Theme.of(context).textTheme;
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 80, top: 8),
+      padding: EdgeInsets.only(
+        bottom: tokens.space.huge + tokens.space.xxxl,
+        top: tokens.space.sm,
+      ),
       itemCount: connections.length,
       itemBuilder: (context, index) {
         final connection = connections[index];
@@ -318,40 +349,43 @@ class ServerListScreen extends ConsumerWidget {
         final isDefault = connection.id == defaultServerId;
 
         return Card(
-          margin: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spaceLarge,
-            vertical: AppTheme.spaceSmall,
+          margin: EdgeInsets.symmetric(
+            horizontal: tokens.space.lg,
+            vertical: tokens.space.sm,
           ),
           clipBehavior: Clip.antiAlias,
-          elevation: 1,
+          elevation: 0,
+          color: tokens.color.surfaceRaised,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            side:
-                isConnected
-                    ? BorderSide(color: colorScheme.primary, width: 2)
-                    : BorderSide.none,
+            borderRadius: tokens.radius.brMd,
+            side: isConnected
+                ? BorderSide(
+                    color: tokens.color.accent,
+                    width: tokens.border.strong,
+                  )
+                : BorderSide(
+                    color: tokens.color.border,
+                    width: tokens.border.hairline,
+                  ),
           ),
           child: InkWell(
             onTap: () {
               _connectToServer(context, ref, connection);
             },
             child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spaceXSmall),
+              padding: EdgeInsets.all(tokens.space.xs),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header with server status
                   Container(
                     decoration: BoxDecoration(
-                      color:
-                          isConnected
-                              ? colorScheme.primaryContainer.withAlpha(127)
-                              : null,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                      color: isConnected ? tokens.color.accentSubtle : null,
+                      borderRadius: tokens.radius.brSm,
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spaceLarge,
-                      vertical: AppTheme.spaceSmall,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tokens.space.lg,
+                      vertical: tokens.space.sm,
                     ),
                     child: Row(
                       children: [
@@ -359,20 +393,18 @@ class ServerListScreen extends ConsumerWidget {
                         Stack(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: EdgeInsets.all(tokens.space.sm),
                               decoration: BoxDecoration(
-                                color:
-                                    isConnected
-                                        ? colorScheme.primary.withAlpha(30)
-                                        : colorScheme.surface,
+                                color: isConnected
+                                    ? tokens.color.accentSubtle
+                                    : tokens.color.surfaceSubtle,
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 Icons.computer,
-                                color:
-                                    isConnected
-                                        ? colorScheme.primary
-                                        : colorScheme.onSurfaceVariant,
+                                color: isConnected
+                                    ? tokens.color.accent
+                                    : tokens.color.textSecondary,
                               ),
                             ),
                             if (isConnected)
@@ -380,31 +412,28 @@ class ServerListScreen extends ConsumerWidget {
                                 right: 0,
                                 bottom: 0,
                                 child: Container(
-                                  width: 16,
-                                  height: 16,
+                                  width: tokens.icon.sm,
+                                  height: tokens.icon.sm,
                                   decoration: BoxDecoration(
-                                    color: colorScheme.primary,
+                                    color: tokens.color.accent,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).scaffoldBackgroundColor,
-                                      width: 2,
+                                      color: tokens.color.surface,
+                                      width: tokens.border.focus,
                                     ),
                                   ),
                                   child: Center(
                                     child: Icon(
                                       Icons.check,
-                                      size: 10,
-                                      color: colorScheme.onPrimary,
+                                      size: tokens.space.sm + tokens.space.xxs,
+                                      color: tokens.color.onAccent,
                                     ),
                                   ),
                                 ),
                               ),
                           ],
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: tokens.space.lg),
 
                         // Server name and indicators
                         Expanded(
@@ -416,13 +445,10 @@ class ServerListScreen extends ConsumerWidget {
                                   Expanded(
                                     child: Text(
                                       connection.name,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color:
-                                            isConnected
-                                                ? colorScheme.primary
-                                                : colorScheme.onSurfaceVariant,
+                                      style: textTheme.titleMedium?.copyWith(
+                                        color: isConnected
+                                            ? tokens.color.accent
+                                            : tokens.color.textPrimary,
                                       ),
                                     ),
                                   ),
@@ -430,36 +456,31 @@ class ServerListScreen extends ConsumerWidget {
                                     Tooltip(
                                       message: 'Default Server',
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: tokens.space.sm,
+                                          vertical: tokens.space.xs,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: colorScheme.tertiaryContainer,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
+                                          color: tokens.color.warningSubtle,
+                                          borderRadius: tokens.radius.brMd,
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
                                               Icons.star,
-                                              size: 14,
-                                              color:
-                                                  colorScheme
-                                                      .onTertiaryContainer,
+                                              size: tokens.icon.xs,
+                                              color: tokens.color.warning,
                                             ),
-                                            const SizedBox(width: 4),
+                                            SizedBox(width: tokens.space.xs),
                                             Text(
                                               'Default',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                color:
-                                                    colorScheme
-                                                        .onTertiaryContainer,
-                                              ),
+                                              style: textTheme.labelMedium
+                                                  ?.copyWith(
+                                                    fontWeight:
+                                                        tokens.typeScale.wBold,
+                                                    color: tokens.color.warning,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -467,11 +488,11 @@ class ServerListScreen extends ConsumerWidget {
                                     ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: tokens.space.xs),
                               Text(
                                 connection.address,
-                                style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
+                                style: AppTypography.mono(
+                                  color: tokens.color.textSecondary,
                                 ),
                               ),
                             ],
@@ -482,7 +503,7 @@ class ServerListScreen extends ConsumerWidget {
                         IconButton(
                           icon: Icon(
                             Icons.more_vert,
-                            color: colorScheme.onSurfaceVariant,
+                            color: tokens.color.textSecondary,
                           ),
                           onPressed: () {
                             _showServerOptions(context, ref, connection);
@@ -494,50 +515,54 @@ class ServerListScreen extends ConsumerWidget {
 
                   // Footer with connection status and last connected time
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    padding: EdgeInsets.fromLTRB(
+                      tokens.space.lg,
+                      tokens.space.sm,
+                      tokens.space.lg,
+                      tokens.space.md,
+                    ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.access_time,
-                          size: 14,
-                          color: colorScheme.onSurfaceVariant,
+                          size: tokens.icon.xs,
+                          color: tokens.color.textMuted,
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: tokens.space.xs),
                         Text(
                           'Last connected: ${dateFormat.format(connection.lastConnected)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colorScheme.onSurfaceVariant,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: tokens.color.textMuted,
                           ),
                         ),
                         const Spacer(),
                         if (isConnected)
                           FilledButton.icon(
-                            icon: const Icon(Icons.open_in_new, size: 14),
+                            icon: Icon(Icons.open_in_new, size: tokens.icon.xs),
                             label: const Text('Open'),
                             onPressed: () {
                               Navigator.of(context).pop();
                             },
                             style: FilledButton.styleFrom(
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: tokens.space.md,
+                                vertical: tokens.space.xs,
                               ),
                             ),
                           )
                         else
                           OutlinedButton.icon(
-                            icon: const Icon(Icons.link, size: 14),
+                            icon: Icon(Icons.link, size: tokens.icon.xs),
                             label: const Text('Connect'),
                             onPressed: () {
                               _connectToServer(context, ref, connection);
                             },
                             style: OutlinedButton.styleFrom(
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: tokens.space.md,
+                                vertical: tokens.space.xs,
                               ),
                             ),
                           ),
@@ -576,7 +601,8 @@ class ServerListScreen extends ConsumerWidget {
     // Check if this server is the default
     final isDefault =
         ref.read(providers.defaultServerIdProvider) == connection.id;
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    final textTheme = Theme.of(context).textTheme;
 
     showModalBottomSheet(
       context: context,
@@ -585,56 +611,53 @@ class ServerListScreen extends ConsumerWidget {
       builder: (context) {
         return Container(
           decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            color: tokens.color.surfaceRaised,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(tokens.radius.lg),
+            ),
           ),
-          margin: const EdgeInsets.all(8),
+          margin: EdgeInsets.all(tokens.space.sm),
           child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Sheet handle and header
                 Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 8),
+                  width: tokens.space.huge - tokens.space.sm,
+                  height: tokens.space.xs,
+                  margin: EdgeInsets.only(top: tokens.space.sm),
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withAlpha(120),
-                    borderRadius: BorderRadius.circular(2),
+                    color: tokens.color.border,
+                    borderRadius: tokens.radius.brXs,
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(tokens.space.lg),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: EdgeInsets.all(tokens.space.sm),
                         decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer,
+                          color: tokens.color.accentSubtle,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          Icons.computer,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
+                        child: Icon(Icons.computer, color: tokens.color.accent),
                       ),
-                      const SizedBox(width: 16),
+                      SizedBox(width: tokens.space.lg),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               connection.name,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurfaceVariant,
+                              style: textTheme.titleMedium?.copyWith(
+                                color: tokens.color.textPrimary,
                               ),
                             ),
                             Text(
                               connection.address,
-                              style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
+                              style: AppTypography.mono(
+                                color: tokens.color.textSecondary,
                               ),
                             ),
                           ],
@@ -647,22 +670,20 @@ class ServerListScreen extends ConsumerWidget {
 
                 // Actions
                 ListTile(
-                  leading: Icon(Icons.edit, color: colorScheme.primary),
+                  leading: Icon(Icons.edit, color: tokens.color.accent),
                   title: const Text('Edit Server'),
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder:
-                            (context) => ConnectionScreen(
-                              existingConnection: connection,
-                            ),
+                        builder: (context) =>
+                            ConnectionScreen(existingConnection: connection),
                       ),
                     );
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.link, color: colorScheme.primary),
+                  leading: Icon(Icons.link, color: tokens.color.accent),
                   title: const Text('Connect'),
                   onTap: () {
                     Navigator.pop(context);
@@ -672,8 +693,9 @@ class ServerListScreen extends ConsumerWidget {
                 ListTile(
                   leading: Icon(
                     isDefault ? Icons.star : Icons.star_border,
-                    color:
-                        isDefault ? colorScheme.tertiary : colorScheme.primary,
+                    color: isDefault
+                        ? tokens.color.warning
+                        : tokens.color.accent,
                   ),
                   title: Text(
                     isDefault ? 'Remove as Default' : 'Set as Default',
@@ -698,26 +720,26 @@ class ServerListScreen extends ConsumerWidget {
                               : '${connection.name} set as default server',
                         ),
                         behavior: SnackBarBehavior.floating,
-                        backgroundColor: colorScheme.primaryContainer,
+                        backgroundColor: tokens.color.accentSubtle,
                         showCloseIcon: true,
-                        closeIconColor: colorScheme.onPrimaryContainer,
+                        closeIconColor: tokens.color.accent,
                       ),
                     );
                   },
                 ),
                 const Divider(),
                 ListTile(
-                  leading: Icon(Icons.delete, color: colorScheme.error),
+                  leading: Icon(Icons.delete, color: tokens.color.danger),
                   title: Text(
                     'Delete Server',
-                    style: TextStyle(color: colorScheme.error),
+                    style: TextStyle(color: tokens.color.danger),
                   ),
                   onTap: () {
                     Navigator.pop(context);
                     _confirmDeleteServer(context, ref, connection);
                   },
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: tokens.space.sm),
               ],
             ),
           ),
@@ -731,7 +753,7 @@ class ServerListScreen extends ConsumerWidget {
     WidgetRef ref,
     ServerConnection connection,
   ) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
 
     showDialog(
       context: context,
@@ -739,8 +761,8 @@ class ServerListScreen extends ConsumerWidget {
         return AlertDialog(
           icon: Icon(
             Icons.warning_amber_rounded,
-            color: colorScheme.error,
-            size: 32,
+            color: tokens.color.danger,
+            size: tokens.space.xxxl,
           ),
           title: const Text('Delete Server'),
           content: Text(
@@ -781,8 +803,8 @@ class ServerListScreen extends ConsumerWidget {
                 );
               },
               style: FilledButton.styleFrom(
-                backgroundColor: colorScheme.errorContainer,
-                foregroundColor: colorScheme.onErrorContainer,
+                backgroundColor: tokens.color.dangerSubtle,
+                foregroundColor: tokens.color.danger,
               ),
               child: const Text('Delete'),
             ),
