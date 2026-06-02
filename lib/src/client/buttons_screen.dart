@@ -198,8 +198,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   /// Resolves a button's display name from its id across all pages.
   String? _buttonName(String buttonId) {
     for (final page in ref.read(pagesProvider)) {
-      for (final button in page.buttons) {
-        if (button.id == buttonId) return button.name;
+      for (final tile in page.tiles) {
+        if (tile.button.id == buttonId) return tile.button.name;
       }
     }
     return null;
@@ -659,7 +659,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                             itemBuilder: (context, index) {
                               final page = pages[index];
                               return ButtonGrid(
-                                buttons: page.buttons,
+                                tiles: page.tiles,
+                                columns: page.columns,
                                 onButtonPressed: (buttonId) {
                                   // Press the button via the connection state notifier
                                   ref

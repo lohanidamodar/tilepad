@@ -11,6 +11,7 @@ import 'page_editor_dialog.dart';
 import 'widgets/server_status_card.dart';
 import 'widgets/connected_clients_card.dart';
 import 'widgets/pages_and_buttons_section.dart';
+import 'widgets/button_library.dart';
 
 /// The main screen for the server application
 class ServerScreen extends StatefulWidget {
@@ -347,9 +348,11 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
-  /// Navigate to the button editor page to add or edit a button
-  Future<void> _navigateToButtonEditor(models.Button? button) async {
-    if (_selectedPage == null) {
+  /// Opens the add-button picker for the selected page, then places the chosen
+  /// (or newly authored) library button as a tile.
+  Future<void> _addTile() async {
+    final page = _selectedPage;
+    if (page == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please select a page first'),
@@ -359,79 +362,95 @@ class _ServerScreenState extends State<ServerScreen> {
       return;
     }
 
-    final result = await Navigator.push<models.Button>(
-      context,
-      MaterialPageRoute(
-        builder:
-            (context) => ButtonEditorPage(
-              button: button,
-              server: widget.server,
-              onSave: (updatedButton) {
-                if (button == null) {
-                  widget.server.addButton(updatedButton, _selectedPage!.id);
-                } else {
-                  widget.server.updateButton(updatedButton);
-                }
-                _refreshPages();
-              },
-            ),
-      ),
-    );
+    final result = await showButtonPicker(context, server: widget.server);
+    if (result == null || !mounted) return;
 
-    if (result != null) {
-      if (button == null) {
-        widget.server.addButton(result, _selectedPage!.id);
-      } else {
-        widget.server.updateButton(result);
-      }
+    if (result.createNew) {
+      await _createButtonAndPlace(page.id);
+    } else if (result.existing != null) {
+      widget.server.addTile(page.id, result.existing!.id);
       _refreshPages();
     }
   }
 
-  /// Deletes a button
-  void _deleteButton(String id) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete Button'),
-            content: const Text('Are you sure you want to delete this button?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  widget.server.deleteButton(id);
-                  _refreshPages();
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: context.tokens.color.danger,
-                  foregroundColor: context.tokens.color.onAccent,
-                ),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
+  /// Authors a new library button, adds it to the library, and places it.
+  Future<void> _createButtonAndPlace(String pageId) async {
+    models.Button? created;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ButtonEditorPage(
+          server: widget.server,
+          onSave: (button) {
+            created = button;
+            widget.server.addLibraryButton(button);
+            widget.server.addTile(pageId, button.id);
+          },
+        ),
+      ),
     );
+    if (created != null) _refreshPages();
   }
 
-  /// Reorders buttons within the selected page
-  void _reorderButtons(int oldIndex, int newIndex) {
-    setState(() {
-      if (_selectedPage == null) return;
+  /// Edits the library button behind a tile (applies everywhere it is placed).
+  Future<void> _editTileButton(models.Tile tile) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ButtonEditorPage(
+          button: tile.button,
+          server: widget.server,
+          onSave: (updated) {
+            widget.server.updateButton(updated);
+          },
+        ),
+      ),
+    );
+    _refreshPages();
+  }
 
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
+  /// Removes a tile (placement) from the selected page.
+  void _removeTile(models.Tile tile) {
+    final page = _selectedPage;
+    if (page == null) return;
+    widget.server.removeTile(page.id, tile.id);
+    _refreshPages();
+  }
 
-      final button = _selectedPage!.buttons.removeAt(oldIndex);
-      _selectedPage!.buttons.insert(newIndex, button);
+  /// Resizes a tile on the selected page.
+  void _resizeTile(models.Tile tile, int colSpan, int rowSpan) {
+    final page = _selectedPage;
+    if (page == null) return;
+    widget.server.resizeTile(page.id, tile.id, colSpan, rowSpan);
+    _refreshPages();
+  }
 
-      widget.server.updatePage(_selectedPage!);
-    });
+  /// Reorders a tile within the selected page.
+  void _reorderTile(int oldIndex, int newIndex) {
+    final page = _selectedPage;
+    if (page == null) return;
+    widget.server.reorderTiles(page.id, oldIndex, newIndex);
+    _refreshPages();
+  }
+
+  /// Updates the selected page's grid column count.
+  void _setColumns(int columns) {
+    final page = _selectedPage;
+    if (page == null) return;
+    page.columns = columns;
+    widget.server.updatePage(page);
+    _refreshPages();
+  }
+
+  /// Opens the library manager (edit/delete reusable buttons).
+  Future<void> _openButtonLibrary() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ButtonLibraryScreen(server: widget.server),
+      ),
+    );
+    _refreshPages();
   }
 
   @override
@@ -495,10 +514,13 @@ class _ServerScreenState extends State<ServerScreen> {
             onAddPage: () => _showPageEditor(null),
             onEditPage: _showPageEditor,
             onDeletePage: _deletePage,
-            onAddButton: () => _navigateToButtonEditor(null),
-            onEditButton: _navigateToButtonEditor,
-            onDeleteButton: _deleteButton,
-            onReorderButtons: _reorderButtons,
+            onColumnsChanged: _setColumns,
+            onAddTile: _addTile,
+            onEditTile: _editTileButton,
+            onRemoveTile: _removeTile,
+            onResizeTile: _resizeTile,
+            onReorderTile: _reorderTile,
+            onManageButtons: _openButtonLibrary,
           ),
         ],
       ),

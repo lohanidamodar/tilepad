@@ -321,54 +321,97 @@ class Button {
   }
 }
 
-/// Represents a page of buttons for organization
-class Page {
-  /// Unique identifier for the page
+/// A placement of a library [Button] on a page's spanning grid.
+///
+/// Carries the resolved [button] (so the wire payload and UI render directly)
+/// plus the per-placement size in grid cells.
+class Tile {
+  /// Unique identifier for this placement.
   final String id;
 
-  /// Display name of the page
-  String name;
+  /// Id of the library button this tile places.
+  final String buttonId;
 
-  /// Order of the page (for sorting)
-  int order;
+  /// Width in grid columns.
+  int colSpan;
 
-  /// List of buttons on this page
-  List<Button> buttons;
+  /// Height in grid rows.
+  int rowSpan;
 
-  /// Creates a new page with the given properties
-  Page({String? id, required this.name, this.order = 0, List<Button>? buttons})
-    : id = id ?? const Uuid().v4(),
-      buttons = buttons ?? [];
+  /// The resolved button definition.
+  Button button;
 
-  /// Creates a page from a JSON map
-  factory Page.fromJson(Map<String, dynamic> json) {
-    final buttonsList = json['buttons'] as List<dynamic>?;
+  Tile({
+    String? id,
+    required this.button,
+    this.colSpan = 1,
+    this.rowSpan = 1,
+  })  : id = id ?? const Uuid().v4(),
+        buttonId = button.id;
 
-    return Page(
-      id: json['id'] as String? ?? const Uuid().v4(),
-      name: json['name'] as String? ?? 'Untitled',
-      order: json['order'] as int? ?? 0,
-      buttons:
-          buttonsList != null
-              ? buttonsList
-                  .map(
-                    (buttonJson) =>
-                        Button.fromJson(buttonJson as Map<String, dynamic>),
-                  )
-                  .toList()
-              : [],
+  factory Tile.fromJson(Map<String, dynamic> json) {
+    return Tile(
+      id: json['id'] as String?,
+      button: Button.fromJson(json['button'] as Map<String, dynamic>),
+      colSpan: json['colSpan'] as int? ?? 1,
+      rowSpan: json['rowSpan'] as int? ?? 1,
     );
   }
 
-  /// Converts this page to a JSON map
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'order': order,
-      'buttons': buttons.map((button) => button.toJson()).toList(),
-    };
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'colSpan': colSpan,
+        'rowSpan': rowSpan,
+        'button': button.toJson(),
+      };
+}
+
+/// A page: a spanning grid of [Tile] placements.
+class Page {
+  /// Unique identifier for the page.
+  final String id;
+
+  /// Display name of the page.
+  String name;
+
+  /// Order of the page (for sorting).
+  int order;
+
+  /// Number of grid columns the page is laid out on.
+  int columns;
+
+  /// Tiles placed on this page, in flow order.
+  List<Tile> tiles;
+
+  Page({
+    String? id,
+    required this.name,
+    this.order = 0,
+    this.columns = 4,
+    List<Tile>? tiles,
+  })  : id = id ?? const Uuid().v4(),
+        tiles = tiles ?? [];
+
+  factory Page.fromJson(Map<String, dynamic> json) {
+    return Page(
+      id: json['id'] as String?,
+      name: json['name'] as String? ?? 'Untitled',
+      order: json['order'] as int? ?? 0,
+      columns: json['columns'] as int? ?? 4,
+      tiles: (json['tiles'] as List<dynamic>?)
+              ?.map((t) => Tile.fromJson(t as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'order': order,
+        'columns': columns,
+        'tiles': tiles.map((t) => t.toJson()).toList(),
+      };
 }
 
 /// Legacy enum type - kept for backward compatibility

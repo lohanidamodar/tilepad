@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../models/button.dart';
 import '../models/window_info.dart';
@@ -9,10 +10,14 @@ import '../utils/macro_icons.dart';
 import '../widgets/key_combo_picker.dart';
 import 'client_providers.dart';
 
-/// Widget that displays a grid of macro buttons with enhanced visual feedback
+/// Widget that displays a spanning grid of macro button tiles with enhanced
+/// visual feedback.
 class ButtonGrid extends ConsumerWidget {
-  /// The list of buttons to display
-  final List<Button> buttons;
+  /// The tiles (button placements) to display.
+  final List<Tile> tiles;
+
+  /// Number of grid columns the tiles' spans are laid out against.
+  final int columns;
 
   /// Called when a button is pressed
   final Function(String buttonId)? onButtonPressed;
@@ -38,11 +43,16 @@ class ButtonGrid extends ConsumerWidget {
   IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
 
   /// Creates a new button grid
-  const ButtonGrid({super.key, required this.buttons, this.onButtonPressed});
+  const ButtonGrid({
+    super.key,
+    required this.tiles,
+    required this.columns,
+    this.onButtonPressed,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (buttons.isEmpty) {
+    if (tiles.isEmpty) {
       return Center(
         child: Container(
           padding: EdgeInsets.all(context.tokens.space.xxxl),
@@ -80,38 +90,27 @@ class ButtonGrid extends ConsumerWidget {
       );
     }
 
-    // Adapt the column count to the available width so the grid feels right
-    // on small phones, large phones in landscape, and tablets alike.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = _columnCountForWidth(constraints.maxWidth);
-        return GridView.builder(
-          padding: EdgeInsets.all(context.tokens.space.lg),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: context.tokens.space.md,
-            mainAxisSpacing: context.tokens.space.md,
-            childAspectRatio: 1.0,
-          ),
-          itemCount: buttons.length,
-          itemBuilder: (context, index) {
-            final button = buttons[index];
-            return _buildButton(context, button, ref);
-          },
-        );
-      },
-    );
-  }
+    // The page defines the column count; the staggered grid sizes each cell to
+    // fill the available width, so per-tile spans scale across phone sizes.
+    // At least one column so a malformed page never divides by zero.
+    final crossAxisCount = columns > 0 ? columns : 1;
 
-  /// Chooses a comfortable column count for the available [width] so the macro
-  /// grid adapts across phones (portrait/landscape) and tablets.
-  static int _columnCountForWidth(double width) {
-    if (width < 320) return 2;
-    if (width < 480) return 3; // standard phone portrait
-    if (width < 600) return 4; // large / landscape phone
-    if (width < 840) return 5; // small tablet / wide landscape
-    if (width < 1080) return 6;
-    return 7;
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(context.tokens.space.lg),
+      child: StaggeredGrid.count(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: context.tokens.space.md,
+        crossAxisSpacing: context.tokens.space.md,
+        children: [
+          for (final tile in tiles)
+            StaggeredGridTile.count(
+              crossAxisCellCount: tile.colSpan.clamp(1, crossAxisCount),
+              mainAxisCellCount: tile.rowSpan < 1 ? 1 : tile.rowSpan,
+              child: _buildButton(context, tile.button, ref),
+            ),
+        ],
+      ),
+    );
   }
 
   /// Handles connection loss and shows a reconnection dialog
@@ -427,49 +426,34 @@ class AnimatedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor =
-        isEnabled ? color : color.withValues(alpha: 0.45);
+    final t = context.tokens;
 
-    // Pick a legible foreground (light or dark) for the button's colour so
-    // labels stay readable on both bright and dark custom button colours.
+    // Luminance-adaptive foreground so labels stay readable on ANY user colour
+    // (white on dark colours, near-black on light ones). The whole tile fades
+    // together when disabled, so contrast is preserved in every state.
     final onColor =
         ThemeData.estimateBrightnessForColor(color) == Brightness.dark
             ? Colors.white
-            : const Color(0xFF1A1A1A);
-    final fg = isEnabled ? onColor : onColor.withValues(alpha: 0.6);
+            : const Color(0xFF18181B);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final tile = constraints.biggest.shortestSide;
-        final iconSize = (tile * 0.42).clamp(28.0, 56.0);
-        final fontSize = (tile * 0.115).clamp(10.0, 14.0);
+    return Opacity(
+      opacity: isEnabled ? 1.0 : t.opacity.muted,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tile = constraints.biggest.shortestSide;
+          final iconSize = (tile * 0.42).clamp(28.0, 56.0);
+          final fontSize = (tile * 0.115).clamp(10.0, 14.0);
 
-        return Material(
-          color: effectiveColor,
-          borderRadius: BorderRadius.circular(context.tokens.radius.lg),
-          elevation: isEnabled ? 3 : 0,
-          shadowColor: color.withValues(alpha: 0.4),
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(context.tokens.radius.lg),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  effectiveColor,
-                  Color.alphaBlend(
-                    Colors.black.withValues(alpha: 0.14),
-                    effectiveColor,
-                  ),
-                ],
-              ),
-            ),
+          return Material(
+            color: color,
+            borderRadius: BorderRadius.circular(t.radius.lg),
+            elevation: 0,
             child: Padding(
-              padding: EdgeInsets.all(context.tokens.space.sm),
+              padding: EdgeInsets.all(t.space.sm),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, size: iconSize, color: fg),
+                  Icon(icon, size: iconSize, color: onColor),
                   SizedBox(height: tile * 0.05),
                   Flexible(
                     child: Text(
@@ -478,7 +462,7 @@ class AnimatedButton extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: fg,
+                        color: onColor,
                         fontSize: fontSize,
                         fontWeight: FontWeight.w700,
                         height: 1.05,
@@ -488,9 +472,9 @@ class AnimatedButton extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

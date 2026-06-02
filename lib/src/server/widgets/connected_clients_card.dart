@@ -95,7 +95,7 @@ class ConnectedClientsCard extends StatelessWidget {
               ),
               SizedBox(height: t.space.xxs),
               Text(
-                '${client.ipAddress} · ${since} · ${_formatDuration(duration)}',
+                '${client.ipAddress} · $since · ${_formatDuration(duration)}',
                 style: AppTypography.mono(
                   fontSize: t.typeScale.label,
                   color: t.color.textMuted,

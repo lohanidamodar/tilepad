@@ -158,13 +158,12 @@ class SelectedPageIndexNotifier extends Notifier<int> {
   void set(int value) => state = value;
 }
 
-/// Provider for the buttons from the server (for backward compatibility)
+/// Provider for the buttons placed across all pages (resolved from tiles).
 final buttonsProvider = Provider<List<Button>>((ref) {
-  // Get all buttons from all pages
   final pages = ref.watch(pagesProvider);
   final allButtons = <Button>[];
   for (final page in pages) {
-    allButtons.addAll(page.buttons);
+    allButtons.addAll(page.tiles.map((t) => t.button));
   }
   return allButtons;
 });
@@ -994,14 +993,15 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     }
   }
 
-  /// Handles a buttons response message (for backward compatibility)
+  /// Handles a flat buttons response by wrapping each button in a 1x1 tile.
   void _handleButtonsResponse(dynamic payload) {
     try {
       final List<dynamic> buttonsJson = payload;
-      final buttons = buttonsJson.map((json) => Button.fromJson(json)).toList();
+      final tiles = buttonsJson
+          .map((json) => Tile(button: Button.fromJson(json)))
+          .toList();
 
-      // Create a single page with these buttons
-      final page = Page(name: 'All Buttons', buttons: buttons);
+      final page = Page(name: 'All Buttons', tiles: tiles);
 
       ref.read(pagesProvider.notifier).set([page]);
       ref.read(selectedPageIndexProvider.notifier).set(0);
