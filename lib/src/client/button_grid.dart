@@ -426,49 +426,34 @@ class AnimatedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor =
-        isEnabled ? color : color.withValues(alpha: 0.45);
+    final t = context.tokens;
 
-    // Pick a legible foreground (light or dark) for the button's colour so
-    // labels stay readable on both bright and dark custom button colours.
+    // Luminance-adaptive foreground so labels stay readable on ANY user colour
+    // (white on dark colours, near-black on light ones). The whole tile fades
+    // together when disabled, so contrast is preserved in every state.
     final onColor =
         ThemeData.estimateBrightnessForColor(color) == Brightness.dark
             ? Colors.white
-            : const Color(0xFF1A1A1A);
-    final fg = isEnabled ? onColor : onColor.withValues(alpha: 0.6);
+            : const Color(0xFF18181B);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final tile = constraints.biggest.shortestSide;
-        final iconSize = (tile * 0.42).clamp(28.0, 56.0);
-        final fontSize = (tile * 0.115).clamp(10.0, 14.0);
+    return Opacity(
+      opacity: isEnabled ? 1.0 : t.opacity.muted,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tile = constraints.biggest.shortestSide;
+          final iconSize = (tile * 0.42).clamp(28.0, 56.0);
+          final fontSize = (tile * 0.115).clamp(10.0, 14.0);
 
-        return Material(
-          color: effectiveColor,
-          borderRadius: BorderRadius.circular(context.tokens.radius.lg),
-          elevation: isEnabled ? 3 : 0,
-          shadowColor: color.withValues(alpha: 0.4),
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(context.tokens.radius.lg),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  effectiveColor,
-                  Color.alphaBlend(
-                    Colors.black.withValues(alpha: 0.14),
-                    effectiveColor,
-                  ),
-                ],
-              ),
-            ),
+          return Material(
+            color: color,
+            borderRadius: BorderRadius.circular(t.radius.lg),
+            elevation: 0,
             child: Padding(
-              padding: EdgeInsets.all(context.tokens.space.sm),
+              padding: EdgeInsets.all(t.space.sm),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, size: iconSize, color: fg),
+                  Icon(icon, size: iconSize, color: onColor),
                   SizedBox(height: tile * 0.05),
                   Flexible(
                     child: Text(
@@ -477,7 +462,7 @@ class AnimatedButton extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: fg,
+                        color: onColor,
                         fontSize: fontSize,
                         fontWeight: FontWeight.w700,
                         height: 1.05,
@@ -487,9 +472,9 @@ class AnimatedButton extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
