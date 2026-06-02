@@ -692,11 +692,13 @@ class _DraggableTile extends StatelessWidget {
               width: t.border.focus,
             ),
           ),
-          child: LongPressDraggable<int>(
+          child: Draggable<int>(
             data: index,
             feedback: feedback,
             childWhenDragging: Opacity(opacity: t.opacity.disabled, child: child),
-            child: child,
+            // Click-and-drag on desktop; a plain click still taps through to
+            // edit (drag only starts once the pointer moves).
+            child: MouseRegion(cursor: SystemMouseCursors.grab, child: child),
           ),
         );
       },
