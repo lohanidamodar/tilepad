@@ -342,6 +342,29 @@ class MarcoServer {
     return installed.manifest.id;
   }
 
+  /// Installs a plugin by copying a source folder into the plugins directory.
+  Future<String> installPluginFromDirectory(Directory source) async {
+    final registry = _pluginRegistry;
+    if (registry == null) throw StateError('Server not started');
+    final installed = await registry.installFromDirectory(source);
+    return installed.manifest.id;
+  }
+
+  /// Installs a dropped/picked path which may be a plugin folder or a `.zip`.
+  /// Throws [PluginInstallException] if it is neither a valid folder (with a
+  /// manifest) nor a zip.
+  Future<String> installPluginFromPath(String path) async {
+    if (await Directory(path).exists()) {
+      return installPluginFromDirectory(Directory(path));
+    }
+    if (await File(path).exists() && path.toLowerCase().endsWith('.zip')) {
+      return installPlugin(File(path));
+    }
+    throw PluginInstallException(
+      'Drop a plugin folder (with a manifest.json) or a .zip file',
+    );
+  }
+
   /// Absolute path to the plugins directory (empty until the server starts).
   String get pluginsDirectoryPath => _pluginsDir?.path ?? '';
 

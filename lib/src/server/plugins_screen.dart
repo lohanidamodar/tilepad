@@ -1,3 +1,5 @@
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import 'plugins/plugin_manifest.dart';
@@ -16,6 +18,7 @@ class PluginsScreen extends StatefulWidget {
 
 class _PluginsScreenState extends State<PluginsScreen> {
   bool _busy = false;
+  bool _dragging = false;
 
   Future<void> _run(Future<void> Function() action) async {
     setState(() => _busy = true);
@@ -23,6 +26,51 @@ class _PluginsScreenState extends State<PluginsScreen> {
       await action();
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Installs a plugin from a dropped/picked path (folder or .zip) and reports
+  /// the outcome. Validation (must contain a manifest) happens in the server.
+  Future<void> _install(String path) async {
+    await _run(() async {
+      try {
+        final id = await widget.server.installPluginFromPath(path);
+        await widget.server.rescanPlugins();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Installed "$id" (disabled)')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not install plugin: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  Future<void> _addFromFolder() async {
+    final path = await getDirectoryPath();
+    if (path != null) await _install(path);
+  }
+
+  Future<void> _addFromZip() async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'Plugin package', extensions: ['zip']),
+      ],
+    );
+    if (file != null) await _install(file.path);
+  }
+
+  Future<void> _onDrop(DropDoneDetails details) async {
+    for (final file in details.files) {
+      await _install(file.path);
     }
   }
 
@@ -81,6 +129,33 @@ class _PluginsScreenState extends State<PluginsScreen> {
       appBar: AppBar(
         title: const Text('Plugins'),
         actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Add plugin',
+            icon: const Icon(Icons.add),
+            enabled: !_busy,
+            onSelected: (value) {
+              if (value == 'folder') _addFromFolder();
+              if (value == 'zip') _addFromZip();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'folder',
+                child: ListTile(
+                  leading: Icon(Icons.folder_outlined),
+                  title: Text('From folder…'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'zip',
+                child: ListTile(
+                  leading: Icon(Icons.folder_zip_outlined),
+                  title: Text('From .zip…'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.folder_open_outlined),
             tooltip: 'Open plugins folder',
@@ -98,21 +173,69 @@ class _PluginsScreenState extends State<PluginsScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          if (_busy) const LinearProgressIndicator(minHeight: 2),
-          Expanded(
-            child: plugins.isEmpty
-                ? _buildEmptyState(context)
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      for (final plugin in plugins) _buildPluginCard(plugin),
-                      if (errors.isNotEmpty) _buildErrors(errors, colorScheme),
-                    ],
+      body: DropTarget(
+        onDragEntered: (_) => setState(() => _dragging = true),
+        onDragExited: (_) => setState(() => _dragging = false),
+        onDragDone: (details) {
+          setState(() => _dragging = false);
+          _onDrop(details);
+        },
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                if (_busy) const LinearProgressIndicator(minHeight: 2),
+                Expanded(
+                  child: plugins.isEmpty
+                      ? _buildEmptyState(context)
+                      : ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            for (final plugin in plugins)
+                              _buildPluginCard(plugin),
+                            if (errors.isNotEmpty)
+                              _buildErrors(errors, colorScheme),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+            if (_dragging) _buildDropOverlay(colorScheme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropOverlay(ColorScheme colorScheme) {
+    return Positioned.fill(
+      child: Container(
+        color: colorScheme.primary.withValues(alpha: 0.12),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colorScheme.primary, width: 2),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.download_outlined,
+                    size: 40, color: colorScheme.primary),
+                const SizedBox(height: 8),
+                Text(
+                  'Drop a plugin folder or .zip to install',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.primary,
                   ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -132,15 +255,27 @@ class _PluginsScreenState extends State<PluginsScreen> {
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
-              'Drop a plugin folder into the plugins directory, then tap Rescan.',
+              'Drag a plugin folder or .zip here, or use the + button to add '
+              'one. It is copied into the plugins folder and stays disabled '
+              'until you turn it on.',
               textAlign: TextAlign.center,
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: widget.server.openPluginsFolder,
-              icon: const Icon(Icons.folder_open_outlined),
-              label: const Text('Open plugins folder'),
+            Wrap(
+              spacing: 12,
+              children: [
+                FilledButton.icon(
+                  onPressed: _addFromFolder,
+                  icon: const Icon(Icons.folder_outlined),
+                  label: const Text('Add from folder'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: widget.server.openPluginsFolder,
+                  icon: const Icon(Icons.folder_open_outlined),
+                  label: const Text('Open plugins folder'),
+                ),
+              ],
             ),
           ],
         ),

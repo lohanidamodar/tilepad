@@ -30,6 +30,8 @@ dependencies:
   picons: ^3.0.1
   archive: ^4.0.9
   path: ^1.9.1
+  desktop_drop: ^0.7.1
+  file_selector: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

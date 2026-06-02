@@ -194,6 +194,58 @@ class PluginRegistry {
     return installed;
   }
 
+  /// Installs a plugin by copying a source folder into the plugins directory.
+  ///
+  /// The folder must contain a valid `manifest.json` at its root. The copy is
+  /// placed at `<pluginsDir>/<plugin.id>/` so removal stays self-contained.
+  Future<InstalledPlugin> installFromDirectory(Directory source) async {
+    final manifestFile = File(p.join(source.path, 'manifest.json'));
+    if (!await manifestFile.exists()) {
+      throw PluginInstallException('Folder has no manifest.json');
+    }
+
+    final PluginManifest manifest;
+    try {
+      manifest = PluginManifest.fromJson(
+          jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>);
+    } catch (e) {
+      throw PluginInstallException('Invalid manifest in folder: $e');
+    }
+
+    final target = Directory(p.join(pluginsDir.path, manifest.id));
+    // Avoid copying a folder into itself (already installed in place).
+    if (p.equals(source.path, target.path)) {
+      final existing = InstalledPlugin(manifest: manifest, directory: target);
+      _plugins.removeWhere((e) => e.manifest.id == manifest.id);
+      _plugins.add(existing);
+      await _writeState();
+      return existing;
+    }
+    if (await target.exists()) {
+      await target.delete(recursive: true);
+    }
+    await _copyDirectory(source, target);
+
+    final installed = InstalledPlugin(manifest: manifest, directory: target);
+    _plugins.removeWhere((e) => e.manifest.id == manifest.id);
+    _plugins.add(installed);
+    await _writeState();
+    return installed;
+  }
+
+  /// Recursively copies [source] into [destination].
+  Future<void> _copyDirectory(Directory source, Directory destination) async {
+    await destination.create(recursive: true);
+    await for (final entity in source.list(recursive: false)) {
+      final newPath = p.join(destination.path, p.basename(entity.path));
+      if (entity is Directory) {
+        await _copyDirectory(entity, Directory(newPath));
+      } else if (entity is File) {
+        await entity.copy(newPath);
+      }
+    }
+  }
+
   /// Removes a plugin and deletes its directory.
   Future<void> remove(String id) async {
     final plugin = byId(id);

@@ -99,6 +99,49 @@ void main() {
     });
   });
 
+  group('PluginRegistry installFromDirectory', () {
+    test('copies a plugin folder into the plugins dir', () async {
+      // A source folder outside the plugins dir.
+      final srcRoot = Directory.systemTemp.createTempSync('mdk_src');
+      addTearDown(() => srcRoot.deleteSync(recursive: true));
+      final src = Directory(p.join(srcRoot.path, 'my_plugin'))
+        ..createSync(recursive: true);
+      File(p.join(src.path, 'manifest.json'))
+          .writeAsStringSync(jsonEncode(manifest('com.dir', name: 'Dir')));
+      File(p.join(src.path, 'plugin.dart')).writeAsStringSync('// code');
+
+      final registry = PluginRegistry(tmp);
+      await registry.load();
+      final installed = await registry.installFromDirectory(src);
+
+      expect(installed.manifest.id, 'com.dir');
+      expect(registry.byId('com.dir'), isNotNull);
+      // Copied (not referenced) into the managed plugins dir.
+      expect(p.isWithin(tmp.path, installed.directory.path), isTrue);
+      expect(
+        File(p.join(installed.directory.path, 'plugin.dart')).existsSync(),
+        isTrue,
+      );
+      // Newly installed plugins are disabled until enabled.
+      expect(installed.enabled, isFalse);
+    });
+
+    test('rejects a folder without a manifest', () async {
+      final srcRoot = Directory.systemTemp.createTempSync('mdk_src2');
+      addTearDown(() => srcRoot.deleteSync(recursive: true));
+      final src = Directory(p.join(srcRoot.path, 'no_manifest'))
+        ..createSync(recursive: true);
+      File(p.join(src.path, 'readme.txt')).writeAsStringSync('hi');
+
+      final registry = PluginRegistry(tmp);
+      await registry.load();
+      expect(
+        () => registry.installFromDirectory(src),
+        throwsA(isA<PluginInstallException>()),
+      );
+    });
+  });
+
   group('PluginRegistry install/remove', () {
     test('installs a plugin from a zip archive', () async {
       // Build a zip containing pluginX/manifest.json
