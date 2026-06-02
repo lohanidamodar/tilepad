@@ -165,6 +165,10 @@ class PluginListDef {
 
 /// The fully parsed and validated plugin manifest.
 class PluginManifest {
+  /// Highest plugin protocol/manifest version this host understands. A plugin
+  /// declaring a higher `apiVersion` is rejected (it expects features we lack).
+  static const int supportedApiVersion = 1;
+
   final String id;
   final String name;
   final String version;
@@ -219,6 +223,14 @@ class PluginManifest {
       );
     }
 
+    final apiVersion = (json['apiVersion'] as num?)?.toInt() ?? 1;
+    if (apiVersion > supportedApiVersion) {
+      throw PluginManifestException(
+        'Manifest "$id" targets apiVersion $apiVersion but this host supports '
+        'up to $supportedApiVersion',
+      );
+    }
+
     List<T> parseList<T>(
       String key,
       T Function(Map<String, dynamic>) fromJson,
@@ -235,7 +247,7 @@ class PluginManifest {
       name: json['name'] as String? ?? id,
       version: json['version'] as String? ?? '0.0.0',
       author: json['author'] as String? ?? 'Unknown',
-      apiVersion: (json['apiVersion'] as num?)?.toInt() ?? 1,
+      apiVersion: apiVersion,
       run: run,
       settings: parseList('settings', PluginField.fromJson),
       actions: parseList('actions', PluginActionDef.fromJson),

@@ -156,6 +156,11 @@ so the phone shows the live value as the button's **title**, or — with
 `setStateImage` and an icon-mode binding — swaps the button's **icon**. On
 connect the server replays the latest snapshot so tiles render immediately.
 
+> **Icon-mode payloads:** for an *icon* binding, send `image` as a numeric icon
+> code point string (the same format MarcoDeck uses for button icons), e.g.
+> `{ "type": "setStateImage", "stateId": "mic", "image": "61234" }`. Named icons
+> and data-URI images are not resolved yet. *Title* bindings just use `value`.
+
 ---
 
 ## 5. Security

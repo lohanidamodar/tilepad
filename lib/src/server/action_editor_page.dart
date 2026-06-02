@@ -351,15 +351,23 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
   /// Fetches options for every dynamic `select` field of the chosen action.
   Future<void> _prefetchDynamicLists() async {
     final action = _selectedPluginAction;
-    if (action == null || _pluginId == null) return;
+    final pluginId = _pluginId;
+    final actionId = _pluginActionId;
+    if (action == null || pluginId == null) return;
     for (final field in action.fields) {
       final listId = field.optionsFrom;
       if (field.type == PluginFieldType.select && listId != null) {
-        final options =
-            await widget.server.requestPluginList(_pluginId!, listId);
-        if (mounted) {
-          setState(() => _dynamicOptions[listId] = options);
+        // Pass the current field values so plugins can compute dependent lists.
+        final options = await widget.server.requestPluginList(
+          pluginId,
+          listId,
+          fields: Map<String, dynamic>.from(_pluginSettings),
+        );
+        // Discard if the user switched plugin/action while we were awaiting.
+        if (!mounted || _pluginId != pluginId || _pluginActionId != actionId) {
+          return;
         }
+        setState(() => _dynamicOptions[listId] = options);
       }
     }
   }

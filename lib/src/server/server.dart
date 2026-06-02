@@ -18,6 +18,7 @@ import 'plugins/plugin_host.dart';
 import 'plugins/plugin_manager.dart';
 import 'plugins/plugin_manifest.dart';
 import 'plugins/plugin_registry.dart';
+import 'plugins/state_store.dart';
 
 /// Server class that handles client connections and executes commands
 class MarcoServer {
@@ -40,7 +41,7 @@ class MarcoServer {
   PluginHost? _pluginHost;
   PluginRegistry? _pluginRegistry;
   PluginManager? _pluginManager;
-  StreamSubscription<dynamic>? _stateSub;
+  StreamSubscription<StateEntry>? _stateSub;
   Directory? _pluginsDir;
 
   /// Stream controller for client connection events
@@ -77,6 +78,11 @@ class MarcoServer {
 
   /// Whether a plugin is currently connected to the host.
   bool isPluginConnected(String id) => _pluginHost?.isConnected(id) ?? false;
+
+  /// Emits a pluginId whenever its connection state changes, so the UI can
+  /// refresh enabled/connected status live. Empty if the server isn't started.
+  Stream<String> get pluginConnectionChanges =>
+      _pluginHost?.connectionChanges ?? const Stream.empty();
 
   /// Gets the server's IP address
   Future<String> getServerIp() async {

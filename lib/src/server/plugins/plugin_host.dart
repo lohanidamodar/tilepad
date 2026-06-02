@@ -29,6 +29,10 @@ class _PluginConnection {
   WebSocket? socket;
   bool registered = false;
 
+  /// requestIds of host->plugin requests awaiting a reply on this connection,
+  /// so they can be failed promptly if the connection drops.
+  final Set<String> pendingIds = {};
+
   _PluginConnection(this.pluginId, this.token, this.settings);
 }
 
@@ -55,10 +59,14 @@ class PluginHost {
 
   final _connectionChanges = StreamController<String>.broadcast();
 
+  /// Whether this host created (and therefore should dispose) [stateStore].
+  final bool _ownsStateStore;
+
   PluginHost({
     StateStore? stateStore,
     this.requestTimeout = const Duration(seconds: 10),
-  }) : stateStore = stateStore ?? StateStore();
+  })  : stateStore = stateStore ?? StateStore(),
+        _ownsStateStore = stateStore == null;
 
   /// The actual bound port (useful when started with port 0).
   int get port => _port;
@@ -96,6 +104,7 @@ class PluginHost {
   Future<void> disconnect(String pluginId) async {
     final conn = _connections.remove(pluginId);
     if (conn != null) {
+      _failPending(conn);
       try {
         conn.socket?.add(jsonEncode({'type': PluginProtocol.shutdown}));
         await conn.socket?.close();
@@ -103,6 +112,22 @@ class PluginHost {
     }
     stateStore.clearPlugin(pluginId);
     _connectionChanges.add(pluginId);
+  }
+
+  /// Completes every in-flight request on [conn] with a failure so callers
+  /// don't hang until the request timeout when the plugin drops.
+  void _failPending(_PluginConnection conn) {
+    for (final id in conn.pendingIds) {
+      final completer = _pending.remove(id);
+      if (completer != null && !completer.isCompleted) {
+        completer.complete({
+          'success': false,
+          'error': 'Plugin "${conn.pluginId}" disconnected',
+          'options': const [],
+        });
+      }
+    }
+    conn.pendingIds.clear();
   }
 
   void _handleHttpRequest(HttpRequest request) async {
@@ -146,8 +171,17 @@ class PluginHost {
       case PluginProtocol.actionResult:
       case PluginProtocol.listResult:
         final requestId = msg['requestId'] as String?;
-        final completer = requestId == null ? null : _pending.remove(requestId);
-        completer?.complete(msg);
+        if (requestId != null) {
+          if (boundPluginId != null) {
+            _connections[boundPluginId]?.pendingIds.remove(requestId);
+          }
+          final completer = _pending.remove(requestId);
+          if (completer != null && !completer.isCompleted) {
+            completer.complete(msg);
+          } else {
+            debugPrint('Plugin host: result for unknown requestId $requestId');
+          }
+        }
         return boundPluginId;
 
       case PluginProtocol.setState:
@@ -191,6 +225,14 @@ class PluginHost {
       socket.close();
       return null;
     }
+    // If this plugin already had a socket (e.g. it reconnected), close the old
+    // one so it isn't orphaned.
+    final previous = conn.socket;
+    if (previous != null && !identical(previous, socket)) {
+      try {
+        previous.close();
+      } catch (_) {}
+    }
     conn.socket = socket;
     conn.registered = true;
     socket.add(jsonEncode({
@@ -207,6 +249,7 @@ class PluginHost {
     if (conn != null && identical(conn.socket, socket)) {
       conn.registered = false;
       conn.socket = null;
+      _failPending(conn);
       stateStore.clearPlugin(pluginId);
       _connectionChanges.add(pluginId);
     }
@@ -284,11 +327,13 @@ class PluginHost {
     message['requestId'] = requestId;
     final completer = Completer<Map<String, dynamic>>();
     _pending[requestId] = completer;
+    conn.pendingIds.add(requestId);
     conn.socket!.add(jsonEncode(message));
     return completer.future.timeout(
       requestTimeout,
       onTimeout: () {
         _pending.remove(requestId);
+        conn.pendingIds.remove(requestId);
         throw TimeoutException('Plugin request timed out', requestTimeout);
       },
     );
@@ -296,6 +341,7 @@ class PluginHost {
 
   Future<void> stop() async {
     for (final conn in _connections.values) {
+      _failPending(conn);
       try {
         await conn.socket?.close();
       } catch (_) {}
@@ -304,5 +350,6 @@ class PluginHost {
     await _server?.close(force: true);
     _server = null;
     await _connectionChanges.close();
+    if (_ownsStateStore) stateStore.dispose();
   }
 }

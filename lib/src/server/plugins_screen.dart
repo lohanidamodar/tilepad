@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +21,23 @@ class PluginsScreen extends StatefulWidget {
 class _PluginsScreenState extends State<PluginsScreen> {
   bool _busy = false;
   bool _dragging = false;
+  StreamSubscription<String>? _connSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the connected/disabled chips when a plugin connects or drops,
+    // so enabling a plugin flips "Starting…" to "Connected" on its own.
+    _connSub = widget.server.pluginConnectionChanges.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _connSub?.cancel();
+    super.dispose();
+  }
 
   Future<void> _run(Future<void> Function() action) async {
     setState(() => _busy = true);
@@ -69,9 +88,39 @@ class _PluginsScreenState extends State<PluginsScreen> {
   }
 
   Future<void> _onDrop(DropDoneDetails details) async {
-    for (final file in details.files) {
-      await _install(file.path);
-    }
+    final paths = details.files.map((f) => f.path).toList();
+    if (paths.isEmpty) return;
+    // Install the whole batch under one busy cycle and report a single summary.
+    await _run(() async {
+      var ok = 0;
+      final failures = <String>[];
+      for (final path in paths) {
+        try {
+          final id = await widget.server.installPluginFromPath(path);
+          ok++;
+          await widget.server.rescanPlugins();
+          if (id.isEmpty) failures.add(path);
+        } catch (e) {
+          failures.add('$path: $e');
+        }
+      }
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      if (failures.isEmpty) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Installed $ok plugin(s) (disabled)')),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Installed $ok, failed ${failures.length}: ${failures.first}',
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _toggle(InstalledPlugin plugin, bool enable) => _run(() async {
@@ -543,7 +592,9 @@ class PluginFieldInput extends StatelessWidget {
             isDense: true,
           ),
           keyboardType: TextInputType.number,
-          onChanged: (v) => onChanged(num.tryParse(v) ?? v),
+          // Never persist a raw string into a numeric field: empty -> null,
+          // otherwise the parsed number (and keep null while half-typed).
+          onChanged: (v) => onChanged(v.trim().isEmpty ? null : num.tryParse(v)),
         );
       case PluginFieldType.password:
         return TextFormField(

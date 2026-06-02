@@ -121,5 +121,20 @@ void main() {
         throwsA(isA<PluginManifestException>()),
       );
     });
+
+    test('rejects an apiVersion newer than the host supports', () {
+      final json = validJson()
+        ..['apiVersion'] = PluginManifest.supportedApiVersion + 1;
+      expect(
+        () => PluginManifest.fromJson(json),
+        throwsA(isA<PluginManifestException>()),
+      );
+    });
+
+    test('accepts the current apiVersion', () {
+      final json = validJson()..['apiVersion'] = PluginManifest.supportedApiVersion;
+      expect(PluginManifest.fromJson(json).apiVersion,
+          PluginManifest.supportedApiVersion);
+    });
   });
 }

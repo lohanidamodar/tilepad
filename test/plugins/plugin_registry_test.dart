@@ -55,6 +55,20 @@ void main() {
       expect(registry.plugins.single.manifest.id, 'com.good');
     });
 
+    test('skips a duplicate plugin id and records an error', () async {
+      writePlugin(tmp, 'a', manifest('com.dup', name: 'First'));
+      writePlugin(tmp, 'b', manifest('com.dup', name: 'Second'));
+
+      final registry = PluginRegistry(tmp);
+      await registry.load();
+
+      expect(
+        registry.plugins.where((e) => e.manifest.id == 'com.dup'),
+        hasLength(1),
+      );
+      expect(registry.errors, isNotEmpty);
+    });
+
     test('records an error for an invalid manifest without crashing', () async {
       final bad = Directory(p.join(tmp.path, 'bad'))..createSync();
       File(p.join(bad.path, 'manifest.json')).writeAsStringSync('{not json');
@@ -162,6 +176,32 @@ void main() {
       expect(
         File(p.join(installed.directory.path, 'manifest.json')).existsSync(),
         isTrue,
+      );
+    });
+
+    test('rejects a zip containing a path-traversal (zip-slip) entry', () async {
+      final archive = Archive();
+      final manifestBytes =
+          utf8.encode(jsonEncode(manifest('com.evil', name: 'Evil')));
+      archive.addFile(
+          ArchiveFile('manifest.json', manifestBytes.length, manifestBytes));
+      final evil = utf8.encode('pwned');
+      archive.addFile(ArchiveFile('../evil.txt', evil.length, evil));
+      final zipBytes = ZipEncoder().encode(archive);
+      final zipFile = File(p.join(tmp.path, 'evil.zip'))
+        ..writeAsBytesSync(zipBytes);
+
+      final registry = PluginRegistry(tmp);
+      await registry.load();
+      expect(
+        () => registry.installFromZip(zipFile),
+        throwsA(isA<PluginInstallException>()),
+      );
+      // Nothing escaped the plugins dir.
+      expect(File(p.join(tmp.path, 'evil.txt')).existsSync(), isFalse);
+      expect(
+        File(p.join(p.dirname(tmp.path), 'evil.txt')).existsSync(),
+        isFalse,
       );
     });
 

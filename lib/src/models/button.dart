@@ -263,6 +263,7 @@ class Button {
                 .toList() ??
             const [],
         color: json['color'] as String? ?? '#4285F4',
+        stateBinding: stateBinding,
       );
     }
   }

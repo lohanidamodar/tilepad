@@ -183,6 +183,19 @@ void main() {
     await plugin.close();
   });
 
+  test('in-flight invoke fails fast when the plugin disconnects', () async {
+    final plugin = await registerPlugin('com.a', 'secret');
+    // plugin never replies to invoke
+    final future = host.invoke('com.a', 'toggle', {});
+    // Disconnect while the request is in flight.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await host.disconnect('com.a');
+
+    final result = await future.timeout(const Duration(seconds: 1));
+    expect(result.success, isFalse);
+    await plugin.close();
+  });
+
   test('pushSettings forwards settingsUpdated to the plugin', () async {
     final plugin = await registerPlugin('com.a', 'secret');
     final future = plugin.waitFor(PluginProtocol.settingsUpdated);

@@ -79,6 +79,13 @@ class PluginRegistry {
         final json =
             jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
         final manifest = PluginManifest.fromJson(json);
+        if (byId(manifest.id) != null) {
+          _errors.add(
+            '${p.basename(entry.path)}: duplicate plugin id "${manifest.id}" '
+            '(already loaded) — skipped',
+          );
+          continue;
+        }
         final saved = state[manifest.id] as Map<String, dynamic>?;
         _plugins.add(
           InstalledPlugin(
@@ -158,33 +165,40 @@ class PluginRegistry {
       throw PluginInstallException('Invalid manifest in archive: $e');
     }
 
-    final prefix = p.dirname(manifestEntry.name); // '' or 'pluginX'
+    // The manifest's folder ('' for a root manifest, else e.g. 'pluginX') is the
+    // root we re-base every entry under.
+    final prefixDir = p.dirname(manifestEntry.name);
+    final prefix =
+        (prefixDir == '.' || prefixDir.isEmpty) ? '' : '$prefixDir/';
+
     final target = Directory(p.join(pluginsDir.path, manifest.id));
+    final targetPath = p.normalize(target.path);
+
+    // Plan the extraction first; reject the whole archive (zip-slip) before
+    // writing anything if any entry would escape the plugin directory.
+    final planned = <String, List<int>>{};
+    for (final file in archive.files) {
+      if (!file.isFile) continue;
+      // Only take entries inside the manifest's folder.
+      if (prefix.isNotEmpty && !file.name.startsWith(prefix)) continue;
+      final rel = prefix.isEmpty ? file.name : file.name.substring(prefix.length);
+      final outPath = p.normalize(p.join(target.path, rel));
+      if (!p.isWithin(targetPath, outPath)) {
+        throw PluginInstallException(
+          'Archive entry "${file.name}" escapes the plugin directory',
+        );
+      }
+      planned[outPath] = file.content as List<int>;
+    }
+
     if (await target.exists()) {
       await target.delete(recursive: true);
     }
     await target.create(recursive: true);
-
-    for (final file in archive.files) {
-      if (!file.isFile) continue;
-      // Re-root entries under the manifest's folder.
-      var rel = file.name;
-      if (prefix != '.' && prefix.isNotEmpty) {
-        if (!p.isWithin(prefix, file.name) && p.dirname(file.name) != prefix) {
-          // File outside the plugin folder — skip.
-          if (!file.name.startsWith('$prefix/')) continue;
-        }
-        rel = p.relative(file.name, from: prefix);
-      }
-      final outPath = p.join(target.path, rel);
-      // Guard against zip-slip path traversal.
-      if (!p.isWithin(target.path, outPath) &&
-          p.normalize(outPath) != p.normalize(target.path)) {
-        continue;
-      }
-      final outFile = File(outPath);
+    for (final entry in planned.entries) {
+      final outFile = File(entry.key);
       await outFile.parent.create(recursive: true);
-      await outFile.writeAsBytes(file.content as List<int>);
+      await outFile.writeAsBytes(entry.value);
     }
 
     final installed = InstalledPlugin(manifest: manifest, directory: target);

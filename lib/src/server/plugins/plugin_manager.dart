@@ -91,6 +91,9 @@ class PluginManager {
       debugPrint('Plugin "$id" has no run command for $currentPlatform');
       return;
     }
+    // Stop any process already running for this id so re-enabling (or a stray
+    // startAll after enable) can't spawn a duplicate or orphan the old one.
+    await _processes.remove(id)?.stop();
     final token = _uuid.v4();
     host.allowPlugin(id, token, settings: plugin.settings);
     await _launcher(PluginLaunchSpec(

@@ -161,12 +161,26 @@ class PluginProcess {
   }
 
   /// Stops the process and prevents further restarts.
+  ///
+  /// Sends SIGTERM, waits briefly for a clean exit, then escalates to SIGKILL so
+  /// a plugin that ignores the term signal cannot be orphaned.
   Future<void> stop() async {
     _stopped = true;
     final process = _process;
     _process = null;
-    if (process != null) {
-      process.kill();
+    if (process == null) return;
+
+    process.kill(); // SIGTERM
+    try {
+      await process.exitCode.timeout(const Duration(seconds: 3));
+    } on TimeoutException {
+      debugPrint('Plugin "$pluginId" ignored SIGTERM; sending SIGKILL');
+      process.kill(ProcessSignal.sigkill);
+      try {
+        await process.exitCode.timeout(const Duration(seconds: 2));
+      } on TimeoutException {
+        debugPrint('Plugin "$pluginId" did not exit after SIGKILL');
+      }
     }
   }
 }

@@ -703,6 +703,11 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
           errorMessage: 'Server did not respond',
           connection: connection,
         );
+      } else if (state.status == ConnectionStatus.reconnecting) {
+        // The socket reconnected and we re-sent the handshake, but the server
+        // never acked. Kick off a fresh retry instead of sitting silent until
+        // the long attempt counter expires.
+        _handleConnectionTimeout();
       }
     });
   }

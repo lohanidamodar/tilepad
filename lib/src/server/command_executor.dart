@@ -137,6 +137,13 @@ class CommandExecutor {
       case ButtonType.plugin:
         // Plugin actions use the new multi-action path; route via the first
         // action so legacy single-action callers still work.
+        if (button.actions.isEmpty) {
+          return CommandResult(
+            success: false,
+            output: '',
+            error: 'Plugin button has no action to run',
+          );
+        }
         return await executePluginAction(button.actions.first);
     }
   }
