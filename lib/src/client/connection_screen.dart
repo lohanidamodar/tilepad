@@ -167,16 +167,27 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
       children: [
         if (_isDiscovering)
           Container(
-            padding: EdgeInsets.all(tokens.space.lg),
-            color: tokens.color.accentSubtle,
+            padding: EdgeInsets.symmetric(
+              horizontal: tokens.space.lg,
+              vertical: tokens.space.md,
+            ),
+            decoration: BoxDecoration(
+              color: tokens.color.surfaceSubtle,
+              border: Border(
+                bottom: BorderSide(
+                  color: tokens.color.border,
+                  width: tokens.border.hairline,
+                ),
+              ),
+            ),
             child: Row(
               children: [
                 SizedBox(
-                  width: tokens.icon.lg,
-                  height: tokens.icon.lg,
+                  width: tokens.icon.sm,
+                  height: tokens.icon.sm,
                   child: CircularProgressIndicator(
                     strokeWidth: tokens.border.focus,
-                    color: tokens.color.accent,
+                    color: tokens.color.textMuted,
                   ),
                 ),
                 SizedBox(width: tokens.space.md),
@@ -184,8 +195,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                   child: Text(
                     'Searching for servers on your network...',
                     style: textTheme.bodyMedium?.copyWith(
-                      color: tokens.color.accent,
-                      fontWeight: tokens.typeScale.wMedium,
+                      color: tokens.color.textSecondary,
                     ),
                   ),
                 ),
@@ -238,16 +248,10 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                       margin: EdgeInsets.only(bottom: tokens.space.md),
                       child: ListTile(
                         contentPadding: EdgeInsets.all(tokens.space.lg),
-                        leading: Container(
-                          padding: EdgeInsets.all(tokens.space.md),
-                          decoration: BoxDecoration(
-                            color: tokens.color.accentSubtle,
-                            borderRadius: tokens.radius.brMd,
-                          ),
-                          child: Icon(
-                            Icons.computer,
-                            color: tokens.color.accent,
-                          ),
+                        leading: Icon(
+                          Icons.dns_outlined,
+                          size: tokens.icon.xl,
+                          color: tokens.color.textSecondary,
                         ),
                         title: Text(server.name, style: textTheme.titleMedium),
                         subtitle: Padding(
@@ -255,7 +259,8 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                           child: Text(
                             '${server.ipAddress}:${server.port}',
                             style: AppTypography.mono(
-                              color: tokens.color.textSecondary,
+                              fontSize: tokens.typeScale.bodySm,
+                              color: tokens.color.textMuted,
                             ),
                           ),
                         ),

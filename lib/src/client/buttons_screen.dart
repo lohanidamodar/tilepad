@@ -85,7 +85,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
             builder:
                 (context, scrollController) => Container(
                   decoration: BoxDecoration(
-                    color: tokens.color.surface,
+                    color: tokens.color.surfaceRaised,
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(tokens.radius.lg),
                     ),
@@ -100,12 +100,11 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           vertical: tokens.space.md,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              result.success
-                                  ? tokens.color.successSubtle
-                                  : tokens.color.dangerSubtle,
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(tokens.radius.lg),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: tokens.color.border,
+                              width: tokens.border.hairline,
+                            ),
                           ),
                         ),
                         child: Column(
@@ -119,12 +118,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                   bottom: tokens.space.md,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: (result.success
-                                          ? tokens.color.success
-                                          : tokens.color.danger)
-                                      .withValues(
-                                        alpha: tokens.opacity.divider,
-                                      ),
+                                  color: tokens.color.border,
                                   borderRadius: tokens.radius.brXs,
                                 ),
                               ),
@@ -132,15 +126,15 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                             // Title row
                             Row(
                               children: [
-                                Icon(
-                                  result.success
-                                      ? Icons.check_circle
-                                      : Icons.error,
-                                  color:
-                                      result.success
-                                          ? tokens.color.success
-                                          : tokens.color.danger,
-                                  size: tokens.icon.xl,
+                                Container(
+                                  width: tokens.space.sm,
+                                  height: tokens.space.sm,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: result.success
+                                        ? tokens.color.success
+                                        : tokens.color.danger,
+                                  ),
                                 ),
                                 SizedBox(width: tokens.space.md),
                                 Expanded(
@@ -150,21 +144,13 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                         : 'Command Error',
                                     style: Theme.of(context)
                                         .textTheme
-                                        .titleLarge
-                                        ?.copyWith(
-                                          color: result.success
-                                              ? tokens.color.success
-                                              : tokens.color.danger,
-                                        ),
+                                        .titleLarge,
                                   ),
                                 ),
                                 IconButton(
                                   icon: Icon(
                                     Icons.close,
-                                    color:
-                                        result.success
-                                            ? tokens.color.success
-                                            : tokens.color.danger,
+                                    color: tokens.color.textSecondary,
                                   ),
                                   onPressed: () => Navigator.pop(context),
                                 ),
@@ -241,19 +227,17 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            result.success
-                ? tokens.color.successSubtle
-                : tokens.color.dangerSubtle,
+        backgroundColor: tokens.color.surfaceRaised,
         duration: Duration(seconds: hasDetail ? 4 : 2),
         content: Row(
           children: [
-            Icon(
-              result.success
-                  ? Icons.check_circle_rounded
-                  : Icons.error_rounded,
-              color: fg,
-              size: tokens.icon.lg,
+            Container(
+              width: tokens.space.sm,
+              height: tokens.space.sm,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: fg,
+              ),
             ),
             SizedBox(width: tokens.space.md),
             Expanded(
@@ -262,8 +246,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     ? 'Ran ${name ?? 'command'}'
                     : 'Failed: ${name ?? 'command'}',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: fg,
-                      fontWeight: tokens.typeScale.wSemibold,
+                      color: tokens.color.textPrimary,
+                      fontWeight: tokens.typeScale.wMedium,
                     ),
               ),
             ),
@@ -435,30 +419,24 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
               ),
             ),
             if (isConnected)
-              Container(
-                margin: EdgeInsets.only(left: tokens.space.sm),
-                padding: EdgeInsets.symmetric(
-                  horizontal: tokens.space.sm,
-                  vertical: tokens.space.xxs,
-                ),
-                decoration: BoxDecoration(
-                  color: tokens.color.successSubtle,
-                  borderRadius: tokens.radius.brMd,
-                ),
+              Padding(
+                padding: EdgeInsets.only(left: tokens.space.sm),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: tokens.typeScale.label,
-                      color: tokens.color.success,
+                    Container(
+                      width: tokens.space.sm,
+                      height: tokens.space.sm,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: tokens.color.success,
+                      ),
                     ),
                     SizedBox(width: tokens.space.xs),
                     Text(
                       'Connected',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: tokens.typeScale.wBold,
-                            color: tokens.color.success,
+                            color: tokens.color.textMuted,
                           ),
                     ),
                   ],
@@ -472,7 +450,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh buttons',
               style: IconButton.styleFrom(
-                foregroundColor: tokens.color.accent,
+                foregroundColor: tokens.color.textSecondary,
               ),
               onPressed: () {
                 // Before refreshing, ensure connection is active
@@ -515,7 +493,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                   PopupMenuItem<String>(
                     value: 'settings',
                     child: ListTile(
-                      leading: Icon(Icons.settings, color: tokens.color.accent),
+                      leading: Icon(
+                        Icons.settings_outlined,
+                        color: tokens.color.textSecondary,
+                      ),
                       title: const Text('Settings'),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -524,7 +505,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                   PopupMenuItem<String>(
                     value: 'servers',
                     child: ListTile(
-                      leading: Icon(Icons.computer, color: tokens.color.accent),
+                      leading: Icon(
+                        Icons.dns_outlined,
+                        color: tokens.color.textSecondary,
+                      ),
                       title: const Text('Manage Servers'),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -535,7 +519,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     child: ListTile(
                       leading: Icon(
                         Icons.add_circle_outline,
-                        color: tokens.color.accent,
+                        color: tokens.color.textSecondary,
                       ),
                       title: const Text('Add New Server'),
                       contentPadding: EdgeInsets.zero,
@@ -546,7 +530,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     PopupMenuItem<String>(
                       value: 'connect_default',
                       child: ListTile(
-                        leading: Icon(Icons.link, color: tokens.color.accent),
+                        leading: Icon(
+                          Icons.link,
+                          color: tokens.color.textSecondary,
+                        ),
                         title: const Text('Connect to Default'),
                         contentPadding: EdgeInsets.zero,
                         dense: true,
@@ -630,26 +617,15 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           ? (_awaitingButtons
                               ? const _SkeletonGrid()
                               : Center(
-                            child: Container(
+                            child: Padding(
                               padding: EdgeInsets.all(tokens.space.xxl),
-                              margin: EdgeInsets.all(tokens.space.xxl),
-                              decoration: BoxDecoration(
-                                color: tokens.color.surface.withValues(
-                                  alpha: tokens.opacity.divider,
-                                ),
-                                borderRadius: tokens.radius.brLg,
-                                border: Border.all(
-                                  color: tokens.color.border,
-                                  width: tokens.border.hairline,
-                                ),
-                              ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    Icons.grid_view_rounded,
+                                    Icons.grid_view_outlined,
                                     size: tokens.space.huge,
-                                    color: tokens.color.accent,
+                                    color: tokens.color.textMuted,
                                   ),
                                   SizedBox(height: tokens.space.lg),
                                   Text(
@@ -668,7 +644,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                         .textTheme
                                         .bodyLarge
                                         ?.copyWith(
-                                          color: tokens.color.textSecondary,
+                                          color: tokens.color.textMuted,
                                         ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -715,57 +691,47 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 margin: EdgeInsets.all(tokens.space.xxxl),
                 padding: EdgeInsets.all(tokens.space.xxxl),
                 decoration: BoxDecoration(
-                  color: tokens.color.surface,
-                  borderRadius: tokens.radius.brXl,
+                  color: tokens.color.surfaceRaised,
+                  borderRadius: tokens.radius.brLg,
+                  border: Border.all(
+                    color: tokens.color.border,
+                    width: tokens.border.hairline,
+                  ),
                   boxShadow: tokens.shadowMd,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Icon with background
-                    Container(
-                      padding: EdgeInsets.all(tokens.space.lg),
-                      decoration: BoxDecoration(
-                        color:
+                    // Flat monochrome status icon.
+                    connectionState.status == ConnectionStatus.reconnecting
+                        ? TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 1500),
+                            onEnd: () {
+                              // Loop the animation
+                            },
+                            builder: (context, value, child) {
+                              return Transform.rotate(
+                                angle:
+                                    value * 6.28318, // 2*pi for full rotation
+                                child: Icon(
+                                  Icons.sync,
+                                  color: tokens.color.textSecondary,
+                                  size: tokens.space.huge,
+                                ),
+                              );
+                            },
+                          )
+                        : Icon(
                             connectionState.status == ConnectionStatus.error
-                                ? tokens.color.dangerSubtle
-                                : tokens.color.accentSubtle,
-                        shape: BoxShape.circle,
-                      ),
-                      child:
-                          connectionState.status ==
-                                  ConnectionStatus.reconnecting
-                              ? TweenAnimationBuilder<double>(
-                                tween: Tween<double>(begin: 0.0, end: 1.0),
-                                duration: const Duration(milliseconds: 1500),
-                                onEnd: () {
-                                  // Loop the animation
-                                },
-                                builder: (context, value, child) {
-                                  return Transform.rotate(
-                                    angle:
-                                        value *
-                                        6.28318, // 2*pi for full rotation
-                                    child: Icon(
-                                      Icons.sync,
-                                      color: tokens.color.accent,
-                                      size: tokens.space.huge + tokens.space.sm,
-                                    ),
-                                  );
-                                },
-                              )
-                              : Icon(
+                                ? Icons.error_outline
+                                : Icons.wifi_find,
+                            color:
                                 connectionState.status == ConnectionStatus.error
-                                    ? Icons.error_outline
-                                    : Icons.wifi_find,
-                                color:
-                                    connectionState.status ==
-                                            ConnectionStatus.error
-                                        ? tokens.color.danger
-                                        : tokens.color.accent,
-                                size: tokens.space.huge + tokens.space.sm,
-                              ),
-                    ),
+                                    ? tokens.color.danger
+                                    : tokens.color.textSecondary,
+                            size: tokens.space.huge,
+                          ),
                     SizedBox(height: tokens.space.xxl),
                     Text(
                       connectionState.status == ConnectionStatus.connecting
@@ -783,20 +749,13 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     ),
                     if (connectionState.errorMessage != null) ...[
                       SizedBox(height: tokens.space.md),
-                      Container(
-                        padding: EdgeInsets.all(tokens.space.lg),
-                        decoration: BoxDecoration(
-                          color: tokens.color.surfaceSubtle,
-                          borderRadius: tokens.radius.brMd,
-                        ),
-                        child: Text(
-                          connectionState.errorMessage!,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(color: tokens.color.textSecondary),
-                          textAlign: TextAlign.center,
-                        ),
+                      Text(
+                        connectionState.errorMessage!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(color: tokens.color.textMuted),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                     SizedBox(height: tokens.space.xxl),
@@ -934,36 +893,20 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
         constraints: const BoxConstraints(maxWidth: 360),
         padding: EdgeInsets.all(tokens.space.xxxl),
         margin: EdgeInsets.all(tokens.space.xxl),
-        decoration: BoxDecoration(
-          color: tokens.color.surface.withValues(
-            alpha: tokens.opacity.divider,
-          ),
-          borderRadius: tokens.radius.brXl,
-          border: Border.all(
-            color: tokens.color.border,
-            width: tokens.border.hairline,
-          ),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: tokens.color.accentSubtle,
-                shape: BoxShape.circle,
-                boxShadow: tokens.shadowSm,
-              ),
-              padding: EdgeInsets.all(tokens.space.xxl),
-              margin: EdgeInsets.only(bottom: tokens.space.xxl),
+            Padding(
+              padding: EdgeInsets.only(bottom: tokens.space.xxl),
               child: Image.asset(
                 'assets/logo.png',
                 height: 100,
                 errorBuilder:
                     (context, error, stackTrace) => Icon(
-                      Icons.devices,
+                      Icons.devices_outlined,
                       size: tokens.space.huge + tokens.space.xxxl,
-                      color: tokens.color.accent,
+                      color: tokens.color.textMuted,
                     ),
               ),
             ),
