@@ -152,7 +152,7 @@ ThemeData buildAppTheme({
       behavior: SnackBarBehavior.floating,
       backgroundColor: colors.surfaceInverse,
       contentTextStyle: text.bodyMedium?.copyWith(
-        color: isDark ? colors.textPrimary : colors.surface,
+        color: colors.surface, // contrast on surfaceInverse (both modes)
       ),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: radius.brMd),
@@ -214,7 +214,7 @@ ThemeData buildAppTheme({
         borderRadius: radius.brSm,
       ),
       textStyle: text.labelMedium?.copyWith(
-        color: isDark ? colors.textPrimary : colors.surface,
+        color: colors.surface, // contrast on surfaceInverse (both modes)
       ),
       padding: EdgeInsets.symmetric(horizontal: space.sm, vertical: space.xs),
     ),

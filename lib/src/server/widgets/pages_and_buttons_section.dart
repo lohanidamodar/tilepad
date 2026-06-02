@@ -252,19 +252,61 @@ class PagesAndButtonsSection extends StatelessWidget {
           StaggeredGridTile.count(
             crossAxisCellCount: tiles[i].colSpan.clamp(1, columns),
             mainAxisCellCount: tiles[i].rowSpan.clamp(1, 6).toDouble(),
-            child: _TileChip(
-              tile: tiles[i],
+            child: _DraggableTile(
               index: i,
-              tileCount: tiles.length,
-              columns: columns,
-              spanPresets: _spanPresets,
-              onEdit: () => onEditTile(tiles[i]),
-              onRemove: () => onRemoveTile(tiles[i]),
-              onResize: (c, r) => onResizeTile(tiles[i], c, r),
-              onMove: (newIndex) => onReorderTile(i, newIndex),
+              // Long-press a tile and drop it onto another to reorder.
+              onDropped: (from) => onReorderTile(from, i),
+              feedback: _dragFeedback(context, t, tiles[i]),
+              child: _TileChip(
+                tile: tiles[i],
+                index: i,
+                tileCount: tiles.length,
+                columns: columns,
+                spanPresets: _spanPresets,
+                onEdit: () => onEditTile(tiles[i]),
+                onRemove: () => onRemoveTile(tiles[i]),
+                onResize: (c, r) => onResizeTile(tiles[i], c, r),
+                onMove: (newIndex) => onReorderTile(i, newIndex),
+              ),
             ),
           ),
       ],
+    );
+  }
+
+  /// A compact preview shown under the finger while dragging a tile.
+  Widget _dragFeedback(BuildContext context, AppTokens t, models.Tile tile) {
+    final color = _hexToColor(tile.button.color);
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: t.space.huge * 2,
+        height: t.space.huge + t.space.xl,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: t.radius.brMd,
+          boxShadow: t.shadowMd,
+        ),
+        alignment: Alignment.center,
+        padding: EdgeInsets.all(t.space.sm),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(MacroIcons.resolve(tile.button.iconName),
+                color: Colors.white, size: t.icon.lg),
+            SizedBox(height: t.space.xs),
+            Text(
+              tile.button.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -616,4 +658,48 @@ Color _hexToColor(String hexString) {
     return const Color(0xFF4285F4);
   }
   return Color(value);
+}
+
+/// Wraps a composer tile so it can be long-press dragged and is also a drop
+/// target: dropping a dragged tile onto it reorders to this tile's slot.
+class _DraggableTile extends StatelessWidget {
+  final int index;
+  final Widget child;
+  final Widget feedback;
+  final void Function(int fromIndex) onDropped;
+
+  const _DraggableTile({
+    required this.index,
+    required this.child,
+    required this.feedback,
+    required this.onDropped,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (d) => d.data != index,
+      onAcceptWithDetails: (d) => onDropped(d.data),
+      builder: (context, candidate, rejected) {
+        final highlighted = candidate.isNotEmpty;
+        return AnimatedContainer(
+          duration: t.motion.fast,
+          decoration: BoxDecoration(
+            borderRadius: t.radius.brMd,
+            border: Border.all(
+              color: highlighted ? t.color.accent : Colors.transparent,
+              width: t.border.focus,
+            ),
+          ),
+          child: LongPressDraggable<int>(
+            data: index,
+            feedback: feedback,
+            childWhenDragging: Opacity(opacity: t.opacity.disabled, child: child),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
 }
