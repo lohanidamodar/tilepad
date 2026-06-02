@@ -276,7 +276,7 @@ class ButtonGrid extends ConsumerWidget {
                 }
                 return ListView.separated(
                   itemCount: windows.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final window = windows[index];
                     return ListTile(
