@@ -41,6 +41,7 @@ class MarcoServer {
   PluginRegistry? _pluginRegistry;
   PluginManager? _pluginManager;
   StreamSubscription<dynamic>? _stateSub;
+  Directory? _pluginsDir;
 
   /// Stream controller for client connection events
   final _clientsController = StreamController<List<ClientInfo>>.broadcast();
@@ -283,7 +284,9 @@ class MarcoServer {
     try {
       final host = PluginHost();
       await host.start(port: _pluginPort);
-      final registry = PluginRegistry(await _pluginsDirectory());
+      final dir = await _pluginsDirectory();
+      _pluginsDir = dir;
+      final registry = PluginRegistry(dir);
       await registry.load();
       final manager = PluginManager(registry: registry, host: host);
 
@@ -337,6 +340,33 @@ class MarcoServer {
     if (registry == null) throw StateError('Server not started');
     final installed = await registry.installFromZip(zip);
     return installed.manifest.id;
+  }
+
+  /// Absolute path to the plugins directory (empty until the server starts).
+  String get pluginsDirectoryPath => _pluginsDir?.path ?? '';
+
+  /// Re-scans the plugins directory to pick up newly added plugin folders.
+  Future<void> rescanPlugins() async {
+    await _pluginRegistry?.load();
+  }
+
+  /// Opens the plugins directory in the OS file manager so the user can drop a
+  /// plugin folder into it.
+  Future<void> openPluginsFolder() async {
+    final dir = _pluginsDir;
+    if (dir == null) return;
+    if (!await dir.exists()) await dir.create(recursive: true);
+    try {
+      if (Platform.isWindows) {
+        await Process.run('explorer.exe', [dir.path]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [dir.path]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [dir.path]);
+      }
+    } catch (e) {
+      debugPrint('Failed to open plugins folder: $e');
+    }
   }
 
   /// Enables a plugin (launches its process).

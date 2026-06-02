@@ -365,6 +365,7 @@ class _ServerScreenState extends State<ServerScreen> {
         builder:
             (context) => ButtonEditorPage(
               button: button,
+              server: widget.server,
               onSave: (updatedButton) {
                 if (button == null) {
                   widget.server.addButton(updatedButton, _selectedPage!.id);

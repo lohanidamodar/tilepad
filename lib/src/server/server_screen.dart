@@ -6,6 +6,7 @@ import '../models/button.dart' as models;
 import '../models/client_info.dart';
 import '../utils/theme.dart';
 import 'button_editor_page.dart';
+import 'plugins_screen.dart';
 import 'server.dart';
 import 'page_editor_dialog.dart';
 import 'widgets/server_status_card.dart';
@@ -375,6 +376,7 @@ class _ServerScreenState extends State<ServerScreen> {
         builder:
             (context) => ButtonEditorPage(
               button: button,
+              server: widget.server,
               onSave: (updatedButton) {
                 if (button == null) {
                   widget.server.addButton(updatedButton, _selectedPage!.id);
@@ -554,6 +556,23 @@ class _ServerScreenState extends State<ServerScreen> {
               currentThemeMode: widget.themeMode,
               onThemeModeChanged: widget.onThemeModeChanged!,
             ),
+          IconButton(
+            icon: const Icon(Icons.extension_outlined),
+            tooltip: 'Plugins',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => PluginsScreen(server: widget.server),
+                ),
+              );
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _refreshPages,
