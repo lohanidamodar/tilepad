@@ -58,7 +58,16 @@ class HelloPlugin {
   });
 
   Future<void> run() async {
-    final socket = await WebSocket.connect('ws://127.0.0.1:$port');
+    // If the host vanishes while we're starting up, don't hang as a zombie —
+    // a plugin should exit when it can't reach (or loses) the host.
+    final WebSocket socket;
+    try {
+      socket = await WebSocket.connect('ws://127.0.0.1:$port')
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      stderr.writeln('Could not connect to host: $e');
+      exit(1);
+    }
     _socket = socket;
 
     // 1) Register with the host.

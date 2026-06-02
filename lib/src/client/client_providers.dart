@@ -566,6 +566,25 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
   void _handleConnectionStatusChange(ConnectionStatus status) {
     debugPrint('Connection status changed: $status');
 
+    // The WebSocket service can reconnect the socket on its own (its 15-attempt
+    // loop). When it does, it only re-establishes the transport — it never
+    // re-sends the app-level `connect` handshake, so the server never replies
+    // with connectAck and the session never actually completes. Detect that
+    // case (socket connected while we were reconnecting) and finish the
+    // handshake here, otherwise the client flaps and "connection failed" sticks
+    // even though the server is back.
+    if (status == ConnectionStatus.connected &&
+        state.status == ConnectionStatus.reconnecting &&
+        state.connection != null) {
+      debugPrint('Socket reconnected; re-sending connect handshake');
+      final deviceName = ref.read(deviceNameProvider);
+      _webSocketService.sendMessage(
+        Message(type: MessageType.connect, payload: {'deviceName': deviceName}),
+      );
+      _setAckTimeout(state.connection!);
+      return;
+    }
+
     if (status == ConnectionStatus.disconnected &&
         state.status != ConnectionStatus.disconnected &&
         state.status != ConnectionStatus.reconnecting) {
