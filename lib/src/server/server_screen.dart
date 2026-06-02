@@ -535,42 +535,20 @@ class _ServerScreenState extends State<ServerScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              padding: EdgeInsets.all(t.space.sm),
-              decoration: BoxDecoration(
-                color: t.color.accentSubtle,
-                borderRadius: t.radius.brSm,
-              ),
-              child: Icon(
-                Icons.desktop_windows_rounded,
-                color: t.color.accent,
-                size: t.icon.lg,
+            Flexible(
+              child: Text(
+                _serverName,
+                style: textTheme.titleLarge,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            SizedBox(width: t.space.md),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _serverName,
-                  style: textTheme.titleLarge,
-                ),
-                Text(
-                  'MarcoDeck Server',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: t.color.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(width: t.space.xs),
+            SizedBox(width: t.space.xxs),
             IconButton(
-              icon: Icon(Icons.edit_outlined, size: t.icon.md),
+              icon: Icon(Icons.edit_outlined, size: t.icon.sm),
               tooltip: 'Rename server',
               onPressed: _showRenameDialog,
               visualDensity: VisualDensity.compact,
-              color: t.color.textSecondary,
+              color: t.color.textMuted,
             ),
           ],
         ),
