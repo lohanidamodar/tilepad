@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'server.dart';
 import 'server_screen.dart';
 import '../utils/system_tray_manager.dart';
-import '../utils/theme.dart';
+import '../design/design.dart';
 
 /// Main entry point for the server app
 void main() async {
@@ -16,49 +16,28 @@ void main() async {
   await SystemTrayManager().initSystemTray();
 
   // Run the app
-  runApp(const MarcoDeckServerApp());
+  runApp(const ProviderScope(child: MarcoDeckServerApp()));
 }
 
 /// The MarcoDeck server application
-class MarcoDeckServerApp extends StatefulWidget {
+class MarcoDeckServerApp extends ConsumerStatefulWidget {
   /// Creates a new MarcoDeck server app
   const MarcoDeckServerApp({super.key});
 
   @override
-  State<MarcoDeckServerApp> createState() => _MarcoDeckServerAppState();
+  ConsumerState<MarcoDeckServerApp> createState() => _MarcoDeckServerAppState();
 }
 
-class _MarcoDeckServerAppState extends State<MarcoDeckServerApp>
+class _MarcoDeckServerAppState extends ConsumerState<MarcoDeckServerApp>
     with WindowListener {
   final _server = MarcoServer();
   final _trayManager = SystemTrayManager();
-  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
     super.initState();
     // Register window manager listener
     windowManager.addListener(this);
-    // Load saved theme mode
-    _loadThemeMode();
-  }
-
-  /// Loads the theme mode from shared preferences
-  Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final themeModeIndex = prefs.getInt('themeMode') ?? 0;
-    setState(() {
-      _themeMode = ThemeMode.values[themeModeIndex];
-    });
-  }
-
-  /// Saves the theme mode to shared preferences
-  Future<void> _saveThemeMode(ThemeMode mode) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeMode', mode.index);
-    setState(() {
-      _themeMode = mode;
-    });
   }
 
   @override
@@ -103,17 +82,22 @@ class _MarcoDeckServerAppState extends State<MarcoDeckServerApp>
 
   @override
   Widget build(BuildContext context) {
+    final p = ref.watch(personalizationProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MarcoDeck Server',
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      themeMode: _themeMode,
-      home: ServerScreen(
-        server: _server,
-        themeMode: _themeMode,
-        onThemeModeChanged: _saveThemeMode,
+      theme: buildAppTheme(
+        brightness: Brightness.light,
+        accent: p.accent,
+        density: p.density,
       ),
+      darkTheme: buildAppTheme(
+        brightness: Brightness.dark,
+        accent: p.accent,
+        density: p.density,
+      ),
+      themeMode: p.themeMode,
+      home: ServerScreen(server: _server),
     );
   }
 }

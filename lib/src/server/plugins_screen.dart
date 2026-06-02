@@ -4,6 +4,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../design/design.dart';
 import 'plugins/plugin_manifest.dart';
 import 'plugins/plugin_registry.dart';
 import 'server.dart';
@@ -171,6 +172,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     final plugins = widget.server.plugins;
     final errors = widget.server.pluginErrors;
 
@@ -219,7 +221,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       await widget.server.rescanPlugins();
                     }),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: tokens.space.sm),
         ],
       ),
       body: DropTarget(
@@ -233,12 +235,13 @@ class _PluginsScreenState extends State<PluginsScreen> {
           children: [
             Column(
               children: [
-                if (_busy) const LinearProgressIndicator(minHeight: 2),
+                if (_busy)
+                  LinearProgressIndicator(minHeight: tokens.border.focus),
                 Expanded(
                   child: plugins.isEmpty
                       ? _buildEmptyState(context)
                       : ListView(
-                          padding: const EdgeInsets.all(16),
+                          padding: EdgeInsets.all(tokens.space.lg),
                           children: [
                             for (final plugin in plugins)
                               _buildPluginCard(plugin),
@@ -257,29 +260,37 @@ class _PluginsScreenState extends State<PluginsScreen> {
   }
 
   Widget _buildDropOverlay(ColorScheme colorScheme) {
+    final tokens = context.tokens;
     return Positioned.fill(
       child: Container(
-        color: colorScheme.primary.withValues(alpha: 0.12),
+        color: tokens.color.accentSubtle,
         child: Center(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: tokens.space.xxl,
+              vertical: tokens.space.xl,
+            ),
             decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colorScheme.primary, width: 2),
+              color: tokens.color.surface,
+              borderRadius: tokens.radius.brLg,
+              border: Border.all(
+                color: tokens.color.accent,
+                width: tokens.border.focus,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.download_outlined,
-                    size: 40, color: colorScheme.primary),
-                const SizedBox(height: 8),
+                    size: tokens.space.huge, color: tokens.color.accent),
+                SizedBox(height: tokens.space.sm),
                 Text(
                   'Drop a plugin folder or .zip to install',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.primary,
-                  ),
+                  style:
+                      Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: tokens.color.accent,
+                          ),
                 ),
               ],
             ),
@@ -290,29 +301,32 @@ class _PluginsScreenState extends State<PluginsScreen> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(tokens.space.xxxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.extension_outlined,
-                size: 56, color: colorScheme.onSurfaceVariant),
-            const SizedBox(height: 16),
+                size: tokens.space.huge, color: tokens.color.textSecondary),
+            SizedBox(height: tokens.space.lg),
             Text('No plugins installed',
                 style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
+            SizedBox(height: tokens.space.sm),
             Text(
               'Drag a plugin folder or .zip here, or use the + button to add '
               'one. It is copied into the plugins folder and stays disabled '
               'until you turn it on.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: tokens.color.textSecondary),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: tokens.space.lg),
             Wrap(
-              spacing: 12,
+              spacing: tokens.space.md,
               children: [
                 FilledButton.icon(
                   onPressed: _addFromFolder,
@@ -334,26 +348,32 @@ class _PluginsScreenState extends State<PluginsScreen> {
 
   Widget _buildPluginCard(InstalledPlugin plugin) {
     final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     final manifest = plugin.manifest;
     final connected = widget.server.isPluginConnected(manifest.id);
     final hasSettings = manifest.settings.isNotEmpty;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: tokens.space.md),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        padding: EdgeInsets.fromLTRB(
+          tokens.space.lg,
+          tokens.space.md,
+          tokens.space.sm,
+          tokens.space.md,
+        ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(tokens.space.sm),
               decoration: BoxDecoration(
                 color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: tokens.radius.brSm,
               ),
               child: Icon(Icons.extension,
                   color: colorScheme.onPrimaryContainer),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: tokens.space.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,35 +383,33 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       Flexible(
                         child: Text(
                           manifest.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: tokens.space.sm),
                       _statusChip(plugin.enabled, connected, colorScheme),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: tokens.space.xxs),
                   Text(
                     'v${manifest.version} · ${manifest.author}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                   ),
                   if (manifest.actions.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 4),
+                      padding: EdgeInsets.only(top: tokens.space.xs),
                       child: Text(
                         '${manifest.actions.length} action(s)'
                         '${manifest.states.isNotEmpty ? ' · ${manifest.states.length} live state(s)' : ''}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                       ),
                     ),
                 ],
@@ -399,12 +417,12 @@ class _PluginsScreenState extends State<PluginsScreen> {
             ),
             if (hasSettings)
               IconButton(
-                icon: const Icon(Icons.settings_outlined, size: 20),
+                icon: Icon(Icons.settings_outlined, size: tokens.icon.lg),
                 tooltip: 'Settings',
                 onPressed: _busy ? null : () => _editSettings(plugin),
               ),
             IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20),
+              icon: Icon(Icons.delete_outline, size: tokens.icon.lg),
               tooltip: 'Remove',
               onPressed: _busy ? null : () => _remove(plugin),
             ),
@@ -420,49 +438,62 @@ class _PluginsScreenState extends State<PluginsScreen> {
   }
 
   Widget _statusChip(bool enabled, bool connected, ColorScheme colorScheme) {
+    final tokens = context.tokens;
     late final Color color;
+    late final Color background;
     late final String label;
     if (!enabled) {
-      color = colorScheme.outline;
+      color = tokens.color.textMuted;
+      background = tokens.color.surfaceSubtle;
       label = 'Disabled';
     } else if (connected) {
-      color = Colors.green;
+      color = tokens.color.success;
+      background = tokens.color.successSubtle;
       label = 'Connected';
     } else {
-      color = Colors.orange;
+      color = tokens.color.warning;
+      background = tokens.color.warningSubtle;
       label = 'Starting…';
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: tokens.space.sm,
+        vertical: tokens.space.xxs,
+      ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
+        color: background,
+        borderRadius: tokens.radius.brXl,
       ),
       child: Text(
         label,
-        style: TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w600, color: color),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
       ),
     );
   }
 
   Widget _buildErrors(List<String> errors, ColorScheme colorScheme) {
+    final tokens = context.tokens;
     return Card(
       color: colorScheme.errorContainer,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(tokens.space.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Some plugins could not be loaded:',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onErrorContainer)),
-            const SizedBox(height: 4),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onErrorContainer,
+                    )),
+            SizedBox(height: tokens.space.xs),
             for (final e in errors)
               Text('• $e',
-                  style: TextStyle(
-                      fontSize: 12, color: colorScheme.onErrorContainer)),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colorScheme.onErrorContainer,
+                      )),
           ],
         ),
       ),
@@ -493,6 +524,7 @@ class _PluginSettingsDialogState extends State<_PluginSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final fields = widget.plugin.manifest.settings;
     return AlertDialog(
       title: Text('${widget.plugin.manifest.name} settings'),
@@ -504,7 +536,7 @@ class _PluginSettingsDialogState extends State<_PluginSettingsDialog> {
             children: [
               for (final field in fields)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  padding: EdgeInsets.symmetric(vertical: tokens.space.xs),
                   child: PluginFieldInput(
                     field: field,
                     value: _values[field.key],

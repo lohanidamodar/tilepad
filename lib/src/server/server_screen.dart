@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../models/button.dart' as models;
 import '../models/client_info.dart';
-import '../utils/theme.dart';
+import '../design/design.dart';
 import 'button_editor_page.dart';
 import 'plugins_screen.dart';
 import 'server.dart';
@@ -18,18 +18,10 @@ class ServerScreen extends StatefulWidget {
   /// The server instance
   final MarcoServer server;
 
-  /// Current theme mode
-  final ThemeMode themeMode;
-
-  /// Callback for when theme mode is changed
-  final ValueChanged<ThemeMode>? onThemeModeChanged;
-
   /// Creates a server screen
   const ServerScreen({
     super.key,
     required this.server,
-    this.themeMode = ThemeMode.system,
-    this.onThemeModeChanged,
   });
 
   @override
@@ -87,21 +79,26 @@ class _ServerScreenState extends State<ServerScreen> {
 
   /// Shows a status message based on the server status
   void _showStatusMessage(ServerStatus status) {
+    final t = context.tokens;
     Color backgroundColor;
-    final colorScheme = Theme.of(context).colorScheme;
+    Color foregroundColor;
 
     switch (status.type) {
       case ServerStatusType.started:
-        backgroundColor = colorScheme.primaryContainer;
+        backgroundColor = t.color.successSubtle;
+        foregroundColor = t.color.success;
         break;
       case ServerStatusType.stopped:
-        backgroundColor = colorScheme.errorContainer;
+        backgroundColor = t.color.dangerSubtle;
+        foregroundColor = t.color.danger;
         break;
       case ServerStatusType.restarting:
-        backgroundColor = colorScheme.secondaryContainer;
+        backgroundColor = t.color.warningSubtle;
+        foregroundColor = t.color.warning;
         break;
       case ServerStatusType.error:
-        backgroundColor = colorScheme.error;
+        backgroundColor = t.color.danger;
+        foregroundColor = t.color.onAccent;
         break;
     }
 
@@ -109,18 +106,16 @@ class _ServerScreenState extends State<ServerScreen> {
       SnackBar(
         content: Text(
           status.message,
-          style: TextStyle(
-            color:
-                backgroundColor.computeLuminance() > 0.5
-                    ? colorScheme.onPrimaryContainer
-                    : colorScheme.onErrorContainer,
-          ),
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: foregroundColor),
         ),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(AppTheme.spaceSmall),
+        margin: EdgeInsets.all(t.space.sm),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          borderRadius: t.radius.brSm,
         ),
       ),
     );
@@ -150,9 +145,9 @@ class _ServerScreenState extends State<ServerScreen> {
       if (!success) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to start server'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Failed to start server'),
+              backgroundColor: context.tokens.color.danger,
             ),
           );
         }
@@ -163,7 +158,10 @@ class _ServerScreenState extends State<ServerScreen> {
       debugPrint('Error initializing server: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: context.tokens.color.danger,
+          ),
         );
       }
     }
@@ -210,11 +208,11 @@ class _ServerScreenState extends State<ServerScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Enter a new port number between 1024 and 65535.',
-                  style: TextStyle(fontSize: 14),
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: context.tokens.space.lg),
                 TextField(
                   controller: _portController,
                   keyboardType: TextInputType.number,
@@ -239,9 +237,11 @@ class _ServerScreenState extends State<ServerScreen> {
                   if (newPort < 1024 || newPort > 65535) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Port must be between 1024 and 65535'),
-                          backgroundColor: Colors.red,
+                        SnackBar(
+                          content: const Text(
+                            'Port must be between 1024 and 65535',
+                          ),
+                          backgroundColor: context.tokens.color.danger,
                         ),
                       );
                     }
@@ -313,11 +313,11 @@ class _ServerScreenState extends State<ServerScreen> {
   void _deletePage(String id) {
     if (_pages.length <= 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
+        SnackBar(
+          content: const Text(
             'Cannot delete the last page. Create a new page first.',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: context.tokens.color.danger,
         ),
       );
       return;
@@ -348,8 +348,8 @@ class _ServerScreenState extends State<ServerScreen> {
                   Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.tokens.color.danger,
+                  foregroundColor: context.tokens.color.onAccent,
                 ),
                 child: const Text('Delete'),
               ),
@@ -362,9 +362,9 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _navigateToButtonEditor(models.Button? button) async {
     if (_selectedPage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a page first'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Please select a page first'),
+          backgroundColor: context.tokens.color.danger,
         ),
       );
       return;
@@ -419,8 +419,8 @@ class _ServerScreenState extends State<ServerScreen> {
                   Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.tokens.color.danger,
+                  foregroundColor: context.tokens.color.onAccent,
                 ),
                 child: const Text('Delete'),
               ),
@@ -456,11 +456,11 @@ class _ServerScreenState extends State<ServerScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'This is the name clients see when discovering this server.',
-                  style: TextStyle(fontSize: 14),
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: context.tokens.space.lg),
                 TextField(
                   controller: controller,
                   autofocus: true,
@@ -497,65 +497,67 @@ class _ServerScreenState extends State<ServerScreen> {
     }
   }
 
+  /// Opens the shared appearance picker (theme mode, accent, density).
+  void _showAppearanceSheet(BuildContext context) {
+    final t = context.tokens;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            t.space.xl,
+            t.space.sm,
+            t.space.xl,
+            t.space.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Appearance',
+                  style: Theme.of(context).textTheme.titleLarge),
+              SizedBox(height: t.space.lg),
+              const PersonalizationPanel(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.desktop_windows_rounded,
-                color: colorScheme.onPrimaryContainer,
-                size: 20,
+            Flexible(
+              child: Text(
+                _serverName,
+                style: textTheme.titleLarge,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _serverName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                Text(
-                  'MarcoDeck Server',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 4),
+            SizedBox(width: t.space.xxs),
             IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 18),
+              icon: Icon(Icons.edit_outlined, size: t.icon.sm),
               tooltip: 'Rename server',
               onPressed: _showRenameDialog,
               visualDensity: VisualDensity.compact,
-              color: colorScheme.onSurfaceVariant,
+              color: t.color.textMuted,
             ),
           ],
         ),
         actions: [
-          if (widget.onThemeModeChanged != null)
-            ThemeModeSelector(
-              currentThemeMode: widget.themeMode,
-              onThemeModeChanged: widget.onThemeModeChanged!,
-            ),
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: 'Appearance',
+            onPressed: () => _showAppearanceSheet(context),
+          ),
           IconButton(
             icon: const Icon(Icons.extension_outlined),
             tooltip: 'Plugins',
@@ -567,23 +569,19 @@ class _ServerScreenState extends State<ServerScreen> {
               );
             },
             style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.5,
-              ),
+              backgroundColor: t.color.surfaceSubtle,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: t.space.sm),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _refreshPages,
             tooltip: 'Refresh',
             style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.5,
-              ),
+              backgroundColor: t.color.surfaceSubtle,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: t.space.sm),
         ],
       ),
       body: LayoutBuilder(
@@ -594,7 +592,7 @@ class _ServerScreenState extends State<ServerScreen> {
           final isWide = constraints.maxWidth >= 900;
           if (!isWide) {
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(t.space.lg),
               children: [
                 ServerStatusCard(
                   serverIp: _serverIp,
@@ -618,7 +616,12 @@ class _ServerScreenState extends State<ServerScreen> {
               SizedBox(
                 width: 360,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+                  padding: EdgeInsets.fromLTRB(
+                    t.space.lg,
+                    t.space.lg,
+                    t.space.sm,
+                    t.space.lg,
+                  ),
                   children: [
                     ServerStatusCard(
                       serverIp: _serverIp,
@@ -635,11 +638,16 @@ class _ServerScreenState extends State<ServerScreen> {
                   ],
                 ),
               ),
-              const VerticalDivider(width: 1),
+              VerticalDivider(width: t.border.hairline),
               // Right pane: pages and buttons.
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(8, 16, 16, 16),
+                  padding: EdgeInsets.fromLTRB(
+                    t.space.sm,
+                    t.space.lg,
+                    t.space.lg,
+                    t.space.lg,
+                  ),
                   children: [_buildPagesSection()],
                 ),
               ),

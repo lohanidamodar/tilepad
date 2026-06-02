@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:picons/picons.dart';
 
+import '../design/design.dart';
 import '../models/button.dart';
 import '../utils/icon_picker_dialog.dart';
 import '../utils/macro_icons.dart';
@@ -334,9 +335,11 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
       if (_actions.isEmpty) {
         // Show error if no actions are defined
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please add at least one action to the button'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text(
+              'Please add at least one action to the button',
+            ),
+            backgroundColor: context.tokens.color.danger,
           ),
         );
         return;
@@ -408,9 +411,9 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         (_selectedType == ActionType.command ||
             _selectedType == ActionType.commandPreset)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a command'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Please enter a command'),
+          backgroundColor: context.tokens.color.danger,
         ),
       );
       return;
@@ -558,22 +561,24 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
               icon: const Icon(Icons.add),
               label: const Text('Add Action'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.tokens.space.lg,
+                  vertical: context.tokens.space.sm,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: context.tokens.space.sm),
         if (_actions.isEmpty)
           Center(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(context.tokens.space.lg),
               child: Text(
                 'No actions defined yet. Add your first action.',
-                style: TextStyle(color: Colors.grey[600]),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: context.tokens.color.textMuted,
+                    ),
               ),
             ),
           )
@@ -584,13 +589,14 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _actions.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
+              separatorBuilder: (context, index) =>
+                  Divider(height: context.tokens.border.hairline),
               itemBuilder: (context, index) {
                 final action = _actions[index];
                 return ListTile(
                   title: Text(
                     _getActionTypeString(action.type),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleSmall,
                   ),
                   subtitle: Text(_getActionDescription(action)),
                   leading: Icon(_getActionTypeIcon(action.type)),
@@ -598,13 +604,19 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_upward, size: 20),
+                        icon: Icon(
+                          Icons.arrow_upward,
+                          size: context.tokens.icon.lg,
+                        ),
                         onPressed:
                             index > 0 ? () => _moveActionUp(index) : null,
                         tooltip: 'Move Up',
                       ),
                       IconButton(
-                        icon: const Icon(Icons.arrow_downward, size: 20),
+                        icon: Icon(
+                          Icons.arrow_downward,
+                          size: context.tokens.icon.lg,
+                        ),
                         onPressed:
                             index < _actions.length - 1
                                 ? () => _moveActionDown(index)
@@ -612,12 +624,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                         tooltip: 'Move Down',
                       ),
                       IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
+                        icon: Icon(Icons.edit, size: context.tokens.icon.lg),
                         onPressed: () => _editAction(index),
                         tooltip: 'Edit',
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, size: 20),
+                        icon: Icon(Icons.delete, size: context.tokens.icon.lg),
                         onPressed: () => _deleteAction(index),
                         tooltip: 'Delete',
                       ),
@@ -627,7 +639,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
               },
             ),
           ),
-        const SizedBox(height: 16),
+        SizedBox(height: context.tokens.space.lg),
       ],
     );
   }
@@ -694,7 +706,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                   onPressed: _cancelActionEdit,
                   child: const Text('Cancel'),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: context.tokens.space.sm),
                 ElevatedButton(
                   onPressed: _saveAction,
                   child: const Text('Save Action'),
@@ -703,11 +715,11 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: context.tokens.space.lg),
 
         // Action type selection
         Text('Action Type', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: 8),
+        SizedBox(height: context.tokens.space.sm),
         SegmentedButton<ActionType>(
           segments: const [
             ButtonSegment<ActionType>(
@@ -733,7 +745,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
             });
           },
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: context.tokens.space.lg),
 
         // Custom command section
         if (_selectedType == ActionType.command)
@@ -749,7 +761,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                 ),
                 maxLines: 3,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: context.tokens.space.lg),
             ],
           ),
 
@@ -762,18 +774,18 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                 'Predefined Commands',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: context.tokens.space.sm),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: context.tokens.space.sm,
+                runSpacing: context.tokens.space.sm,
                 children:
                     predefinedCommands.map((command) {
                       return ChoiceChip(
                         label: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(command.icon, size: 16),
-                            const SizedBox(width: 4),
+                            Icon(command.icon, size: context.tokens.icon.sm),
+                            SizedBox(width: context.tokens.space.xs),
                             Text(command.name),
                           ],
                         ),
@@ -787,7 +799,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                       );
                     }).toList(),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: context.tokens.space.lg),
             ],
           ),
 
@@ -800,12 +812,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                 'Select Keystroke',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: context.tokens.space.sm),
 
               // Modifiers selection
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: context.tokens.space.sm,
+                runSpacing: context.tokens.space.sm,
                 children:
                     _modifierKeys.map((modifier) {
                       final isSelected = _selectedModifiers.contains(
@@ -817,10 +829,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                           children: [
                             Icon(
                               modifier.icon,
-                              size: 16,
-                              color: isSelected ? Colors.white : null,
+                              size: context.tokens.icon.sm,
+                              color: isSelected
+                                  ? context.tokens.color.onAccent
+                                  : null,
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: context.tokens.space.xs),
                             Text(modifier.name),
                           ],
                         ),
@@ -834,16 +848,17 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                             }
                           });
                         },
-                        backgroundColor: Colors.grey[200],
                         selectedColor: _hexToColor(_selectedColor),
-                        checkmarkColor: Colors.white,
+                        checkmarkColor: context.tokens.color.onAccent,
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : null,
+                          color: isSelected
+                              ? context.tokens.color.onAccent
+                              : null,
                         ),
                       );
                     }).toList(),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: context.tokens.space.lg),
 
               // Key selection
               DropdownButtonFormField<String>(
@@ -867,7 +882,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                   }
                 },
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: context.tokens.space.sm),
               Text(
                 'This will simulate pressing ${_getKeystrokeDescription()}',
                 style: Theme.of(context).textTheme.bodySmall,
@@ -875,7 +890,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
             ],
           ),
 
-        const SizedBox(height: 16),
+        SizedBox(height: context.tokens.space.lg),
         const Divider(),
       ],
     );
@@ -885,7 +900,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(context.tokens.space.lg),
         constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
         child: Form(
           key: _formKey,
@@ -897,7 +912,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                 widget.button == null ? 'Create Button' : 'Edit Button',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: context.tokens.space.lg),
 
               // Use Expanded + ListView instead of Column for better scrolling
               Expanded(
@@ -917,7 +932,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: context.tokens.space.lg),
 
                     // Actions list and editor
                     _buildActionsList(),
@@ -927,7 +942,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                       'Button Color',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: context.tokens.space.sm),
                     SizedBox(
                       height: 50,
                       child: ListView.builder(
@@ -939,8 +954,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                           final isSelected = colorHex == _selectedColor;
 
                           return Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8.0,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: context.tokens.space.sm,
                             ),
                             child: GestureDetector(
                               onTap: () {
@@ -949,27 +964,24 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                                 });
                               },
                               child: Container(
-                                width: 40,
-                                height: 40,
+                                width: context.tokens.icon.xl +
+                                    context.tokens.space.lg,
+                                height: context.tokens.icon.xl +
+                                    context.tokens.space.lg,
                                 decoration: BoxDecoration(
                                   color: color,
                                   shape: BoxShape.circle,
                                   border:
                                       isSelected
                                           ? Border.all(
-                                            color: Colors.white,
-                                            width: 3,
+                                            color: context
+                                                .tokens.color.surface,
+                                            width: context.tokens.border.focus,
                                           )
                                           : null,
                                   boxShadow:
                                       isSelected
-                                          ? [
-                                            BoxShadow(
-                                              color: Colors.black.withAlpha(50),
-                                              blurRadius: 5,
-                                              spreadRadius: 1,
-                                            ),
-                                          ]
+                                          ? context.tokens.shadowSm
                                           : null,
                                 ),
                               ),
@@ -978,12 +990,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: context.tokens.space.lg),
                     Text(
                       'Button Icon',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: context.tokens.space.sm),
 
                     // More icons button
                     Center(
@@ -991,43 +1003,46 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                         children: [
                           // Selected icon preview
                           Container(
-                            width: 60,
-                            height: 60,
+                            width: context.tokens.space.huge +
+                                context.tokens.space.md,
+                            height: context.tokens.space.huge +
+                                context.tokens.space.md,
                             decoration: BoxDecoration(
                               color: _hexToColor(_selectedColor),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: context.tokens.radius.brSm,
                             ),
                             child: Icon(
                               _getIconData(_selectedIcon),
-                              color: Colors.white,
-                              size: 36,
+                              color: context.tokens.color.onAccent,
+                              size: context.tokens.space.xxxl +
+                                  context.tokens.space.xs,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: context.tokens.space.sm),
                           TextButton.icon(
                             onPressed: _showExtendedIconPicker,
                             icon: const Icon(Icons.search),
                             label: const Text('More Icons'),
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.tokens.space.lg,
+                                vertical: context.tokens.space.sm,
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: context.tokens.space.sm),
 
                     // Icons grid
                     GridView.builder(
                       shrinkWrap: true,
                       gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
+                          SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 5,
-                            mainAxisSpacing: 4,
-                            crossAxisSpacing: 4,
+                            mainAxisSpacing: context.tokens.space.xs,
+                            crossAxisSpacing: context.tokens.space.xs,
                           ),
                       itemCount: _presetIcons.length,
                       itemBuilder: (context, index) {
@@ -1039,20 +1054,22 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                           onTap: () {
                             _selectIcon(icon);
                           },
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: context.tokens.radius.brSm,
                           child: Container(
-                            margin: const EdgeInsets.all(4),
+                            margin: EdgeInsets.all(context.tokens.space.xs),
                             decoration: BoxDecoration(
                               color:
                                   isSelected
                                       ? _hexToColor(_selectedColor)
-                                      : Colors.grey[200],
-                              borderRadius: BorderRadius.circular(8),
+                                      : context.tokens.color.surfaceSubtle,
+                              borderRadius: context.tokens.radius.brSm,
                             ),
                             child: Icon(
                               icon,
-                              size: 24,
-                              color: isSelected ? Colors.white : Colors.black87,
+                              size: context.tokens.icon.xl,
+                              color: isSelected
+                                  ? context.tokens.color.onAccent
+                                  : context.tokens.color.textPrimary,
                             ),
                           ),
                         );
@@ -1063,7 +1080,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
               ),
 
               // Bottom buttons
-              const SizedBox(height: 16),
+              SizedBox(height: context.tokens.space.lg),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -1071,7 +1088,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: context.tokens.space.lg),
                   ElevatedButton(
                     onPressed: _saveButton,
                     child: const Text('Save'),

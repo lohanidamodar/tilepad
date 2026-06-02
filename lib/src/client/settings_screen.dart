@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../design/design.dart';
 import '../utils/accessibility.dart';
-import '../utils/theme.dart';
 import 'client_providers.dart';
 
 /// Provider for accessibility settings
@@ -17,34 +17,43 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     final textTheme = Theme.of(context).textTheme;
     final accessibilityState = ref.watch(accessibilitySettingsProvider);
-    final themeMode = ref.watch(themeModeProvider);
     final keepAwake = ref.watch(keepAwakeProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(Icons.settings_rounded, color: colorScheme.primary),
-            const SizedBox(width: 12),
+            Icon(Icons.settings_rounded, color: t.color.accent),
+            SizedBox(width: t.space.md),
             const Text('Settings'),
           ],
         ),
         centerTitle: false,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppTheme.spaceLarge),
+        padding: EdgeInsets.all(t.space.lg),
         children: [
+          // Appearance Section (shared personalization panel)
+          _buildSection(
+            context: context,
+            title: 'Appearance',
+            icon: Icons.palette_rounded,
+            children: const [
+              PersonalizationPanel(),
+            ],
+          ),
+
+          SizedBox(height: t.space.xxl),
+
           // Display Settings Section
           _buildSection(
             context: context,
             title: 'Display',
             icon: Icons.display_settings_rounded,
             children: [
-              _buildThemeSelector(context, ref, themeMode),
-              const SizedBox(height: AppTheme.spaceLarge),
               _buildToggleSetting(
                 context: context,
                 title: 'Keep Screen Awake',
@@ -56,7 +65,7 @@ class SettingsScreen extends ConsumerWidget {
                   ref.read(keepAwakeProvider.notifier).setKeepAwake(value);
                 },
               ),
-              const SizedBox(height: AppTheme.spaceLarge),
+              SizedBox(height: t.space.lg),
               _buildToggleSetting(
                 context: context,
                 title: 'High Contrast Mode',
@@ -72,7 +81,7 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
 
-          const SizedBox(height: AppTheme.spaceXLarge),
+          SizedBox(height: t.space.xxl),
 
           // Accessibility Settings Section
           _buildSection(
@@ -92,12 +101,12 @@ class SettingsScreen extends ConsumerWidget {
                       .toggleReduceAnimations();
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: t.space.lg),
               _buildTextScaleSetting(context, ref, accessibilityState),
             ],
           ),
 
-          const SizedBox(height: AppTheme.spaceXLarge),
+          SizedBox(height: t.space.xxl),
 
           // Connection Settings Section
           _buildSection(
@@ -106,26 +115,32 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.wifi_rounded,
             children: [
               _buildDeviceNameSetting(context, ref),
-              const SizedBox(height: 16),
+              SizedBox(height: t.space.lg),
               _buildInfoCard(
                 context: context,
                 title: 'Auto-Reconnect',
                 subtitle: 'Automatically reconnects when connection is lost',
                 icon: Icons.refresh_rounded,
-                trailing: Icon(Icons.check_circle_rounded, color: Colors.green),
+                trailing: Icon(
+                  Icons.check_circle_rounded,
+                  color: t.color.success,
+                ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.space.md),
               _buildInfoCard(
                 context: context,
                 title: 'Connection Health Monitoring',
                 subtitle: 'Continuously monitors connection quality',
                 icon: Icons.health_and_safety_rounded,
-                trailing: Icon(Icons.check_circle_rounded, color: Colors.green),
+                trailing: Icon(
+                  Icons.check_circle_rounded,
+                  color: t.color.success,
+                ),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: t.space.xxl),
 
           // About Section
           _buildSection(
@@ -141,11 +156,11 @@ class SettingsScreen extends ConsumerWidget {
                 trailing: Text(
                   'v1.0.0',
                   style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                    color: t.color.textMuted,
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: t.space.md),
               _buildInfoCard(
                 context: context,
                 title: 'Open Source',
@@ -153,7 +168,7 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.code_rounded,
                 trailing: Icon(
                   Icons.open_in_new_rounded,
-                  color: colorScheme.primary,
+                  color: t.color.accent,
                 ),
               ),
             ],
@@ -169,23 +184,22 @@ class SettingsScreen extends ConsumerWidget {
     required IconData icon,
     required List<Widget> children,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     final textTheme = Theme.of(context).textTheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          padding: EdgeInsets.only(left: t.space.xs, bottom: t.space.md),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: colorScheme.primary),
-              const SizedBox(width: AppTheme.spaceSmall),
+              Icon(icon, size: t.icon.lg, color: t.color.accent),
+              SizedBox(width: t.space.sm),
               Text(
                 title,
                 style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
+                  color: t.color.accent,
                 ),
               ),
             ],
@@ -193,7 +207,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(AppTheme.spaceLarge),
+            padding: EdgeInsets.all(t.space.lg),
             child: Column(children: children),
           ),
         ),
@@ -349,123 +363,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildThemeSelector(
-    BuildContext context,
-    WidgetRef ref,
-    ThemeMode themeMode,
-  ) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          leading: Icon(Icons.palette_rounded, color: colorScheme.secondary),
-          title: const Text(
-            'Theme',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(_getThemeModeLabel(themeMode)),
-          contentPadding: EdgeInsets.zero,
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildThemeOption(
-                context: context,
-                label: 'Light',
-                icon: Icons.wb_sunny_rounded,
-                isSelected: themeMode == ThemeMode.light,
-                onTap:
-                    () => ref
-                        .read(themeModeProvider.notifier)
-                        .setThemeMode(ThemeMode.light),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildThemeOption(
-                context: context,
-                label: 'Dark',
-                icon: Icons.nightlight_rounded,
-                isSelected: themeMode == ThemeMode.dark,
-                onTap:
-                    () => ref
-                        .read(themeModeProvider.notifier)
-                        .setThemeMode(ThemeMode.dark),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildThemeOption(
-                context: context,
-                label: 'System',
-                icon: Icons.settings_suggest_rounded,
-                isSelected: themeMode == ThemeMode.system,
-                onTap:
-                    () => ref
-                        .read(themeModeProvider.notifier)
-                        .setThemeMode(ThemeMode.system),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildThemeOption({
-    required BuildContext context,
-    required String label,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color:
-          isSelected
-              ? colorScheme.primaryContainer
-              : colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppTheme.spaceMedium,
-            horizontal: AppTheme.spaceSmall,
-          ),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                color:
-                    isSelected
-                        ? colorScheme.onPrimaryContainer
-                        : colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(height: AppTheme.spaceXSmall),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color:
-                      isSelected
-                          ? colorScheme.onPrimaryContainer
-                          : colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildInfoCard({
     required BuildContext context,
     required String title,
@@ -473,25 +370,13 @@ class SettingsScreen extends ConsumerWidget {
     required IconData icon,
     Widget? trailing,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
-
+    final t = context.tokens;
     return ListTile(
-      leading: Icon(icon, color: colorScheme.secondary),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      leading: Icon(icon, color: t.color.accent),
+      title: Text(title, style: Theme.of(context).textTheme.titleSmall),
       subtitle: Text(subtitle),
       trailing: trailing,
       contentPadding: EdgeInsets.zero,
     );
-  }
-
-  String _getThemeModeLabel(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return 'Light theme';
-      case ThemeMode.dark:
-        return 'Dark theme';
-      case ThemeMode.system:
-        return 'Follow system setting';
-    }
   }
 }

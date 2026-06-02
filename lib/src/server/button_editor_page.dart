@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../utils/macro_icons.dart';
 
+import '../design/design.dart';
 import '../models/button.dart';
 import '../utils/icon_picker_dialog.dart';
 import 'action_editor_page.dart';
@@ -99,9 +100,9 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
       if (_actions.isEmpty) {
         // Show error if no actions are defined
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please add at least one action to the button'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('Please add at least one action to the button'),
+            backgroundColor: context.tokens.color.danger,
           ),
         );
         return;
@@ -197,7 +198,9 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                 child: const Text('Cancel'),
               ),
               TextButton(
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: TextButton.styleFrom(
+                  foregroundColor: context.tokens.color.danger,
+                ),
                 onPressed: () {
                   setState(() {
                     _actions.removeAt(index);
@@ -291,6 +294,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
     }
 
     final theme = Theme.of(context);
+    final tokens = context.tokens;
     final currentKey = _stateBinding == null
         ? null
         : '${_stateBinding!.pluginId}|${_stateBinding!.stateId}';
@@ -298,40 +302,40 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
     return Card(
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      shape: RoundedRectangleBorder(borderRadius: tokens.radius.brMd),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(tokens.space.lg),
             color: theme.colorScheme.primary,
             child: Text(
               'Live Tile (optional)',
-              style: TextStyle(
+              style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onPrimary,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(tokens.space.lg),
             child: states.isEmpty
                 ? Text(
                     'Install and enable a plugin that exposes live states to '
                     'drive this button with live data.',
-                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant),
                   )
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Show a live value from a plugin on this button.',
-                        style: TextStyle(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: tokens.space.md),
                       DropdownButtonFormField<String?>(
                         initialValue: hasMatch ? currentKey : null,
                         decoration: const InputDecoration(
@@ -364,7 +368,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                         },
                       ),
                       if (_stateBinding != null) ...[
-                        const SizedBox(height: 12),
+                        SizedBox(height: tokens.space.md),
                         SegmentedButton<StateBindingMode>(
                           segments: const [
                             ButtonSegment(
@@ -400,6 +404,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.button == null ? 'Create Button' : 'Edit Button'),
@@ -414,7 +419,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(tokens.space.lg),
           children: [
             // Button name
             TextFormField(
@@ -434,31 +439,31 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                 return null;
               },
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: tokens.space.xxl),
 
             // Actions section
             Card(
               margin: EdgeInsets.zero,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: tokens.radius.brMd,
               ),
               clipBehavior: Clip.antiAlias,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(tokens.space.lg),
                     color: Theme.of(context).colorScheme.primary,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Actions (${_actions.length})',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                         FilledButton.icon(
                           onPressed: () => _navigateToActionEditor(null, -1),
@@ -477,13 +482,14 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                     ),
                   ),
                   if (_actions.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24.0),
+                    Padding(
+                      padding: EdgeInsets.all(tokens.space.xxl),
                       child: Center(
                         child: Text(
                           'No actions yet. Add your first action by clicking the button above.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: tokens.color.textMuted),
                         ),
                       ),
                     )
@@ -502,9 +508,9 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                         final action = _actions[index];
                         return Card(
                           key: ValueKey(action.id),
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 8.0,
-                            vertical: 4.0,
+                          margin: EdgeInsets.symmetric(
+                            horizontal: tokens.space.sm,
+                            vertical: tokens.space.xs,
                           ),
                           child: ListTile(
                             leading: CircleAvatar(
@@ -516,16 +522,15 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                             ),
                             title: Text(
                               _getActionTypeString(action.type),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             subtitle: Text(_getActionDescription(action)),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.edit, size: 20),
+                                  icon: Icon(Icons.edit, size: tokens.icon.lg),
                                   onPressed:
                                       () => _navigateToActionEditor(
                                         action,
@@ -534,7 +539,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                                   tooltip: 'Edit',
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete, size: 20),
+                                  icon:
+                                      Icon(Icons.delete, size: tokens.icon.lg),
                                   onPressed: () => _deleteAction(index),
                                   tooltip: 'Delete',
                                 ),
@@ -548,36 +554,35 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: tokens.space.xxl),
 
             // Live tile section (plugin-driven dynamic title/icon)
             _buildLiveTileSection(),
-            const SizedBox(height: 24),
+            SizedBox(height: tokens.space.xxl),
 
             // Button appearance section
             Card(
               margin: EdgeInsets.zero,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: tokens.radius.brMd,
               ),
               clipBehavior: Clip.antiAlias,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(tokens.space.lg),
                     color: Theme.of(context).colorScheme.primary,
                     child: Text(
                       'Button Appearance',
-                      style: TextStyle(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onPrimary,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(tokens.space.lg),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -588,12 +593,12 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                             height: 120,
                             decoration: BoxDecoration(
                               color: _hexToColor(_selectedColor),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: tokens.radius.brLg,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withAlpha(40),
-                                  blurRadius: 10,
-                                  spreadRadius: 1,
+                                  color: tokens.color.shadow,
+                                  blurRadius: tokens.space.sm,
+                                  spreadRadius: tokens.border.hairline,
                                 ),
                               ],
                             ),
@@ -602,31 +607,32 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                               children: [
                                 Icon(
                                   _getIconData(_selectedIcon),
-                                  size: 50,
+                                  size: tokens.space.huge,
                                   color: Colors.white,
                                 ),
-                                const SizedBox(height: 8),
+                                SizedBox(height: tokens.space.sm),
                                 Text(
                                   _nameController.text.isEmpty
                                       ? 'Button Name'
                                       : _nameController.text,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        SizedBox(height: tokens.space.xxl),
 
                         // Color selection
                         Text(
                           'Button Color',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: tokens.space.sm),
                         SizedBox(
                           height: 60,
                           child: ListView.builder(
@@ -638,8 +644,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                               final isSelected = colorHex == _selectedColor;
 
                               return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: tokens.space.sm,
                                 ),
                                 child: GestureDetector(
                                   onTap: () {
@@ -657,18 +663,17 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                                           isSelected
                                               ? Border.all(
                                                 color: Colors.white,
-                                                width: 3,
+                                                width: tokens.border.focus,
                                               )
                                               : null,
                                       boxShadow:
                                           isSelected
                                               ? [
                                                 BoxShadow(
-                                                  color: Colors.black.withAlpha(
-                                                    50,
-                                                  ),
-                                                  blurRadius: 5,
-                                                  spreadRadius: 1,
+                                                  color: tokens.color.shadow,
+                                                  blurRadius: tokens.space.xs,
+                                                  spreadRadius:
+                                                      tokens.border.hairline,
                                                 ),
                                               ]
                                               : null,
@@ -679,36 +684,36 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                             },
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        SizedBox(height: tokens.space.xxl),
 
                         // Icon selection
                         Text(
                           'Button Icon',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: tokens.space.sm),
                         TextButton.icon(
                           onPressed: _showExtendedIconPicker,
                           icon: const Icon(Icons.search),
                           label: const Text('Browse Icons'),
                           style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: tokens.space.lg,
+                              vertical: tokens.space.sm,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: tokens.space.sm),
 
                         // Icons grid
                         GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
+                              SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 6,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
+                                mainAxisSpacing: tokens.space.sm,
+                                crossAxisSpacing: tokens.space.sm,
                               ),
                           itemCount: _presetIcons.length,
                           itemBuilder: (context, index) {
@@ -720,22 +725,22 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                               onTap: () {
                                 _selectIcon(icon);
                               },
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: tokens.radius.brSm,
                               child: Container(
                                 decoration: BoxDecoration(
                                   color:
                                       isSelected
                                           ? _hexToColor(_selectedColor)
-                                          : Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(8),
+                                          : tokens.color.surfaceSubtle,
+                                  borderRadius: tokens.radius.brSm,
                                 ),
                                 child: Icon(
                                   icon,
-                                  size: 24,
+                                  size: tokens.icon.xl,
                                   color:
                                       isSelected
                                           ? Colors.white
-                                          : Colors.black87,
+                                          : tokens.color.textPrimary,
                                 ),
                               ),
                             );

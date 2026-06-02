@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
+import '../design/design.dart';
 import '../models/server_connection.dart';
 import '../utils/accessibility.dart';
 import 'client_providers.dart';
@@ -70,7 +71,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   }
 
   void _showResultBottomSheet(BuildContext context, CommandResultEvent result) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
 
     showModalBottomSheet(
       context: context,
@@ -84,33 +85,26 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
             builder:
                 (context, scrollController) => Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                    color: tokens.color.surfaceRaised,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(tokens.radius.lg),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.shadow.withAlpha(50),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
+                    boxShadow: tokens.shadowMd,
                   ),
                   child: Column(
                     children: [
                       // Header with drag handle
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: tokens.space.lg,
+                          vertical: tokens.space.md,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              result.success
-                                  ? colorScheme.primaryContainer
-                                  : colorScheme.errorContainer,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: tokens.color.border,
+                              width: tokens.border.hairline,
+                            ),
                           ),
                         ),
                         child: Column(
@@ -118,54 +112,45 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                             // Drag handle
                             Center(
                               child: Container(
-                                width: 40,
-                                height: 4,
-                                margin: const EdgeInsets.only(bottom: 12),
+                                width: tokens.space.huge - tokens.space.sm,
+                                height: tokens.space.xs,
+                                margin: EdgeInsets.only(
+                                  bottom: tokens.space.md,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: (result.success
-                                          ? colorScheme.onPrimaryContainer
-                                          : colorScheme.onErrorContainer)
-                                      .withAlpha(100),
-                                  borderRadius: BorderRadius.circular(2),
+                                  color: tokens.color.border,
+                                  borderRadius: tokens.radius.brXs,
                                 ),
                               ),
                             ),
                             // Title row
                             Row(
                               children: [
-                                Icon(
-                                  result.success
-                                      ? Icons.check_circle
-                                      : Icons.error,
-                                  color:
-                                      result.success
-                                          ? colorScheme.onPrimaryContainer
-                                          : colorScheme.onErrorContainer,
-                                  size: 24,
+                                Container(
+                                  width: tokens.space.sm,
+                                  height: tokens.space.sm,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: result.success
+                                        ? tokens.color.success
+                                        : tokens.color.danger,
+                                  ),
                                 ),
-                                const SizedBox(width: 12),
+                                SizedBox(width: tokens.space.md),
                                 Expanded(
                                   child: Text(
                                     result.success
                                         ? 'Command Result'
                                         : 'Command Error',
-                                    style: TextStyle(
-                                      color:
-                                          result.success
-                                              ? colorScheme.onPrimaryContainer
-                                              : colorScheme.onErrorContainer,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge,
                                   ),
                                 ),
                                 IconButton(
                                   icon: Icon(
                                     Icons.close,
-                                    color:
-                                        result.success
-                                            ? colorScheme.onPrimaryContainer
-                                            : colorScheme.onErrorContainer,
+                                    color: tokens.color.textSecondary,
                                   ),
                                   onPressed: () => Navigator.pop(context),
                                 ),
@@ -178,26 +163,25 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                       Expanded(
                         child: ListView(
                           controller: scrollController,
-                          padding: const EdgeInsets.all(16),
+                          padding: EdgeInsets.all(tokens.space.lg),
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(tokens.space.lg),
                               decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(12),
+                                color: tokens.color.surfaceSubtle,
+                                borderRadius: tokens.radius.brMd,
                                 border: Border.all(
-                                  color: colorScheme.outlineVariant,
-                                  width: 1,
+                                  color: tokens.color.border,
+                                  width: tokens.border.hairline,
                                 ),
                               ),
                               child: SelectableText(
                                 result.success
                                     ? result.output
                                     : 'Error: ${result.error}',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontSize: 13,
+                                style: AppTypography.mono(
+                                  color: tokens.color.textSecondary,
+                                  fontSize: tokens.typeScale.mono,
                                 ),
                               ),
                             ),
@@ -227,7 +211,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   /// "Details" action that opens the full result sheet whenever there is
   /// output to show or an error to inspect.
   void _handleCommandResult(BuildContext context, CommandResultEvent result) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     final name = _buttonName(result.buttonId);
     final hasDetail = result.success ? result.output.trim().isNotEmpty : true;
 
@@ -236,36 +220,35 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     );
 
     final fg =
-        result.success
-            ? colorScheme.onPrimaryContainer
-            : colorScheme.onErrorContainer;
+        result.success ? tokens.color.success : tokens.color.danger;
 
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            result.success
-                ? colorScheme.primaryContainer
-                : colorScheme.errorContainer,
+        backgroundColor: tokens.color.surfaceRaised,
         duration: Duration(seconds: hasDetail ? 4 : 2),
         content: Row(
           children: [
-            Icon(
-              result.success
-                  ? Icons.check_circle_rounded
-                  : Icons.error_rounded,
-              color: fg,
-              size: 20,
+            Container(
+              width: tokens.space.sm,
+              height: tokens.space.sm,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: fg,
+              ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: tokens.space.md),
             Expanded(
               child: Text(
                 result.success
                     ? 'Ran ${name ?? 'command'}'
                     : 'Failed: ${name ?? 'command'}',
-                style: TextStyle(color: fg, fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: tokens.color.textPrimary,
+                      fontWeight: tokens.typeScale.wMedium,
+                    ),
               ),
             ),
           ],
@@ -295,7 +278,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   }
 
   void _connectToDefault(BuildContext context) async {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
 
     // Get the default server ID using the provider
     final connectionsNotifier = ref.read(serverConnectionsProvider.notifier);
@@ -332,9 +315,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           SnackBar(
             content: Text('Connected to ${defaultServer.name}'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: colorScheme.primaryContainer,
             showCloseIcon: true,
-            closeIconColor: colorScheme.onPrimaryContainer,
+            closeIconColor: tokens.color.success,
           ),
         );
       } else {
@@ -343,9 +325,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           SnackBar(
             content: const Text('Failed to connect to default server'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: colorScheme.errorContainer,
             showCloseIcon: true,
-            closeIconColor: colorScheme.onErrorContainer,
+            closeIconColor: tokens.color.danger,
           ),
         );
       }
@@ -354,7 +335,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
         SnackBar(
           content: const Text('No default server set'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: colorScheme.surface,
           showCloseIcon: true,
         ),
       );
@@ -372,7 +352,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     final connectionState = ref.watch(connectionStateProvider);
     final pages = ref.watch(pagesProvider);
     final selectedPageIndex = ref.watch(selectedPageIndexProvider);
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
 
     // Show lightweight feedback when a command result arrives.
     ref.listen<CommandResultEvent?>(commandResultProvider, (previous, next) {
@@ -431,34 +411,30 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
             Flexible(
               child: Text(
                 connectionState.connection?.name ?? 'MarcoDeck',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: tokens.typeScale.wBold),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             if (isConnected)
-              Container(
-                margin: const EdgeInsets.only(left: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+              Padding(
+                padding: EdgeInsets.only(left: tokens.space.sm),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: 12,
-                      color: colorScheme.onPrimaryContainer,
+                    Container(
+                      width: tokens.space.sm,
+                      height: tokens.space.sm,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: tokens.color.success,
+                      ),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: tokens.space.xs),
                     Text(
                       'Connected',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: tokens.color.textMuted,
+                          ),
                     ),
                   ],
                 ),
@@ -470,7 +446,9 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh buttons',
-              style: IconButton.styleFrom(foregroundColor: colorScheme.primary),
+              style: IconButton.styleFrom(
+                foregroundColor: tokens.color.textSecondary,
+              ),
               onPressed: () {
                 // Before refreshing, ensure connection is active
                 ref.read(connectionStateProvider.notifier).requestButtons();
@@ -479,14 +457,13 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     content: const Text('Buttons refreshed'),
                     behavior: SnackBarBehavior.floating,
                     duration: const Duration(seconds: 1),
-                    backgroundColor: colorScheme.primaryContainer,
                     showCloseIcon: true,
                   ),
                 );
               },
             ),
           PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: colorScheme.onSurfaceVariant),
+            icon: Icon(Icons.more_vert, color: tokens.color.textSecondary),
             position: PopupMenuPosition.under,
             onSelected: (value) {
               switch (value) {
@@ -512,7 +489,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                   PopupMenuItem<String>(
                     value: 'settings',
                     child: ListTile(
-                      leading: Icon(Icons.settings, color: colorScheme.primary),
+                      leading: Icon(
+                        Icons.settings_outlined,
+                        color: tokens.color.textSecondary,
+                      ),
                       title: const Text('Settings'),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -521,7 +501,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                   PopupMenuItem<String>(
                     value: 'servers',
                     child: ListTile(
-                      leading: Icon(Icons.computer, color: colorScheme.primary),
+                      leading: Icon(
+                        Icons.dns_outlined,
+                        color: tokens.color.textSecondary,
+                      ),
                       title: const Text('Manage Servers'),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -532,7 +515,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     child: ListTile(
                       leading: Icon(
                         Icons.add_circle_outline,
-                        color: colorScheme.primary,
+                        color: tokens.color.textSecondary,
                       ),
                       title: const Text('Add New Server'),
                       contentPadding: EdgeInsets.zero,
@@ -543,7 +526,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     PopupMenuItem<String>(
                       value: 'connect_default',
                       child: ListTile(
-                        leading: Icon(Icons.link, color: colorScheme.primary),
+                        leading: Icon(
+                          Icons.link,
+                          color: tokens.color.textSecondary,
+                        ),
                         title: const Text('Connect to Default'),
                         contentPadding: EdgeInsets.zero,
                         dense: true,
@@ -553,10 +539,11 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     PopupMenuItem<String>(
                       value: 'disconnect',
                       child: ListTile(
-                        leading: Icon(Icons.link_off, color: colorScheme.error),
+                        leading:
+                            Icon(Icons.link_off, color: tokens.color.danger),
                         title: Text(
                           'Disconnect',
-                          style: TextStyle(color: colorScheme.error),
+                          style: TextStyle(color: tokens.color.danger),
                         ),
                         contentPadding: EdgeInsets.zero,
                         dense: true,
@@ -575,33 +562,36 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 // Page name and indicator
                 if (pages.isNotEmpty && selectedPageIndex < pages.length)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                    padding: EdgeInsets.fromLTRB(
+                      tokens.space.lg,
+                      tokens.space.md,
+                      tokens.space.lg,
+                      tokens.space.xs,
+                    ),
                     child: Column(
                       children: [
                         Text(
                           pages[selectedPageIndex].name,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                            color: colorScheme.onSurface,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(color: tokens.color.textPrimary),
                           textAlign: TextAlign.center,
                         ),
                         // Page indicator dots
                         if (pages.length > 1)
                           Padding(
-                            padding: const EdgeInsets.only(top: 10.0),
+                            padding: EdgeInsets.only(top: tokens.space.sm),
                             child: SmoothPageIndicator(
                               controller: _pageController,
                               count: pages.length,
                               effect: WormEffect(
-                                dotHeight: 8,
-                                dotWidth: 8,
-                                activeDotColor: colorScheme.primary,
-                                dotColor: colorScheme.outlineVariant,
-                                spacing: 8,
-                                radius: 4,
+                                dotHeight: tokens.space.sm,
+                                dotWidth: tokens.space.sm,
+                                activeDotColor: tokens.color.accent,
+                                dotColor: tokens.color.border,
+                                spacing: tokens.space.sm,
+                                radius: tokens.space.xs,
                               ),
                               onDotClicked: (index) {
                                 _pageController.animateToPage(
@@ -623,40 +613,35 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           ? (_awaitingButtons
                               ? const _SkeletonGrid()
                               : Center(
-                            child: Container(
-                              padding: const EdgeInsets.all(24),
-                              margin: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface.withAlpha(127),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant,
-                                  width: 1,
-                                ),
-                              ),
+                            child: Padding(
+                              padding: EdgeInsets.all(tokens.space.xxl),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    Icons.grid_view_rounded,
-                                    size: 48,
-                                    color: colorScheme.primary,
+                                    Icons.grid_view_outlined,
+                                    size: tokens.space.huge,
+                                    color: tokens.color.textMuted,
                                   ),
-                                  const SizedBox(height: 16),
+                                  SizedBox(height: tokens.space.lg),
                                   Text(
                                     'No buttons configured',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          color: tokens.color.textSecondary,
+                                        ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: tokens.space.sm),
                                   Text(
                                     'Configure buttons in the server application',
-                                    style: TextStyle(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.copyWith(
+                                          color: tokens.color.textMuted,
+                                        ),
                                     textAlign: TextAlign.center,
                                   ),
                                 ],
@@ -695,76 +680,55 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
               connectionState.status == ConnectionStatus.error ||
               connectionState.status == ConnectionStatus.reconnecting)
             Container(
-              color: colorScheme.scrim.withValues(alpha: 0.85),
+              color: tokens.color.scrim,
               alignment: Alignment.center,
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 400),
-                margin: const EdgeInsets.all(32),
-                padding: const EdgeInsets.all(32),
+                margin: EdgeInsets.all(tokens.space.xxxl),
+                padding: EdgeInsets.all(tokens.space.xxxl),
                 decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.3),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                      spreadRadius: 2,
-                    ),
-                  ],
+                  color: tokens.color.surfaceRaised,
+                  borderRadius: tokens.radius.brLg,
+                  border: Border.all(
+                    color: tokens.color.border,
+                    width: tokens.border.hairline,
+                  ),
+                  boxShadow: tokens.shadowMd,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Icon with background
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color:
-                            connectionState.status == ConnectionStatus.error
-                                ? colorScheme.errorContainer.withValues(
-                                  alpha: 0.3,
-                                )
-                                : colorScheme.primaryContainer.withValues(
-                                  alpha: 0.3,
+                    // Flat monochrome status icon.
+                    connectionState.status == ConnectionStatus.reconnecting
+                        ? TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 1500),
+                            onEnd: () {
+                              // Loop the animation
+                            },
+                            builder: (context, value, child) {
+                              return Transform.rotate(
+                                angle:
+                                    value * 6.28318, // 2*pi for full rotation
+                                child: Icon(
+                                  Icons.sync,
+                                  color: tokens.color.textSecondary,
+                                  size: tokens.space.huge,
                                 ),
-                        shape: BoxShape.circle,
-                      ),
-                      child:
-                          connectionState.status ==
-                                  ConnectionStatus.reconnecting
-                              ? TweenAnimationBuilder<double>(
-                                tween: Tween<double>(begin: 0.0, end: 1.0),
-                                duration: const Duration(milliseconds: 1500),
-                                onEnd: () {
-                                  // Loop the animation
-                                },
-                                builder: (context, value, child) {
-                                  return Transform.rotate(
-                                    angle:
-                                        value *
-                                        6.28318, // 2*pi for full rotation
-                                    child: Icon(
-                                      Icons.sync,
-                                      color: colorScheme.primary,
-                                      size: 56,
-                                    ),
-                                  );
-                                },
-                              )
-                              : Icon(
+                              );
+                            },
+                          )
+                        : Icon(
+                            connectionState.status == ConnectionStatus.error
+                                ? Icons.error_outline
+                                : Icons.wifi_find,
+                            color:
                                 connectionState.status == ConnectionStatus.error
-                                    ? Icons.error_outline
-                                    : Icons.wifi_find,
-                                color:
-                                    connectionState.status ==
-                                            ConnectionStatus.error
-                                        ? colorScheme.error
-                                        : colorScheme.primary,
-                                size: 56,
-                              ),
-                    ),
-                    const SizedBox(height: 24),
+                                    ? tokens.color.danger
+                                    : tokens.color.textSecondary,
+                            size: tokens.space.huge,
+                          ),
+                    SizedBox(height: tokens.space.xxl),
                     Text(
                       connectionState.status == ConnectionStatus.connecting
                           ? 'Connecting...'
@@ -772,36 +736,25 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                               ConnectionStatus.reconnecting
                           ? 'Reconnecting...'
                           : 'Connection Failed',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            connectionState.status == ConnectionStatus.error
-                                ? colorScheme.error
-                                : colorScheme.onSurface,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            color: connectionState.status ==
+                                    ConnectionStatus.error
+                                ? tokens.color.danger
+                                : tokens.color.textPrimary,
+                          ),
                     ),
                     if (connectionState.errorMessage != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.5,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          connectionState.errorMessage!,
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                      SizedBox(height: tokens.space.md),
+                      Text(
+                        connectionState.errorMessage!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(color: tokens.color.textMuted),
+                        textAlign: TextAlign.center,
                       ),
                     ],
-                    const SizedBox(height: 28),
+                    SizedBox(height: tokens.space.xxl),
                     // Action buttons
                     if (connectionState.status == ConnectionStatus.error) ...[
                       SizedBox(
@@ -815,14 +768,16 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           icon: const Icon(Icons.refresh_rounded),
                           label: const Text('Retry Connection'),
                           style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(
+                              vertical: tokens.space.lg,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: tokens.radius.brMd,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: tokens.space.md),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -834,9 +789,11 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           icon: const Icon(Icons.close_rounded),
                           label: const Text('Dismiss'),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(
+                              vertical: tokens.space.lg,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: tokens.radius.brMd,
                             ),
                           ),
                         ),
@@ -859,16 +816,17 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           icon: const Icon(Icons.flash_on_rounded),
                           label: const Text('Reconnect Now'),
                           style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: colorScheme.primaryContainer,
-                            foregroundColor: colorScheme.onPrimaryContainer,
+                            padding: EdgeInsets.symmetric(
+                              vertical: tokens.space.lg,
+                            ),
+                            foregroundColor: tokens.color.accent,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: tokens.radius.brMd,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: tokens.space.md),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -880,10 +838,12 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           icon: const Icon(Icons.cancel_rounded),
                           label: const Text('Cancel'),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            foregroundColor: colorScheme.error,
+                            padding: EdgeInsets.symmetric(
+                              vertical: tokens.space.lg,
+                            ),
+                            foregroundColor: tokens.color.danger,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: tokens.radius.brMd,
                             ),
                           ),
                         ),
@@ -900,9 +860,11 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                           icon: const Icon(Icons.cancel_rounded),
                           label: const Text('Cancel'),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(
+                              vertical: tokens.space.lg,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: tokens.radius.brMd,
                             ),
                           ),
                         ),
@@ -918,101 +880,83 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   }
 
   Widget _buildNoConnectionView(BuildContext context) {
+    final tokens = context.tokens;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 360),
-        padding: const EdgeInsets.all(32),
-        margin: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: colorScheme.surface.withAlpha(127),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colorScheme.outlineVariant, width: 1),
-        ),
+        padding: EdgeInsets.all(tokens.space.xxxl),
+        margin: EdgeInsets.all(tokens.space.xxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: colorScheme.shadow.withValues(alpha: 0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(24),
-              margin: const EdgeInsets.only(bottom: 24),
+            Padding(
+              padding: EdgeInsets.only(bottom: tokens.space.xxl),
               child: Image.asset(
                 'assets/logo.png',
                 height: 100,
                 errorBuilder:
                     (context, error, stackTrace) => Icon(
-                      Icons.devices,
-                      size: 80,
-                      color: colorScheme.onPrimaryContainer,
+                      Icons.devices_outlined,
+                      size: tokens.space.huge + tokens.space.xxxl,
+                      color: tokens.color.textMuted,
                     ),
               ),
             ),
             Text(
               'Not Connected',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: tokens.color.textSecondary,
+                  ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: tokens.space.lg),
             Text(
               'Connect to a server to view and use your macro buttons',
-              style: TextStyle(
-                fontSize: 16,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: tokens.typeScale.wRegular,
+                    color: tokens.color.textSecondary,
+                  ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: tokens.space.xxxl),
             FilledButton.icon(
               icon: const Icon(Icons.computer),
               label: const Text('Choose Server'),
               onPressed: () => _showServerManager(context),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
+                padding: EdgeInsets.symmetric(
+                  horizontal: tokens.space.xxl,
+                  vertical: tokens.space.lg,
                 ),
                 minimumSize: const Size(240, 0),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: tokens.space.lg),
             OutlinedButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Add New Server'),
               onPressed: () => _showAddServerDialog(context),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
+                padding: EdgeInsets.symmetric(
+                  horizontal: tokens.space.xxl,
+                  vertical: tokens.space.lg,
                 ),
                 minimumSize: const Size(240, 0),
               ),
             ),
             if (ref.read(serverConnectionsProvider.notifier).defaultServerId !=
                 null) ...[
-              const SizedBox(height: 24),
+              SizedBox(height: tokens.space.xxl),
               FilledButton.tonalIcon(
                 icon: const Icon(Icons.link),
                 label: const Text('Connect to Default Server'),
                 onPressed: () => _connectToDefault(context),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: tokens.space.xxl,
+                    vertical: tokens.space.lg,
                   ),
                   backgroundColor: colorScheme.secondaryContainer,
                   foregroundColor: colorScheme.onSecondaryContainer,
@@ -1050,7 +994,7 @@ class _SkeletonGridState extends State<_SkeletonGrid>
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -1065,12 +1009,12 @@ class _SkeletonGridState extends State<_SkeletonGrid>
                             ? 5
                             : 6;
         return GridView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(tokens.space.lg),
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            crossAxisSpacing: tokens.space.md,
+            mainAxisSpacing: tokens.space.md,
             childAspectRatio: 1.0,
           ),
           itemCount: columns * 3,
@@ -1079,8 +1023,8 @@ class _SkeletonGridState extends State<_SkeletonGrid>
               opacity: Tween<double>(begin: 0.35, end: 0.7).animate(_controller),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
+                  color: tokens.color.surfaceSubtle,
+                  borderRadius: tokens.radius.brLg,
                 ),
               ),
             );

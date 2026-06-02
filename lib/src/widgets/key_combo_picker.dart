@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../design/design.dart';
+
 /// A modifier key option shown as a selectable chip.
 class _ModifierOption {
   final String name;
@@ -69,7 +71,7 @@ class _KeyComboPickerState extends State<KeyComboPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -77,40 +79,43 @@ class _KeyComboPickerState extends State<KeyComboPicker> {
         // Preview
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+          padding: EdgeInsets.symmetric(
+            vertical: tokens.space.md,
+            horizontal: tokens.space.xl,
+          ),
           decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(8),
+            color: tokens.color.accentSubtle,
+            borderRadius: tokens.radius.brSm,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.keyboard, color: colorScheme.onPrimaryContainer),
-              const SizedBox(width: 12),
+              Icon(Icons.keyboard, color: tokens.color.accent),
+              SizedBox(width: tokens.space.md),
               Flexible(
                 child: Text(
                   _preview,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onPrimaryContainer,
+                  style: AppTypography.mono(
+                    fontSize: tokens.typeScale.body,
+                    fontWeight: tokens.typeScale.wBold,
+                    color: tokens.color.accent,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: tokens.space.xl),
         Text('Modifiers', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: 8),
+        SizedBox(height: tokens.space.sm),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: tokens.space.sm,
+          runSpacing: tokens.space.sm,
           children:
               _modifierOptions.map((mod) {
                 final selected = _modifiers.contains(mod.value);
                 return FilterChip(
-                  avatar: Icon(mod.icon, size: 16),
+                  avatar: Icon(mod.icon, size: tokens.icon.sm),
                   label: Text(mod.name),
                   selected: selected,
                   onSelected: (on) {
@@ -126,9 +131,9 @@ class _KeyComboPickerState extends State<KeyComboPicker> {
                 );
               }).toList(),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: tokens.space.xl),
         Text('Key', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: 8),
+        SizedBox(height: tokens.space.sm),
         DropdownButtonFormField<String>(
           initialValue: _key,
           isExpanded: true,

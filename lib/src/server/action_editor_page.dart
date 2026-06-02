@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:picons/picons.dart';
 import 'dart:io' show Platform;
 
+import '../design/design.dart';
 import '../models/button.dart';
 import 'plugins/plugin_manifest.dart';
 import 'plugins_screen.dart' show PluginFieldInput;
@@ -385,9 +386,9 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
               _selectedType == ActionType.commandPreset) &&
           _commandController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enter a command'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('Please enter a command'),
+            backgroundColor: context.tokens.color.danger,
           ),
         );
         return;
@@ -396,9 +397,9 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
       if (_selectedType == ActionType.plugin &&
           (_pluginId == null || _pluginActionId == null)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please choose a plugin and an action'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('Please choose a plugin and an action'),
+            backgroundColor: context.tokens.color.danger,
           ),
         );
         return;
@@ -476,11 +477,12 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
     required String description,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     return Card(
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      shape: RoundedRectangleBorder(borderRadius: tokens.radius.brMd),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(tokens.space.lg),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -488,7 +490,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
               backgroundColor: colorScheme.primaryContainer,
               child: Icon(icon, color: colorScheme.onPrimaryContainer),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: tokens.space.lg),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,10 +501,12 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: tokens.space.xs),
                   Text(
                     description,
-                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                   ),
                 ],
               ),
@@ -542,16 +546,16 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(context.tokens.space.lg),
           children: [
             // Action type selection
             Card(
               margin: EdgeInsets.zero,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: context.tokens.radius.brMd,
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(context.tokens.space.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -561,17 +565,17 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: context.tokens.space.lg),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: context.tokens.space.sm,
+                      runSpacing: context.tokens.space.sm,
                       children:
                           ActionType.values.map((type) {
                             final selected = _selectedType == type;
                             return ChoiceChip(
                               avatar: Icon(
                                 _typeIcon(type),
-                                size: 18,
+                                size: context.tokens.icon.md,
                                 color:
                                     selected
                                         ? Theme.of(
@@ -591,17 +595,17 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.tokens.space.lg),
 
             // Command section
             if (_selectedType == ActionType.command)
               Card(
                 margin: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: context.tokens.radius.brMd,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(context.tokens.space.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -610,12 +614,14 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
+                      SizedBox(height: context.tokens.space.lg),
+                      Text(
                         'Enter the command to execute when this action is triggered:',
-                        style: TextStyle(color: Colors.grey),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: context.tokens.color.textSecondary,
+                            ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: context.tokens.space.sm),
                       TextFormField(
                         controller: _commandController,
                         decoration: const InputDecoration(
@@ -633,17 +639,21 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
+                      SizedBox(height: context.tokens.space.lg),
+                      Text(
                         'Tips:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
+                      SizedBox(height: context.tokens.space.xs),
+                      Text(
                         '• Use full paths for programs not in the system PATH\n'
                         '• For PowerShell commands, start with "powershell -command"\n'
                         '• For multiple commands, use && between commands',
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: context.tokens.color.textSecondary,
+                            ),
                       ),
                     ],
                   ),
@@ -655,10 +665,10 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
               Card(
                 margin: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: context.tokens.radius.brMd,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(context.tokens.space.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -667,21 +677,23 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
+                      SizedBox(height: context.tokens.space.lg),
+                      Text(
                         'Select from common predefined commands:',
-                        style: TextStyle(color: Colors.grey),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: context.tokens.color.textSecondary,
+                            ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: context.tokens.space.lg),
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
+                            SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
                               childAspectRatio: 3,
-                              crossAxisSpacing: 8,
-                              mainAxisSpacing: 8,
+                              crossAxisSpacing: context.tokens.space.sm,
+                              mainAxisSpacing: context.tokens.space.sm,
                             ),
                         itemCount: predefinedCommands.length,
                         itemBuilder: (context, index) {
@@ -696,8 +708,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                       context,
                                     ).colorScheme.primaryContainer
                                     : Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            elevation: isSelected ? 3 : 1,
+                            borderRadius: context.tokens.radius.brSm,
+                            elevation: 0,
                             child: InkWell(
                               onTap: () {
                                 setState(() {
@@ -705,11 +717,11 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                       command.getCommand();
                                 });
                               },
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: context.tokens.radius.brSm,
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8.0,
-                                  horizontal: 12.0,
+                                padding: EdgeInsets.symmetric(
+                                  vertical: context.tokens.space.sm,
+                                  horizontal: context.tokens.space.md,
                                 ),
                                 child: Row(
                                   children: [
@@ -720,9 +732,10 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                               ? Theme.of(
                                                 context,
                                               ).colorScheme.primary
-                                              : Colors.grey,
+                                              : context
+                                                  .tokens.color.textMuted,
                                     ),
-                                    const SizedBox(width: 8),
+                                    SizedBox(width: context.tokens.space.sm),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -732,7 +745,10 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                         children: [
                                           Text(
                                             command.name,
-                                            style: TextStyle(
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
                                               fontWeight:
                                                   isSelected
                                                       ? FontWeight.bold
@@ -747,10 +763,13 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                           ),
                                           Text(
                                             command.description,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                            ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelMedium
+                                                ?.copyWith(
+                                                  color: context
+                                                      .tokens.color.textMuted,
+                                                ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -764,7 +783,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                             Theme.of(
                                               context,
                                             ).colorScheme.primary,
-                                        size: 16,
+                                        size: context.tokens.icon.sm,
                                       ),
                                   ],
                                 ),
@@ -783,10 +802,10 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
               Card(
                 margin: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: context.tokens.radius.brMd,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(context.tokens.space.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -795,44 +814,42 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: context.tokens.space.lg),
 
                       // Keystroke preview
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 16,
-                          horizontal: 24,
+                        padding: EdgeInsets.symmetric(
+                          vertical: context.tokens.space.lg,
+                          horizontal: context.tokens.space.xxl,
                         ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: context.tokens.radius.brSm,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.keyboard),
-                            const SizedBox(width: 16),
+                            SizedBox(width: context.tokens.space.lg),
                             Text(
                               _getKeystrokeDescription(),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: context.tokens.space.xxl),
 
                       // Modifier keys
                       Text(
                         'Modifier Keys',
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: context.tokens.space.sm),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: context.tokens.space.sm,
+                        runSpacing: context.tokens.space.sm,
                         children:
                             _modifierKeys.map((modifier) {
                               final isSelected = _selectedModifiers.contains(
@@ -844,7 +861,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                   children: [
                                     Icon(
                                       modifier.icon,
-                                      size: 16,
+                                      size: context.tokens.icon.sm,
                                       color:
                                           isSelected
                                               ? Theme.of(
@@ -852,7 +869,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                                               ).colorScheme.onPrimary
                                               : null,
                                     ),
-                                    const SizedBox(width: 4),
+                                    SizedBox(width: context.tokens.space.xs),
                                     Text(modifier.name),
                                   ],
                                 ),
@@ -884,20 +901,20 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                               );
                             }).toList(),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: context.tokens.space.xxl),
 
                       // Key selection
                       Text(
                         'Key',
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: context.tokens.space.sm),
                       DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          border: const OutlineInputBorder(),
                           contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
+                            horizontal: context.tokens.space.lg,
+                            vertical: context.tokens.space.lg,
                           ),
                         ),
                         initialValue: _selectedKey,
@@ -1000,7 +1017,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
             });
           },
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: context.tokens.space.lg),
         if (manifest != null)
           DropdownButtonFormField<String>(
             initialValue: _pluginActionId,
@@ -1022,10 +1039,10 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
             },
           ),
         if (action != null && action.fields.isNotEmpty) ...[
-          const SizedBox(height: 16),
+          SizedBox(height: context.tokens.space.lg),
           for (final field in action.fields)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: EdgeInsets.symmetric(vertical: context.tokens.space.xs),
               child: PluginFieldInput(
                 field: field,
                 value: _pluginSettings[field.key] ?? field.defaultValue,

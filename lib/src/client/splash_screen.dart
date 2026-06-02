@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../utils/theme.dart';
+import '../design/design.dart';
 import 'buttons_screen.dart';
 import 'client_providers.dart' as providers;
 
@@ -95,8 +95,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       // Step 1: Loading saved connections
       await _updateProgress(0.2, 'Loading saved connections...');
 
-      final defaultServer =
-          ref.read(providers.serverConnectionsProvider.notifier).defaultServer;
+      final defaultServer = ref
+          .read(providers.serverConnectionsProvider.notifier)
+          .defaultServer;
 
       if (defaultServer == null) {
         await _updateProgress(0.5, 'No default server configured');
@@ -105,17 +106,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         if (mounted) {
           Navigator.of(context).pushReplacement(
             PageRouteBuilder(
-              pageBuilder:
-                  (context, animation, secondaryAnimation) =>
-                      const ButtonsScreen(showNoConnectionMessage: true),
-              transitionsBuilder: (
-                context,
-                animation,
-                secondaryAnimation,
-                child,
-              ) {
-                return FadeTransition(opacity: animation, child: child);
-              },
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const ButtonsScreen(showNoConnectionMessage: true),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
               transitionDuration: const Duration(milliseconds: 500),
             ),
           );
@@ -158,28 +154,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         if (mounted) {
           Navigator.of(context).pushReplacement(
             PageRouteBuilder(
-              pageBuilder:
-                  (context, animation, secondaryAnimation) =>
-                      const ButtonsScreen(),
-              transitionsBuilder: (
-                context,
-                animation,
-                secondaryAnimation,
-                child,
-              ) {
-                return SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                    ),
-                  ),
-                  child: child,
-                );
-              },
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const ButtonsScreen(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    return SlideTransition(
+                      position:
+                          Tween<Offset>(
+                            begin: const Offset(1.0, 0.0),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            ),
+                          ),
+                      child: child,
+                    );
+                  },
               transitionDuration: const Duration(milliseconds: 600),
             ),
           );
@@ -200,9 +192,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder:
-              (context, animation, secondaryAnimation) =>
-                  const ButtonsScreen(showNoConnectionMessage: true),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const ButtonsScreen(showNoConnectionMessage: true),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -216,24 +207,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final tokens = context.tokens;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              colorScheme.surface,
-              colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            ],
+            colors: [tokens.color.surface, tokens.color.surfaceSubtle],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spaceXXLarge),
+              padding: EdgeInsets.all(tokens.space.xxxl),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -246,30 +234,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         child: Transform.rotate(
                           angle: _logoRotationAnimation.value * 3.14159,
                           child: Container(
-                            width: 120,
-                            height: 120,
+                            width: tokens.space.huge * 2.5,
+                            height: tokens.space.huge * 2.5,
                             decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
+                              color: tokens.color.accentSubtle,
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: colorScheme.primary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
+                              boxShadow: tokens.shadowMd,
                             ),
                             child: ClipOval(
                               child: Image.asset(
                                 'assets/logo.png',
                                 fit: BoxFit.cover,
-                                errorBuilder:
-                                    (context, error, stackTrace) => Icon(
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Icon(
                                       Icons.devices_rounded,
-                                      size: 60,
-                                      color: colorScheme.onPrimaryContainer,
+                                      size: tokens.space.huge + tokens.space.md,
+                                      color: tokens.color.accent,
                                     ),
                               ),
                             ),
@@ -279,7 +259,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     },
                   ),
 
-                  const SizedBox(height: AppTheme.spaceXXLarge),
+                  SizedBox(height: tokens.space.xxxl),
 
                   // App title with fade animation
                   FadeTransition(
@@ -287,14 +267,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: Text(
                       'MarcoDeck',
                       style: textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                        letterSpacing: 1.2,
+                        color: tokens.color.textPrimary,
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: AppTheme.spaceSmall),
+                  SizedBox(height: tokens.space.sm),
 
                   // Subtitle
                   FadeTransition(
@@ -302,48 +280,44 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: Text(
                       'Remote Macro Control',
                       style: textTheme.bodyLarge?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+                        color: tokens.color.textSecondary,
+                        fontWeight: tokens.typeScale.wMedium,
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: AppTheme.spaceXXLarge * 1.5),
+                  SizedBox(height: tokens.space.huge),
 
                   // Status message
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spaceLarge + 4,
-                        vertical: AppTheme.spaceMedium,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: tokens.space.xl,
+                        vertical: tokens.space.md,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.5,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
+                        color: tokens.color.surfaceSubtle,
+                        borderRadius: tokens.radius.brMd,
                         border: Border.all(
-                          color: colorScheme.outlineVariant,
-                          width: 1,
+                          color: tokens.color.border,
+                          width: tokens.border.hairline,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
-                            width: 16,
-                            height: 16,
+                            width: tokens.icon.sm,
+                            height: tokens.icon.sm,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                              strokeWidth: tokens.border.focus,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                colorScheme.primary,
+                                tokens.color.accent,
                               ),
                             ),
                           ),
-                          const SizedBox(width: AppTheme.spaceMedium),
+                          SizedBox(width: tokens.space.md),
                           Flexible(
                             child: Text(
                               _statusMessage,
@@ -351,8 +325,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               overflow: TextOverflow.ellipsis,
                               maxLines: 2,
                               style: textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
+                                color: tokens.color.textSecondary,
+                                fontWeight: tokens.typeScale.wMedium,
                               ),
                             ),
                           ),
@@ -361,17 +335,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                   ),
 
-                  const SizedBox(height: AppTheme.spaceXLarge),
+                  SizedBox(height: tokens.space.xl),
 
                   // Progress bar
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Container(
-                      width: 200,
-                      height: 4,
+                      width: tokens.space.huge * 4,
+                      height: tokens.space.xs,
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(2),
+                        color: tokens.color.surfaceSubtle,
+                        borderRadius: tokens.radius.brXs,
                       ),
                       child: FractionallySizedBox(
                         widthFactor: _progress,
@@ -380,18 +354,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                colorScheme.primary,
+                                tokens.color.accent,
                                 colorScheme.secondary,
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(2),
+                            borderRadius: tokens.radius.brXs,
                           ),
                         ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: AppTheme.spaceXXLarge * 2.5),
+                  SizedBox(height: tokens.space.huge * 1.5),
 
                   // Version info
                   FadeTransition(
@@ -399,9 +373,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: Text(
                       'Version 1.0.0',
                       style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.6,
-                        ),
+                        color: tokens.color.textMuted,
                       ),
                     ),
                   ),
