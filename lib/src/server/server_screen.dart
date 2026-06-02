@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../models/button.dart' as models;
 import '../models/client_info.dart';
-import '../utils/theme.dart';
+import '../design/design.dart';
 import 'button_editor_page.dart';
 import 'plugins_screen.dart';
 import 'server.dart';
@@ -18,18 +18,10 @@ class ServerScreen extends StatefulWidget {
   /// The server instance
   final MarcoServer server;
 
-  /// Current theme mode
-  final ThemeMode themeMode;
-
-  /// Callback for when theme mode is changed
-  final ValueChanged<ThemeMode>? onThemeModeChanged;
-
   /// Creates a server screen
   const ServerScreen({
     super.key,
     required this.server,
-    this.themeMode = ThemeMode.system,
-    this.onThemeModeChanged,
   });
 
   @override
@@ -118,9 +110,9 @@ class _ServerScreenState extends State<ServerScreen> {
         ),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(AppTheme.spaceSmall),
+        margin: EdgeInsets.all(context.tokens.space.sm),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          borderRadius: context.tokens.radius.brSm,
         ),
       ),
     );
@@ -497,6 +489,35 @@ class _ServerScreenState extends State<ServerScreen> {
     }
   }
 
+  /// Opens the shared appearance picker (theme mode, accent, density).
+  void _showAppearanceSheet(BuildContext context) {
+    final t = context.tokens;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            t.space.xl,
+            t.space.sm,
+            t.space.xl,
+            t.space.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Appearance',
+                  style: Theme.of(context).textTheme.titleLarge),
+              SizedBox(height: t.space.lg),
+              const PersonalizationPanel(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -551,11 +572,11 @@ class _ServerScreenState extends State<ServerScreen> {
           ],
         ),
         actions: [
-          if (widget.onThemeModeChanged != null)
-            ThemeModeSelector(
-              currentThemeMode: widget.themeMode,
-              onThemeModeChanged: widget.onThemeModeChanged!,
-            ),
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: 'Appearance',
+            onPressed: () => _showAppearanceSheet(context),
+          ),
           IconButton(
             icon: const Icon(Icons.extension_outlined),
             tooltip: 'Plugins',

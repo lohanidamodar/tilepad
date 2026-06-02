@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/button.dart';
 import '../models/window_info.dart';
+import '../design/design.dart';
 import '../utils/accessibility.dart';
 import '../utils/macro_icons.dart';
-import '../utils/theme.dart';
 import '../widgets/key_combo_picker.dart';
 import 'client_providers.dart';
 
@@ -42,40 +42,35 @@ class ButtonGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     if (buttons.isEmpty) {
       return Center(
         child: Container(
-          padding: const EdgeInsets.all(AppTheme.spaceXXLarge),
+          padding: EdgeInsets.all(context.tokens.space.xxxl),
           decoration: BoxDecoration(
-            color: colorScheme.surface.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: colorScheme.outlineVariant),
+            color: context.tokens.color.surfaceSubtle,
+            borderRadius: context.tokens.radius.brLg,
+            border: Border.all(color: context.tokens.color.border),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.grid_view_rounded,
-                size: 64,
-                color: colorScheme.primary.withValues(alpha: 0.6),
+                size: context.tokens.icon.xl,
+                color: context.tokens.color.textMuted,
               ),
-              const SizedBox(height: AppTheme.spaceLarge),
+              SizedBox(height: context.tokens.space.lg),
               Text(
                 'No buttons available',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurfaceVariant,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: context.tokens.color.textSecondary,
                 ),
               ),
-              const SizedBox(height: AppTheme.spaceSmall),
+              SizedBox(height: context.tokens.space.sm),
               Text(
                 'Buttons will appear here when connected to a server',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.tokens.color.textMuted,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -91,11 +86,11 @@ class ButtonGrid extends ConsumerWidget {
       builder: (context, constraints) {
         final columns = _columnCountForWidth(constraints.maxWidth);
         return GridView.builder(
-          padding: const EdgeInsets.all(AppTheme.spaceLarge),
+          padding: EdgeInsets.all(context.tokens.space.lg),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
-            crossAxisSpacing: AppTheme.spaceMedium,
-            mainAxisSpacing: AppTheme.spaceMedium,
+            crossAxisSpacing: context.tokens.space.md,
+            mainAxisSpacing: context.tokens.space.md,
             childAspectRatio: 1.0,
           ),
           itemCount: buttons.length,
@@ -121,7 +116,6 @@ class ButtonGrid extends ConsumerWidget {
 
   /// Handles connection loss and shows a reconnection dialog
   void _handleConnectionLoss(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
     final connectionState = ref.read(connectionStateProvider);
 
     // Provide haptic feedback
@@ -137,8 +131,8 @@ class ButtonGrid extends ConsumerWidget {
           (context) => AlertDialog(
             icon: Icon(
               Icons.wifi_off_rounded,
-              color: colorScheme.error,
-              size: 32,
+              color: context.tokens.color.danger,
+              size: context.tokens.icon.xl,
             ),
             title: const Text('Connection Lost'),
             content: const Text(
@@ -452,12 +446,12 @@ class AnimatedButton extends StatelessWidget {
 
         return Material(
           color: effectiveColor,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(context.tokens.radius.lg),
           elevation: isEnabled ? 3 : 0,
           shadowColor: color.withValues(alpha: 0.4),
           child: Ink(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              borderRadius: BorderRadius.circular(context.tokens.radius.lg),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -471,7 +465,7 @@ class AnimatedButton extends StatelessWidget {
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spaceSmall),
+              padding: EdgeInsets.all(context.tokens.space.sm),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

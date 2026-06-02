@@ -7,7 +7,7 @@ import 'splash_screen.dart';
 import 'settings_screen.dart';
 import 'client_providers.dart' as providers;
 import '../utils/accessibility.dart';
-import '../utils/theme.dart';
+import '../design/design.dart';
 
 /// Main entry point for the client app
 void main() {
@@ -32,19 +32,22 @@ class MarcoDeckClientApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final p = ref.watch(personalizationProvider);
     final accessibility = ref.watch(accessibilitySettingsProvider);
 
-    // Apply the high-contrast accessibility option to the base themes when
-    // enabled so the toggle in Settings actually takes effect.
-    final ThemeData effectiveLight =
-        accessibility.highContrastMode
-            ? lightTheme.toHighContrast()
-            : lightTheme;
-    final ThemeData effectiveDark =
-        accessibility.highContrastMode
-            ? darkTheme.toHighContrast()
-            : darkTheme;
+    // Build the light/dark themes from design tokens for the chosen accent and
+    // density, then apply the high-contrast accessibility transform if enabled.
+    ThemeData themeFor(Brightness b) {
+      final base = buildAppTheme(
+        brightness: b,
+        accent: p.accent,
+        density: p.density,
+      );
+      return accessibility.highContrastMode ? base.toHighContrast() : base;
+    }
+
+    final effectiveLight = themeFor(Brightness.light);
+    final effectiveDark = themeFor(Brightness.dark);
 
     return _EagerInitialization(
       child: MaterialApp(
@@ -52,7 +55,7 @@ class MarcoDeckClientApp extends ConsumerWidget {
         title: 'MarcoDeck Client',
         theme: effectiveLight,
         darkTheme: effectiveDark,
-        themeMode: themeMode,
+        themeMode: p.themeMode,
         // Apply the user-selected text scale globally so the Text Size slider
         // in Settings affects the whole app.
         builder: (context, child) {
