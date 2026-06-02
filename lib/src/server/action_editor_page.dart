@@ -362,6 +362,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return 'Prompt Keys';
       case ActionType.selectWindow:
         return 'Select Window';
+      case ActionType.plugin:
+        return 'Plugin';
     }
   }
 
@@ -380,6 +382,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return Icons.touch_app_outlined;
       case ActionType.selectWindow:
         return Icons.web_asset;
+      case ActionType.plugin:
+        return Icons.extension;
     }
   }
 

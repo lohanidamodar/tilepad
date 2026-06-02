@@ -489,6 +489,8 @@ class PagesAndButtonsSection extends StatelessWidget {
         return 'Prompt for key combo';
       case models.ActionType.selectWindow:
         return 'Select a window to focus';
+      case models.ActionType.plugin:
+        return 'Plugin: ${action.pluginActionId}';
     }
   }
 }

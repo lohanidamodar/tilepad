@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart'; // Add Flutter foundation import
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/button.dart';
@@ -11,6 +14,10 @@ import '../network/discovery_service_stub.dart';
 import '../utils/friendly_name.dart';
 import 'button_manager.dart';
 import 'command_executor.dart';
+import 'plugins/plugin_host.dart';
+import 'plugins/plugin_manager.dart';
+import 'plugins/plugin_manifest.dart';
+import 'plugins/plugin_registry.dart';
 
 /// Server class that handles client connections and executes commands
 class MarcoServer {
@@ -25,6 +32,15 @@ class MarcoServer {
 
   /// The command executor
   final CommandExecutor _commandExecutor = CommandExecutor();
+
+  /// Loopback port the plugin host listens on for plugin processes.
+  final int _pluginPort;
+
+  /// Plugin subsystem (null until the server is started).
+  PluginHost? _pluginHost;
+  PluginRegistry? _pluginRegistry;
+  PluginManager? _pluginManager;
+  StreamSubscription<dynamic>? _stateSub;
 
   /// Stream controller for client connection events
   final _clientsController = StreamController<List<ClientInfo>>.broadcast();
@@ -46,9 +62,20 @@ class MarcoServer {
 
   /// Creates a new server
   // A named parameter can't be a private initializing formal (`this._port`),
-  // so assign it in the initializer list instead.
-  // ignore: prefer_initializing_formals
-  MarcoServer({int port = 8080}) : _port = port;
+  // so assign these in the initializer list instead.
+  // ignore_for_file: prefer_initializing_formals
+  MarcoServer({int port = 8080, int pluginPort = 8091})
+      : _port = port,
+        _pluginPort = pluginPort;
+
+  /// The installed plugins, or empty if the server has not started yet.
+  List<InstalledPlugin> get plugins => _pluginRegistry?.plugins ?? const [];
+
+  /// Plugin discovery/parse errors surfaced for the UI.
+  List<String> get pluginErrors => _pluginRegistry?.errors ?? const [];
+
+  /// Whether a plugin is currently connected to the host.
+  bool isPluginConnected(String id) => _pluginHost?.isConnected(id) ?? false;
 
   /// Gets the server's IP address
   Future<String> getServerIp() async {
@@ -165,6 +192,10 @@ class MarcoServer {
       // Initialize connected clients list
       _updateConnectedClients();
 
+      // Bring up the plugin subsystem (best-effort; failures here must not stop
+      // the core server).
+      await _startPlugins();
+
       return true;
     } catch (e) {
       debugPrint('Failed to start server: $e');
@@ -226,11 +257,118 @@ class MarcoServer {
       await _discoveryService.stopBroadcasting();
       debugPrint('UDP discovery broadcasting stopped');
 
+      await _stopPlugins();
+
       await _webSocketService.close();
       _isRunning = false;
       _connectedClients = [];
       _clientsController.add(_connectedClients);
       _notifyServerStatus(ServerStatusType.stopped, 'Server stopped');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Plugin subsystem
+  // ---------------------------------------------------------------------------
+
+  /// Directory where plugins live: `<app support>/plugins`.
+  Future<Directory> _pluginsDirectory() async {
+    final support = await getApplicationSupportDirectory();
+    return Directory(p.join(support.path, 'plugins'));
+  }
+
+  /// Starts the plugin host, discovers plugins, launches enabled ones, and wires
+  /// action invocation + live-state forwarding. Best-effort: never throws.
+  Future<void> _startPlugins() async {
+    try {
+      final host = PluginHost();
+      await host.start(port: _pluginPort);
+      final registry = PluginRegistry(await _pluginsDirectory());
+      await registry.load();
+      final manager = PluginManager(registry: registry, host: host);
+
+      _pluginHost = host;
+      _pluginRegistry = registry;
+      _pluginManager = manager;
+
+      // Route plugin actions through the host.
+      _commandExecutor.pluginInvoker = host.invoke;
+
+      // Forward every live-state change to all connected clients.
+      _stateSub = host.stateStore.changes.listen((entry) {
+        if (!_isRunning) return;
+        _webSocketService.broadcast(
+          Message(type: MessageType.stateUpdate, payload: entry.toJson()),
+        );
+      });
+
+      await manager.startAll();
+      debugPrint('Plugin subsystem started (${registry.plugins.length} found)');
+    } catch (e) {
+      debugPrint('Plugin subsystem failed to start: $e');
+    }
+  }
+
+  Future<void> _stopPlugins() async {
+    await _stateSub?.cancel();
+    _stateSub = null;
+    await _pluginManager?.stopAll();
+    await _pluginHost?.stop();
+    _commandExecutor.pluginInvoker = null;
+    _pluginHost = null;
+    _pluginManager = null;
+    _pluginRegistry = null;
+  }
+
+  /// Broadcasts the current live-state snapshot to clients.
+  void _sendStateSnapshot() {
+    final host = _pluginHost;
+    if (host == null) return;
+    for (final entry in host.stateStore.snapshot()) {
+      _webSocketService.sendMessage(
+        Message(type: MessageType.stateUpdate, payload: entry.toJson()),
+      );
+    }
+  }
+
+  /// Installs a plugin from a `.zip` and returns its id.
+  Future<String> installPlugin(File zip) async {
+    final registry = _pluginRegistry;
+    if (registry == null) throw StateError('Server not started');
+    final installed = await registry.installFromZip(zip);
+    return installed.manifest.id;
+  }
+
+  /// Enables a plugin (launches its process).
+  Future<void> enablePlugin(String id) => _pluginManager?.enable(id) ?? Future.value();
+
+  /// Disables a plugin (stops its process).
+  Future<void> disablePlugin(String id) =>
+      _pluginManager?.disable(id) ?? Future.value();
+
+  /// Removes a plugin entirely.
+  Future<void> removePlugin(String id) async {
+    await _pluginManager?.disable(id);
+    await _pluginRegistry?.remove(id);
+  }
+
+  /// Updates and persists a plugin's settings, pushing them to the process.
+  Future<void> updatePluginSettings(String id, Map<String, dynamic> values) =>
+      _pluginManager?.updateSettings(id, values) ?? Future.value();
+
+  /// Requests dynamic option values for a plugin select field.
+  Future<List<PluginFieldOption>> requestPluginList(
+    String pluginId,
+    String listId, {
+    Map<String, dynamic> fields = const {},
+  }) async {
+    final host = _pluginHost;
+    if (host == null) return const [];
+    try {
+      return await host.requestList(pluginId, listId, fields: fields);
+    } catch (e) {
+      debugPrint('requestPluginList failed: $e');
+      return const [];
     }
   }
 
@@ -243,11 +381,14 @@ class MarcoServer {
 
         // Send pages with buttons to the newly connected client
         _sendPagesToClient();
+        // Replay current live plugin state so live tiles render immediately.
+        _sendStateSnapshot();
         break;
 
       case MessageType.getButtons:
         // Send pages with buttons
         _sendPagesToClient();
+        _sendStateSnapshot();
         break;
 
       case MessageType.buttonPress:

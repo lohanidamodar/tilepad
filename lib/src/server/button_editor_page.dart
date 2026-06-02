@@ -210,6 +210,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Asks the device for a key combo, then sends it';
       case ActionType.selectWindow:
         return 'Lets the device pick a window to bring to front';
+      case ActionType.plugin:
+        return 'Plugin: ${action.pluginActionId}';
     }
   }
 
@@ -228,6 +230,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Prompt for Key Combo';
       case ActionType.selectWindow:
         return 'Select Window';
+      case ActionType.plugin:
+        return 'Plugin Action';
     }
   }
 
@@ -246,6 +250,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return Icons.touch_app_outlined;
       case ActionType.selectWindow:
         return Icons.web_asset;
+      case ActionType.plugin:
+        return Icons.extension;
     }
   }
 
