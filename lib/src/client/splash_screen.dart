@@ -210,7 +210,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final tokens = context.tokens;
 
     return Scaffold(
-      backgroundColor: tokens.color.surface,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

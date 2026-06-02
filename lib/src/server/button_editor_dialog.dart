@@ -848,7 +848,6 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                             }
                           });
                         },
-                        backgroundColor: context.tokens.color.surfaceSubtle,
                         selectedColor: _hexToColor(_selectedColor),
                         checkmarkColor: context.tokens.color.onAccent,
                         labelStyle: TextStyle(

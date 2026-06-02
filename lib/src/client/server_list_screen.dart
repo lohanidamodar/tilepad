@@ -594,7 +594,6 @@ class ServerListScreen extends ConsumerWidget {
                               : '${connection.name} set as default server',
                         ),
                         behavior: SnackBarBehavior.floating,
-                        backgroundColor: tokens.color.accentSubtle,
                         showCloseIcon: true,
                         closeIconColor: tokens.color.accent,
                       ),
@@ -677,7 +676,6 @@ class ServerListScreen extends ConsumerWidget {
                 );
               },
               style: FilledButton.styleFrom(
-                backgroundColor: tokens.color.dangerSubtle,
                 foregroundColor: tokens.color.danger,
               ),
               child: const Text('Delete'),

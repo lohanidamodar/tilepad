@@ -315,7 +315,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           SnackBar(
             content: Text('Connected to ${defaultServer.name}'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: tokens.color.successSubtle,
             showCloseIcon: true,
             closeIconColor: tokens.color.success,
           ),
@@ -326,7 +325,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           SnackBar(
             content: const Text('Failed to connect to default server'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: tokens.color.dangerSubtle,
             showCloseIcon: true,
             closeIconColor: tokens.color.danger,
           ),
@@ -337,7 +335,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
         SnackBar(
           content: const Text('No default server set'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: tokens.color.surface,
           showCloseIcon: true,
         ),
       );
@@ -460,7 +457,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                     content: const Text('Buttons refreshed'),
                     behavior: SnackBarBehavior.floating,
                     duration: const Duration(seconds: 1),
-                    backgroundColor: tokens.color.accentSubtle,
                     showCloseIcon: true,
                   ),
                 );
@@ -823,7 +819,6 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                             padding: EdgeInsets.symmetric(
                               vertical: tokens.space.lg,
                             ),
-                            backgroundColor: tokens.color.accentSubtle,
                             foregroundColor: tokens.color.accent,
                             shape: RoundedRectangleBorder(
                               borderRadius: tokens.radius.brMd,
