@@ -3,6 +3,7 @@
 /// A manifest is the contract a plugin author provides so MarcoDeck can present
 /// the plugin's actions, settings, live states and dynamic lists without the
 /// plugin author writing any UI. See `docs/plugins/protocol.md`.
+library;
 
 /// Thrown when a `manifest.json` is missing required fields or contains
 /// malformed values.
