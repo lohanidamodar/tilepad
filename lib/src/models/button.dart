@@ -16,6 +16,9 @@ enum ActionType {
 
   /// Prompt the client for a key combination at press time, then send it
   promptKeystroke,
+
+  /// Let the client pick one of the server's open windows to bring to front
+  selectWindow,
 }
 
 /// Represents a single action that can be performed by a button
@@ -119,7 +122,8 @@ class Button {
     if (actions.isEmpty) return null;
     final type = actions.first.type;
     return (type == ActionType.promptText ||
-            type == ActionType.promptKeystroke)
+            type == ActionType.promptKeystroke ||
+            type == ActionType.selectWindow)
         ? type
         : null;
   }
@@ -219,6 +223,8 @@ class Button {
         return ButtonType.promptText;
       case ActionType.promptKeystroke:
         return ButtonType.promptKeystroke;
+      case ActionType.selectWindow:
+        return ButtonType.selectWindow;
     }
   }
 
@@ -235,6 +241,8 @@ class Button {
         return ActionType.promptText;
       case ButtonType.promptKeystroke:
         return ActionType.promptKeystroke;
+      case ButtonType.selectWindow:
+        return ActionType.selectWindow;
     }
   }
 }
@@ -305,4 +313,7 @@ enum ButtonType {
 
   /// Prompt the client for a key combination at press time, then send it
   promptKeystroke,
+
+  /// Let the client pick one of the server's open windows to bring to front
+  selectWindow,
 }

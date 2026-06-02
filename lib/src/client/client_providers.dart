@@ -8,6 +8,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/button.dart';
 import '../models/message.dart';
 import '../models/server_connection.dart';
+import '../models/window_info.dart';
 import '../network/websocket_service.dart';
 import '../network/discovery_service.dart';
 import '../network/discovery_service_stub.dart';
@@ -828,12 +829,14 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     String? text,
     String? key,
     List<String>? modifiers,
+    String? windowId,
   }) {
     if (state.status == ConnectionStatus.connected) {
       final payload = <String, dynamic>{'buttonId': buttonId};
       if (text != null) payload['text'] = text;
       if (key != null) payload['key'] = key;
       if (modifiers != null) payload['modifiers'] = modifiers;
+      if (windowId != null) payload['windowId'] = windowId;
       _webSocketService.sendMessage(
         Message(type: MessageType.buttonPress, payload: payload),
       );
@@ -845,6 +848,39 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     if (state.status == ConnectionStatus.connected) {
       _webSocketService.sendMessage(Message(type: MessageType.getButtons));
     }
+  }
+
+  /// Pending request for the server's window list, completed when the
+  /// matching [MessageType.windowsResponse] arrives.
+  Completer<List<WindowInfo>>? _windowsCompleter;
+
+  /// Asks the server for its open windows and resolves with the list (or an
+  /// empty list on timeout / when disconnected).
+  Future<List<WindowInfo>> fetchWindows() {
+    if (state.status != ConnectionStatus.connected) {
+      return Future.value(const []);
+    }
+    final completer = Completer<List<WindowInfo>>();
+    _windowsCompleter = completer;
+    _webSocketService.sendMessage(Message(type: MessageType.getWindows));
+    return completer.future.timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => const [],
+    );
+  }
+
+  void _handleWindowsResponse(dynamic payload) {
+    try {
+      final windows =
+          (payload as List<dynamic>)
+              .map((j) => WindowInfo.fromJson(j as Map<String, dynamic>))
+              .toList();
+      _windowsCompleter?.complete(windows);
+    } catch (e) {
+      debugPrint('Error handling windows response: $e');
+      _windowsCompleter?.complete(const []);
+    }
+    _windowsCompleter = null;
   }
 
   /// Handles a message from the server
@@ -878,6 +914,10 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
       case MessageType.commandResult:
         _handleCommandResult(message.payload);
+        break;
+
+      case MessageType.windowsResponse:
+        _handleWindowsResponse(message.payload);
         break;
 
       case MessageType.error:

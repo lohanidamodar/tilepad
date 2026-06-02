@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:process_run/process_run.dart';
 
 import '../models/button.dart';
+import '../models/window_info.dart';
 import '../utils/win32_keyboard.dart';
 import '../utils/win32_commands.dart';
+import '../utils/win32_windows.dart';
 
 /// Service responsible for executing shell commands and keystrokes
 class CommandExecutor {
@@ -66,6 +68,14 @@ class CommandExecutor {
 
       case ActionType.promptKeystroke:
         return await executeKeystroke(action.key, action.modifiers);
+
+      case ActionType.selectWindow:
+        // Activation needs a window chosen on the client; nothing to do here.
+        return CommandResult(
+          success: true,
+          output: 'Pick a window on the device',
+          error: '',
+        );
     }
   }
 
@@ -82,7 +92,37 @@ class CommandExecutor {
 
       case ButtonType.promptText:
         return await executeTypeText(button.command);
+
+      case ButtonType.selectWindow:
+        return CommandResult(
+          success: true,
+          output: 'Pick a window on the device',
+          error: '',
+        );
     }
+  }
+
+  /// Lists the server's open windows (Windows only; empty elsewhere).
+  List<WindowInfo> listWindows() {
+    if (Platform.isWindows) return Win32Windows.list();
+    return const [];
+  }
+
+  /// Brings the window with the given [handle] to the foreground.
+  Future<CommandResult> activateWindow(String handle) async {
+    if (Platform.isWindows) {
+      final ok = Win32Windows.activate(handle);
+      return CommandResult(
+        success: ok,
+        output: ok ? 'Activated window' : '',
+        error: ok ? '' : 'Failed to activate window',
+      );
+    }
+    return CommandResult(
+      success: false,
+      output: '',
+      error: 'Window activation is not supported on this platform',
+    );
   }
 
   /// Types arbitrary [text] into the currently focused window.

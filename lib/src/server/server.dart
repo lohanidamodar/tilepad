@@ -254,6 +254,16 @@ class MarcoServer {
         _handleButtonPress(message.payload);
         break;
 
+      case MessageType.getWindows:
+        _webSocketService.sendMessage(
+          Message(
+            type: MessageType.windowsResponse,
+            payload:
+                _commandExecutor.listWindows().map((w) => w.toJson()).toList(),
+          ),
+        );
+        break;
+
       default:
         // Unknown message type
         debugPrint('Unknown message type: ${message.type}');
@@ -306,6 +316,10 @@ class MarcoServer {
                 .toList() ??
             const <String>[];
         result = await _commandExecutor.executeKeystroke(key, modifiers);
+      } else if (promptType == ActionType.selectWindow) {
+        // Bring the window the client chose to the foreground.
+        final windowId = (payload['windowId'] as String?) ?? '';
+        result = await _commandExecutor.activateWindow(windowId);
       } else {
         result = await _commandExecutor.execute(button);
       }

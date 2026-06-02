@@ -487,6 +487,8 @@ class PagesAndButtonsSection extends StatelessWidget {
         return 'Prompt for text';
       case models.ActionType.promptKeystroke:
         return 'Prompt for key combo';
+      case models.ActionType.selectWindow:
+        return 'Select a window to focus';
     }
   }
 }

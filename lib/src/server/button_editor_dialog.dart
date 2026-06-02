@@ -530,6 +530,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         return 'Asks the device for text, then types it';
       case ActionType.promptKeystroke:
         return 'Asks the device for a key combo, then sends it';
+      case ActionType.selectWindow:
+        return 'Lets the device pick a window to bring to front';
     }
   }
 
@@ -641,6 +643,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         return 'Prompt for Text';
       case ActionType.promptKeystroke:
         return 'Prompt for Key Combo';
+      case ActionType.selectWindow:
+        return 'Select Window';
     }
   }
 
@@ -657,6 +661,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         return Icons.keyboard_alt_outlined;
       case ActionType.promptKeystroke:
         return Icons.touch_app_outlined;
+      case ActionType.selectWindow:
+        return Icons.web_asset;
     }
   }
 

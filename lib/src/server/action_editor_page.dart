@@ -359,6 +359,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return 'Prompt Text';
       case ActionType.promptKeystroke:
         return 'Prompt Keys';
+      case ActionType.selectWindow:
+        return 'Select Window';
     }
   }
 
@@ -375,6 +377,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return Icons.keyboard_alt_outlined;
       case ActionType.promptKeystroke:
         return Icons.touch_app_outlined;
+      case ActionType.selectWindow:
+        return Icons.web_asset;
     }
   }
 
@@ -849,6 +853,16 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                 description:
                     'When this button is pressed, the device asks for a key '
                     'combination (modifiers + key) and the server sends it.',
+              ),
+
+            // Select-window info
+            if (_selectedType == ActionType.selectWindow)
+              _buildPromptInfoCard(
+                icon: Icons.web_asset,
+                title: 'Select Window',
+                description:
+                    'When this button is pressed, the device shows the '
+                    'server\'s open windows and brings the chosen one to front.',
               ),
           ],
         ),

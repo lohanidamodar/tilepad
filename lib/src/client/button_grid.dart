@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/button.dart';
+import '../models/window_info.dart';
 import '../utils/accessibility.dart';
 import '../utils/macro_icons.dart';
 import '../utils/theme.dart';
@@ -240,7 +241,67 @@ class ButtonGrid extends ConsumerWidget {
           modifiers: combo.modifiers.toList(),
         );
       }
+    } else if (button.promptActionType == ActionType.selectWindow) {
+      final windowId = await _showWindowPicker(context, ref, button);
+      if (windowId != null) {
+        notifier.pressButton(button.id, windowId: windowId);
+      }
     }
+  }
+
+  /// Fetches the server's open windows and lets the user pick one to focus.
+  Future<String?> _showWindowPicker(
+    BuildContext context,
+    WidgetRef ref,
+    Button button,
+  ) {
+    final future = ref.read(connectionStateProvider.notifier).fetchWindows();
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(button.name),
+          content: SizedBox(
+            width: 380,
+            height: 420,
+            child: FutureBuilder<List<WindowInfo>>(
+              future: future,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final windows = snapshot.data ?? const <WindowInfo>[];
+                if (windows.isEmpty) {
+                  return const Center(child: Text('No open windows found'));
+                }
+                return ListView.separated(
+                  itemCount: windows.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final window = windows[index];
+                    return ListTile(
+                      leading: const Icon(Icons.web_asset),
+                      title: Text(
+                        window.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => Navigator.of(context).pop(window.id),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// Prompts for free text to send.

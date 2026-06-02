@@ -20,6 +20,12 @@ enum MessageType {
   /// Button press event
   buttonPress,
 
+  /// Request for the server's list of open windows
+  getWindows,
+
+  /// Response with the server's list of open windows
+  windowsResponse,
+
   /// Command execution result
   commandResult,
 
