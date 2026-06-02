@@ -332,23 +332,23 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                             color: theme.colorScheme.onSurfaceVariant),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: hasMatch ? currentKey : '',
+                      DropdownButtonFormField<String?>(
+                        initialValue: hasMatch ? currentKey : null,
                         decoration: const InputDecoration(
                           labelText: 'Bound state',
                           border: OutlineInputBorder(),
                           isDense: true,
                         ),
                         items: [
-                          const DropdownMenuItem(
-                              value: '', child: Text('None')),
+                          const DropdownMenuItem<String?>(
+                              value: null, child: Text('None')),
                           for (final s in states)
-                            DropdownMenuItem(
+                            DropdownMenuItem<String?>(
                                 value: s.key, child: Text(s.label)),
                         ],
                         onChanged: (value) {
                           setState(() {
-                            if (value == null || value.isEmpty) {
+                            if (value == null) {
                               _stateBinding = null;
                             } else {
                               final match =

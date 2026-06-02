@@ -182,9 +182,12 @@ class ButtonGrid extends ConsumerWidget {
     var icon = _getIconData(button.iconName);
     final binding = button.stateBinding;
     if (binding != null) {
-      final states = ref.watch(pluginStatesProvider);
-      final value = states[
-          PluginStatesNotifier.keyFor(binding.pluginId, binding.stateId)];
+      // Watch only this binding's key so unrelated state changes don't rebuild
+      // every live tile.
+      final key =
+          PluginStatesNotifier.keyFor(binding.pluginId, binding.stateId);
+      final value =
+          ref.watch(pluginStatesProvider.select((states) => states[key]));
       if (value != null) {
         if (binding.mode == StateBindingMode.title &&
             value.displayText.isNotEmpty) {

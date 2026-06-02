@@ -480,6 +480,14 @@ class WebServerWebSocketService implements ServerWebSocketService {
   Stream<Message> get messageStream => const Stream.empty();
 
   @override
+  Stream<AddressedMessage> get addressedMessageStream => const Stream.empty();
+
+  @override
+  void sendMessageToClient(String clientId, Message message) {
+    debugPrint('Web: Cannot send to client - server not supported on web');
+  }
+
+  @override
   Stream<ClientConnectionEvent> get clientConnectionStream =>
       const Stream.empty();
 

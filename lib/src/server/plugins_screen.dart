@@ -551,12 +551,15 @@ class PluginFieldInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Fall back to the field's declared default when no value is set, so the
+    // widget renders correct defaults even if a caller doesn't pre-seed them.
+    final effectiveValue = value ?? field.defaultValue;
     switch (field.type) {
       case PluginFieldType.bool:
         return SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(field.label),
-          value: value == true,
+          value: effectiveValue == true,
           onChanged: onChanged,
         );
       case PluginFieldType.select:
@@ -571,8 +574,8 @@ class PluginFieldInput extends StatelessWidget {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
-              value: options.any((o) => o.value == value)
-                  ? value as String?
+              value: options.any((o) => o.value == effectiveValue)
+                  ? effectiveValue as String?
                   : null,
               hint: const Text('Select…'),
               items: [
@@ -585,7 +588,7 @@ class PluginFieldInput extends StatelessWidget {
         );
       case PluginFieldType.number:
         return TextFormField(
-          initialValue: value?.toString() ?? '',
+          initialValue: effectiveValue?.toString() ?? '',
           decoration: InputDecoration(
             labelText: field.label,
             border: const OutlineInputBorder(),
@@ -598,7 +601,7 @@ class PluginFieldInput extends StatelessWidget {
         );
       case PluginFieldType.password:
         return TextFormField(
-          initialValue: value?.toString() ?? '',
+          initialValue: effectiveValue?.toString() ?? '',
           obscureText: true,
           decoration: InputDecoration(
             labelText: field.label,
@@ -609,7 +612,7 @@ class PluginFieldInput extends StatelessWidget {
         );
       case PluginFieldType.string:
         return TextFormField(
-          initialValue: value?.toString() ?? '',
+          initialValue: effectiveValue?.toString() ?? '',
           decoration: InputDecoration(
             labelText: field.label,
             border: const OutlineInputBorder(),

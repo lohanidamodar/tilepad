@@ -121,7 +121,11 @@ class PluginRegistry {
         'settings': plugin.settings,
       };
     }
-    await _stateFile.writeAsString(jsonEncode(state));
+    // Write to a temp file then rename so a crash mid-write can't corrupt the
+    // existing state.
+    final tmp = File('${_stateFile.path}.tmp');
+    await tmp.writeAsString(jsonEncode(state), flush: true);
+    await tmp.rename(_stateFile.path);
   }
 
   /// Enables or disables a plugin and persists the change.

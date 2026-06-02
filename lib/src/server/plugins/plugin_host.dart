@@ -185,20 +185,20 @@ class PluginHost {
         return boundPluginId;
 
       case PluginProtocol.setState:
-        if (boundPluginId != null) {
-          stateStore.set(
-            boundPluginId,
-            msg['stateId'] as String? ?? '',
-            value: msg['value'],
-          );
+        final stateId = msg['stateId'] as String?;
+        if (boundPluginId != null && stateId != null && stateId.isNotEmpty) {
+          stateStore.set(boundPluginId, stateId, value: msg['value']);
         }
         return boundPluginId;
 
       case PluginProtocol.setStateImage:
-        if (boundPluginId != null) {
+        final imgStateId = msg['stateId'] as String?;
+        if (boundPluginId != null &&
+            imgStateId != null &&
+            imgStateId.isNotEmpty) {
           stateStore.set(
             boundPluginId,
-            msg['stateId'] as String? ?? '',
+            imgStateId,
             value: msg['value'],
             image: msg['image'] as String?,
           );
@@ -222,7 +222,7 @@ class PluginHost {
     final conn = pluginId == null ? null : _connections[pluginId];
     if (conn == null || conn.token != token) {
       debugPrint('Plugin host: rejected registration for "$pluginId"');
-      socket.close();
+      unawaited(socket.close());
       return null;
     }
     // If this plugin already had a socket (e.g. it reconnected), close the old

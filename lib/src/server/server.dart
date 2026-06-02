@@ -190,8 +190,11 @@ class MarcoServer {
       );
       debugPrint('UDP discovery broadcasting started');
 
-      // Listen for client messages
-      _webSocketService.messageStream.listen(_handleClientMessage);
+      // Listen for client messages (tagged with the sender so connect-time
+      // replays can target just that client instead of broadcasting).
+      _webSocketService.addressedMessageStream.listen(
+        (m) => _handleClientMessage(m.message, m.clientId),
+      );
 
       // Listen for client connections and disconnections
       _webSocketService.clientConnectionStream.listen(_handleClientConnection);
@@ -329,12 +332,13 @@ class MarcoServer {
     _pluginRegistry = null;
   }
 
-  /// Broadcasts the current live-state snapshot to clients.
-  void _sendStateSnapshot() {
+  /// Replays the current live-state snapshot to a single client (on connect).
+  void _sendStateSnapshot(String clientId) {
     final host = _pluginHost;
     if (host == null) return;
     for (final entry in host.stateStore.snapshot()) {
-      _webSocketService.sendMessage(
+      _webSocketService.sendMessageToClient(
+        clientId,
         Message(type: MessageType.stateUpdate, payload: entry.toJson()),
       );
     }
@@ -431,31 +435,36 @@ class MarcoServer {
     }
   }
 
-  /// Handles a message from a client
-  void _handleClientMessage(Message message) async {
+  /// Handles a message from a client. [clientId] identifies the sender so
+  /// replies (acks, pages, state snapshot, results) go only to that client.
+  void _handleClientMessage(Message message, String clientId) async {
     switch (message.type) {
       case MessageType.connect:
         // Send connect acknowledgment
-        _webSocketService.sendMessage(Message(type: MessageType.connectAck));
+        _webSocketService.sendMessageToClient(
+          clientId,
+          Message(type: MessageType.connectAck),
+        );
 
         // Send pages with buttons to the newly connected client
-        _sendPagesToClient();
+        _sendPagesToClient(clientId);
         // Replay current live plugin state so live tiles render immediately.
-        _sendStateSnapshot();
+        _sendStateSnapshot(clientId);
         break;
 
       case MessageType.getButtons:
         // Send pages with buttons
-        _sendPagesToClient();
-        _sendStateSnapshot();
+        _sendPagesToClient(clientId);
+        _sendStateSnapshot(clientId);
         break;
 
       case MessageType.buttonPress:
-        _handleButtonPress(message.payload);
+        _handleButtonPress(message.payload, clientId);
         break;
 
       case MessageType.getWindows:
-        _webSocketService.sendMessage(
+        _webSocketService.sendMessageToClient(
+          clientId,
           Message(
             type: MessageType.windowsResponse,
             payload:
@@ -471,9 +480,10 @@ class MarcoServer {
     }
   }
 
-  /// Sends all pages with their buttons to the client
-  void _sendPagesToClient() {
-    _webSocketService.sendMessage(
+  /// Sends all pages with their buttons to a single client.
+  void _sendPagesToClient(String clientId) {
+    _webSocketService.sendMessageToClient(
+      clientId,
       Message(
         type: MessageType.pagesResponse,
         payload: _buttonManager.pages.map((p) => p.toJson()).toList(),
@@ -482,7 +492,7 @@ class MarcoServer {
   }
 
   /// Handles a button press message
-  void _handleButtonPress(dynamic payload) async {
+  void _handleButtonPress(dynamic payload, String clientId) async {
     if (payload == null || !payload.containsKey('buttonId')) {
       return;
     }
@@ -491,7 +501,8 @@ class MarcoServer {
     final button = _buttonManager.getButton(buttonId);
 
     if (button == null) {
-      _webSocketService.sendMessage(
+      _webSocketService.sendMessageToClient(
+        clientId,
         Message(
           type: MessageType.error,
           payload: {'error': 'Button not found'},
@@ -523,7 +534,8 @@ class MarcoServer {
       } else {
         result = await _commandExecutor.execute(button);
       }
-      _webSocketService.sendMessage(
+      _webSocketService.sendMessageToClient(
+        clientId,
         Message(
           type: MessageType.commandResult,
           payload: {
@@ -535,7 +547,8 @@ class MarcoServer {
         ),
       );
     } catch (e) {
-      _webSocketService.sendMessage(
+      _webSocketService.sendMessageToClient(
+        clientId,
         Message(
           type: MessageType.commandResult,
           payload: {
@@ -638,7 +651,7 @@ class MarcoServer {
   }
 
   /// Disposes the server resources
-  void dispose() async {
+  Future<void> dispose() async {
     await stop();
     await _discoveryService.dispose();
     await _clientsController.close();
