@@ -6,305 +6,300 @@ import 'package:picons/picons.dart';
 
 import '../models/button.dart';
 
-/// Service responsible for managing button configurations on the server
+/// Manages the server's button library and the pages that place those buttons
+/// on a spanning grid.
+///
+/// Buttons live in a single [library]; each page holds [Tile]s that reference a
+/// library button (by id) with a per-placement size. Tiles in memory hold the
+/// resolved [Button] object, so editing a library button is reflected on every
+/// page. Storage is normalised (tiles persist `buttonId` + spans); the wire and
+/// UI use the resolved (denormalised) [Page]/[Tile] objects.
 class ButtonManager {
-  /// List of all available pages with buttons
+  final List<Button> _library = [];
   List<Page> _pages = [];
-
-  /// Path to the configuration file
   String? _configPath;
 
-  /// Getter for all pages
+  /// The button library.
+  List<Button> get buttons => List.unmodifiable(_library);
+
+  /// All pages with resolved tiles.
   List<Page> get pages => List.unmodifiable(_pages);
 
-  /// Getter for all buttons (flattened from all pages)
-  List<Button> get buttons {
-    final allButtons = <Button>[];
-    for (final page in _pages) {
-      allButtons.addAll(page.buttons);
-    }
-    return List.unmodifiable(allButtons);
-  }
-
-  /// Initializes the button manager
   Future<void> initialize() async {
     await _loadConfig();
-
-    // If no pages were loaded, create a default page with some buttons
-    if (_pages.isEmpty) {
-      _createDefaultPages();
+    if (_library.isEmpty && _pages.isEmpty) {
+      _createDefaults();
       await saveConfig();
     }
   }
 
-  /// Loads configuration from disk
+  // --- Persistence -----------------------------------------------------------
+
   Future<void> _loadConfig() async {
     try {
       final directory = await _getConfigDirectory();
       final file = File('${directory.path}/pages.json');
       _configPath = file.path;
+      if (!await file.exists()) return;
 
-      if (await file.exists()) {
-        final String contents = await file.readAsString();
-        final List<dynamic> jsonList = jsonDecode(contents);
+      final data = jsonDecode(await file.readAsString());
+      if (data is! Map<String, dynamic>) return;
 
-        _pages = jsonList.map((json) => Page.fromJson(json)).toList();
-      } else {
-        // Try to load from the old format (buttons.json) for backward compatibility
-        final oldConfigFile = File('${directory.path}/buttons.json');
-        if (await oldConfigFile.exists()) {
-          final String contents = await oldConfigFile.readAsString();
-          final List<dynamic> jsonList = jsonDecode(contents);
-
-          final buttons =
-              jsonList.map((json) => Button.fromJson(json)).toList();
-
-          // Convert old format to new format by creating a default page with the buttons
-          if (buttons.isNotEmpty) {
-            _pages = [Page(name: 'Main Page', buttons: buttons)];
-            // Save in the new format and delete the old file
-            await saveConfig();
-            await oldConfigFile.delete();
-          }
-        }
+      _library.clear();
+      for (final b in (data['buttons'] as List<dynamic>? ?? const [])) {
+        _library.add(Button.fromJson(b as Map<String, dynamic>));
+      }
+      _pages = [];
+      for (final p in (data['pages'] as List<dynamic>? ?? const [])) {
+        final page = _pageFromStorage(p as Map<String, dynamic>);
+        if (page != null) _pages.add(page);
       }
     } catch (e) {
       debugPrint('Error loading configuration: $e');
+      _library.clear();
       _pages = [];
     }
   }
 
-  /// Saves configuration to disk
   Future<void> saveConfig() async {
     try {
-      if (_configPath == null) {
-        final directory = await _getConfigDirectory();
-        _configPath = '${directory.path}/pages.json';
-      }
-
-      final file = File(_configPath!);
-      final jsonList = _pages.map((page) => page.toJson()).toList();
-      await file.writeAsString(jsonEncode(jsonList));
+      _configPath ??= '${(await _getConfigDirectory()).path}/pages.json';
+      final data = {
+        'buttons': _library.map((b) => b.toJson()).toList(),
+        'pages': _pages.map(_pageToStorage).toList(),
+      };
+      await File(_configPath!).writeAsString(jsonEncode(data));
     } catch (e) {
       debugPrint('Error saving configuration: $e');
     }
   }
 
-  /// Gets the configuration directory based on the platform
+  Map<String, dynamic> _pageToStorage(Page page) => {
+        'id': page.id,
+        'name': page.name,
+        'order': page.order,
+        'columns': page.columns,
+        'tiles': page.tiles
+            .map((t) => {
+                  'id': t.id,
+                  'buttonId': t.buttonId,
+                  'colSpan': t.colSpan,
+                  'rowSpan': t.rowSpan,
+                })
+            .toList(),
+      };
+
+  /// Rebuilds a page from normalised storage, resolving tiles against the
+  /// library and dropping tiles whose button no longer exists.
+  Page? _pageFromStorage(Map<String, dynamic> json) {
+    final tiles = <Tile>[];
+    for (final t in (json['tiles'] as List<dynamic>? ?? const [])) {
+      final map = t as Map<String, dynamic>;
+      final button = getButton(map['buttonId'] as String? ?? '');
+      if (button == null) continue;
+      tiles.add(Tile(
+        id: map['id'] as String?,
+        button: button,
+        colSpan: map['colSpan'] as int? ?? 1,
+        rowSpan: map['rowSpan'] as int? ?? 1,
+      ));
+    }
+    return Page(
+      id: json['id'] as String?,
+      name: json['name'] as String? ?? 'Untitled',
+      order: json['order'] as int? ?? 0,
+      columns: json['columns'] as int? ?? 4,
+      tiles: tiles,
+    );
+  }
+
   Future<Directory> _getConfigDirectory() async {
-    late final Directory directory;
-
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      directory = await getApplicationSupportDirectory();
-    } else {
-      directory = await getApplicationDocumentsDirectory();
-    }
-
-    // Create marco_deck subdirectory
-    final marcoDeckDir = Directory('${directory.path}/marco_deck');
-    if (!await marcoDeckDir.exists()) {
-      await marcoDeckDir.create(recursive: true);
-    }
-
-    return marcoDeckDir;
+    final base = (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
+        ? await getApplicationSupportDirectory()
+        : await getApplicationDocumentsDirectory();
+    final dir = Directory('${base.path}/marco_deck');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
   }
 
-  /// Gets a page by its ID
-  Page? getPage(String id) {
-    try {
-      return _pages.firstWhere((page) => page.id == id);
-    } catch (e) {
-      return null;
-    }
-  }
+  // --- Library ---------------------------------------------------------------
 
-  /// Gets a button by its ID (searches all pages)
   Button? getButton(String id) {
-    for (final page in _pages) {
-      try {
-        final button = page.buttons.firstWhere((button) => button.id == id);
-        return button;
-      } catch (e) {
-        // Button not found in this page, continue to next page
-      }
+    for (final b in _library) {
+      if (b.id == id) return b;
     }
     return null;
   }
 
-  /// Gets the page that contains a specific button
-  Page? getPageContainingButton(String buttonId) {
+  /// Adds a button to the library.
+  void addLibraryButton(Button button) {
+    _library.add(button);
+    saveConfig();
+  }
+
+  /// Updates a library button in place so every tile that places it reflects
+  /// the change.
+  bool updateButton(Button updated) {
+    final index = _library.indexWhere((b) => b.id == updated.id);
+    if (index == -1) return false;
+    _library[index] = updated;
+    // Re-point any tiles that referenced the old object.
     for (final page in _pages) {
-      if (page.buttons.any((button) => button.id == buttonId)) {
-        return page;
+      for (var i = 0; i < page.tiles.length; i++) {
+        if (page.tiles[i].buttonId == updated.id) {
+          page.tiles[i] = Tile(
+            id: page.tiles[i].id,
+            button: updated,
+            colSpan: page.tiles[i].colSpan,
+            rowSpan: page.tiles[i].rowSpan,
+          );
+        }
       }
+    }
+    saveConfig();
+    return true;
+  }
+
+  /// Deletes a library button and removes its tiles from every page.
+  bool deleteButton(String id) {
+    final existed = _library.any((b) => b.id == id);
+    if (!existed) return false;
+    _library.removeWhere((b) => b.id == id);
+    for (final page in _pages) {
+      page.tiles.removeWhere((t) => t.buttonId == id);
+    }
+    saveConfig();
+    return true;
+  }
+
+  // --- Pages -----------------------------------------------------------------
+
+  Page? getPage(String id) {
+    for (final p in _pages) {
+      if (p.id == id) return p;
     }
     return null;
   }
 
-  /// Adds a new page
   void addPage(Page page) {
     _pages.add(page);
     saveConfig();
   }
 
-  /// Updates an existing page
-  bool updatePage(Page updatedPage) {
-    final index = _pages.indexWhere((p) => p.id == updatedPage.id);
-    if (index != -1) {
-      _pages[index] = updatedPage;
-      saveConfig();
-      return true;
-    }
-    return false;
+  bool updatePage(Page updated) {
+    final index = _pages.indexWhere((p) => p.id == updated.id);
+    if (index == -1) return false;
+    _pages[index] = updated;
+    saveConfig();
+    return true;
   }
 
-  /// Deletes a page
   bool deletePage(String id) {
-    final previousLength = _pages.length;
-    _pages.removeWhere((page) => page.id == id);
-    final deleted = _pages.length < previousLength;
-    if (deleted) {
-      saveConfig();
-    }
+    final before = _pages.length;
+    _pages.removeWhere((p) => p.id == id);
+    final deleted = _pages.length < before;
+    if (deleted) saveConfig();
     return deleted;
   }
 
-  /// Reorders pages
   void reorderPages(List<Page> newOrder) {
-    // Update the order property of each page based on its position in the new order
-    for (int i = 0; i < newOrder.length; i++) {
+    for (var i = 0; i < newOrder.length; i++) {
       newOrder[i].order = i;
     }
-
-    // Replace the current pages list with the new ordered list
     _pages = List.from(newOrder);
     saveConfig();
   }
 
-  /// Adds a new button to a specific page
-  bool addButton(Button button, String pageId) {
+  // --- Tiles (page composition) ----------------------------------------------
+
+  /// Places [buttonId] on [pageId] at the given size and returns the new tile.
+  Tile? addTile(String pageId, String buttonId, {int colSpan = 1, int rowSpan = 1}) {
     final page = getPage(pageId);
-    if (page != null) {
-      page.buttons.add(button);
-      saveConfig();
-      return true;
-    }
-    return false;
+    final button = getButton(buttonId);
+    if (page == null || button == null) return null;
+    final tile = Tile(button: button, colSpan: colSpan, rowSpan: rowSpan);
+    page.tiles.add(tile);
+    saveConfig();
+    return tile;
   }
 
-  /// Updates an existing button
-  bool updateButton(Button updatedButton) {
-    for (final page in _pages) {
-      final index = page.buttons.indexWhere((b) => b.id == updatedButton.id);
-      if (index != -1) {
-        page.buttons[index] = updatedButton;
-        saveConfig();
-        return true;
-      }
-    }
-    return false;
+  bool removeTile(String pageId, String tileId) {
+    final page = getPage(pageId);
+    if (page == null) return false;
+    final before = page.tiles.length;
+    page.tiles.removeWhere((t) => t.id == tileId);
+    final removed = page.tiles.length < before;
+    if (removed) saveConfig();
+    return removed;
   }
 
-  /// Deletes a button
-  bool deleteButton(String id) {
-    bool deleted = false;
-    for (final page in _pages) {
-      final previousLength = page.buttons.length;
-      page.buttons.removeWhere((button) => button.id == id);
-      if (page.buttons.length < previousLength) {
-        deleted = true;
-        break;
-      }
-    }
-
-    if (deleted) {
-      saveConfig();
-    }
-    return deleted;
+  bool resizeTile(String pageId, String tileId, int colSpan, int rowSpan) {
+    final page = getPage(pageId);
+    if (page == null) return false;
+    final tile = page.tiles.firstWhere(
+      (t) => t.id == tileId,
+      orElse: () => Tile(button: Button(name: '', iconName: '')),
+    );
+    if (tile.button.name.isEmpty && tile.buttonId.isEmpty) return false;
+    tile.colSpan = colSpan.clamp(1, page.columns);
+    tile.rowSpan = rowSpan.clamp(1, 6);
+    saveConfig();
+    return true;
   }
 
-  /// Moves a button from one page to another
-  bool moveButton(String buttonId, String targetPageId) {
-    // Find the button and its current page
-    Button? button;
-    Page? sourcePage;
-
-    for (final page in _pages) {
-      final index = page.buttons.indexWhere((b) => b.id == buttonId);
-      if (index != -1) {
-        button = page.buttons[index];
-        sourcePage = page;
-        page.buttons.removeAt(index);
-        break;
-      }
-    }
-
-    if (button == null || sourcePage == null) {
-      return false;
-    }
-
-    // Find the target page and add the button
-    final targetPage = getPage(targetPageId);
-    if (targetPage != null) {
-      targetPage.buttons.add(button);
-      saveConfig();
-      return true;
-    }
-
-    // If target page not found, put the button back in its original page
-    sourcePage.buttons.add(button);
-    return false;
+  /// Moves the tile at [oldIndex] to [newIndex] within a page.
+  bool reorderTiles(String pageId, int oldIndex, int newIndex) {
+    final page = getPage(pageId);
+    if (page == null) return false;
+    if (oldIndex < 0 || oldIndex >= page.tiles.length) return false;
+    final tile = page.tiles.removeAt(oldIndex);
+    page.tiles.insert(newIndex.clamp(0, page.tiles.length), tile);
+    saveConfig();
+    return true;
   }
 
-  /// Creates default pages with buttons
-  void _createDefaultPages() {
-    final defaultButtons = [
-      Button(
-        name: 'Open Browser',
-        iconName: PiconsRegular.globe.codePoint.toString(),
-        command:
-            Platform.isWindows
-                ? 'start chrome'
-                : (Platform.isMacOS
-                    ? 'open -a "Google Chrome"'
-                    : 'google-chrome'),
-      ),
-      Button(
-        name: 'Open Notepad',
-        iconName: PiconsRegular.note.codePoint.toString(),
-        command:
-            Platform.isWindows
-                ? 'notepad'
-                : (Platform.isMacOS ? 'open -a TextEdit' : 'gedit'),
-        color: '#4CAF50',
-      ),
-    ];
+  // --- Defaults --------------------------------------------------------------
 
-    final systemButtons = [
-      Button(
-        name: 'System Info',
-        iconName: PiconsRegular.desktop.codePoint.toString(),
-        command:
-            Platform.isWindows ? 'systeminfo' : 'uname -a && lsb_release -a',
-        color: '#FFC107',
-      ),
-      Button(
-        name: 'Power Options',
-        iconName: PiconsRegular.power.codePoint.toString(),
-        type: ButtonType.commandPreset,
-        command:
-            Platform.isWindows
-                ? 'shutdown /s /t 0'
-                : (Platform.isMacOS
-                    ? 'sudo shutdown -h now'
-                    : 'sudo shutdown -h now'),
-        color: '#F44336',
-      ),
-    ];
+  void _createDefaults() {
+    Button cmd(String name, String icon, String command, [String color = '#3B82F6']) =>
+        Button(
+          name: name,
+          iconName: icon,
+          color: color,
+          actions: [ButtonAction(type: ActionType.command, command: command)],
+        );
 
+    final browser = cmd(
+      'Open Browser',
+      PiconsRegular.globe.codePoint.toString(),
+      Platform.isWindows
+          ? 'start chrome'
+          : (Platform.isMacOS ? 'open -a "Google Chrome"' : 'google-chrome'),
+    );
+    final notes = cmd(
+      'Open Notes',
+      PiconsRegular.note.codePoint.toString(),
+      Platform.isWindows
+          ? 'notepad'
+          : (Platform.isMacOS ? 'open -a TextEdit' : 'gedit'),
+      '#10B981',
+    );
+    final sysInfo = cmd(
+      'System Info',
+      PiconsRegular.desktop.codePoint.toString(),
+      Platform.isWindows ? 'systeminfo' : 'uname -a',
+      '#F59E0B',
+    );
+
+    _library.addAll([browser, notes, sysInfo]);
     _pages = [
-      Page(name: 'Applications', order: 0, buttons: defaultButtons),
-      Page(name: 'System', order: 1, buttons: systemButtons),
+      Page(name: 'Applications', order: 0, columns: 4, tiles: [
+        Tile(button: browser, colSpan: 2),
+        Tile(button: notes),
+      ]),
+      Page(name: 'System', order: 1, columns: 4, tiles: [
+        Tile(button: sysInfo),
+      ]),
     ];
   }
 }

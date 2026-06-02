@@ -608,33 +608,57 @@ class MarcoServer {
     _broadcastPages();
   }
 
-  /// Adds a new button to a specific page
-  bool addButton(Button button, String pageId) {
-    final result = _buttonManager.addButton(button, pageId);
-    if (result) {
-      _broadcastPages();
-    }
-    return result;
+  /// The button library.
+  List<Button> get libraryButtons => _buttonManager.buttons;
+
+  /// Adds a button to the library.
+  void addLibraryButton(Button button) {
+    _buttonManager.addLibraryButton(button);
+    _broadcastPages();
   }
 
-  /// Updates an existing button
+  /// Updates a library button (reflected on every page that places it).
   void updateButton(Button button) {
     _buttonManager.updateButton(button);
     _broadcastPages();
   }
 
-  /// Deletes a button
+  /// Deletes a library button and its placements everywhere.
   void deleteButton(String id) {
     _buttonManager.deleteButton(id);
     _broadcastPages();
   }
 
-  /// Moves a button to another page
-  bool moveButton(String buttonId, String targetPageId) {
-    final result = _buttonManager.moveButton(buttonId, targetPageId);
-    if (result) {
-      _broadcastPages();
-    }
+  /// Places a library button on a page at the given size.
+  Tile? addTile(String pageId, String buttonId, {int colSpan = 1, int rowSpan = 1}) {
+    final tile = _buttonManager.addTile(
+      pageId,
+      buttonId,
+      colSpan: colSpan,
+      rowSpan: rowSpan,
+    );
+    if (tile != null) _broadcastPages();
+    return tile;
+  }
+
+  /// Removes a tile (placement) from a page.
+  bool removeTile(String pageId, String tileId) {
+    final result = _buttonManager.removeTile(pageId, tileId);
+    if (result) _broadcastPages();
+    return result;
+  }
+
+  /// Resizes a tile on a page.
+  bool resizeTile(String pageId, String tileId, int colSpan, int rowSpan) {
+    final result = _buttonManager.resizeTile(pageId, tileId, colSpan, rowSpan);
+    if (result) _broadcastPages();
+    return result;
+  }
+
+  /// Reorders a tile within a page.
+  bool reorderTiles(String pageId, int oldIndex, int newIndex) {
+    final result = _buttonManager.reorderTiles(pageId, oldIndex, newIndex);
+    if (result) _broadcastPages();
     return result;
   }
 
