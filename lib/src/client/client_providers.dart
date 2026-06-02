@@ -818,11 +818,24 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     }
   }
 
-  /// Presses a button
-  void pressButton(String buttonId) {
+  /// Presses a button.
+  ///
+  /// For dynamic buttons, pass the client-supplied [text] (for prompt-text
+  /// buttons) or [key] + [modifiers] (for prompt-keystroke buttons); the server
+  /// uses these instead of any stored values.
+  void pressButton(
+    String buttonId, {
+    String? text,
+    String? key,
+    List<String>? modifiers,
+  }) {
     if (state.status == ConnectionStatus.connected) {
+      final payload = <String, dynamic>{'buttonId': buttonId};
+      if (text != null) payload['text'] = text;
+      if (key != null) payload['key'] = key;
+      if (modifiers != null) payload['modifiers'] = modifiers;
       _webSocketService.sendMessage(
-        Message(type: MessageType.buttonPress, payload: {'buttonId': buttonId}),
+        Message(type: MessageType.buttonPress, payload: payload),
       );
     }
   }

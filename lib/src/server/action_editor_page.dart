@@ -346,6 +346,82 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
     }
   }
 
+  /// Short label for an action type (used by the type chips).
+  String _typeLabel(ActionType type) {
+    switch (type) {
+      case ActionType.command:
+        return 'Custom';
+      case ActionType.commandPreset:
+        return 'Preset';
+      case ActionType.keystroke:
+        return 'Keystroke';
+      case ActionType.promptText:
+        return 'Prompt Text';
+      case ActionType.promptKeystroke:
+        return 'Prompt Keys';
+    }
+  }
+
+  /// Icon for an action type (used by the type chips).
+  IconData _typeIcon(ActionType type) {
+    switch (type) {
+      case ActionType.command:
+        return Icons.terminal;
+      case ActionType.commandPreset:
+        return Icons.list_alt;
+      case ActionType.keystroke:
+        return Icons.keyboard;
+      case ActionType.promptText:
+        return Icons.keyboard_alt_outlined;
+      case ActionType.promptKeystroke:
+        return Icons.touch_app_outlined;
+    }
+  }
+
+  /// Builds an explanatory card for the dynamic "prompt" action types.
+  Widget _buildPromptInfoCard({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: colorScheme.primaryContainer,
+              child: Icon(icon, color: colorScheme.onPrimaryContainer),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Gets a human-readable description of the keystroke
   String _getKeystrokeDescription() {
     final modifierNames = _selectedModifiers
@@ -395,30 +471,30 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SegmentedButton<ActionType>(
-                      segments: [
-                        ButtonSegment<ActionType>(
-                          value: ActionType.command,
-                          label: const Text('Custom'),
-                          icon: const Icon(Icons.terminal),
-                        ),
-                        ButtonSegment<ActionType>(
-                          value: ActionType.commandPreset,
-                          label: const Text('Preset'),
-                          icon: const Icon(Icons.list_alt),
-                        ),
-                        ButtonSegment<ActionType>(
-                          value: ActionType.keystroke,
-                          label: const Text('Keystroke'),
-                          icon: const Icon(Icons.keyboard),
-                        ),
-                      ],
-                      selected: {_selectedType},
-                      onSelectionChanged: (Set<ActionType> newSelection) {
-                        setState(() {
-                          _selectedType = newSelection.first;
-                        });
-                      },
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children:
+                          ActionType.values.map((type) {
+                            final selected = _selectedType == type;
+                            return ChoiceChip(
+                              avatar: Icon(
+                                _typeIcon(type),
+                                size: 18,
+                                color:
+                                    selected
+                                        ? Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondaryContainer
+                                        : null,
+                              ),
+                              label: Text(_typeLabel(type)),
+                              selected: selected,
+                              onSelected:
+                                  (_) =>
+                                      setState(() => _selectedType = type),
+                            );
+                          }).toList(),
                     ),
                   ],
                 ),
@@ -753,6 +829,26 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                     ],
                   ),
                 ),
+              ),
+
+            // Prompt-for-text info
+            if (_selectedType == ActionType.promptText)
+              _buildPromptInfoCard(
+                icon: Icons.keyboard_alt_outlined,
+                title: 'Prompt for Text',
+                description:
+                    'When this button is pressed, the device asks for text to '
+                    'send and the server types it into the active app.',
+              ),
+
+            // Prompt-for-key-combo info
+            if (_selectedType == ActionType.promptKeystroke)
+              _buildPromptInfoCard(
+                icon: Icons.touch_app_outlined,
+                title: 'Prompt for Key Combo',
+                description:
+                    'When this button is pressed, the device asks for a key '
+                    'combination (modifiers + key) and the server sends it.',
               ),
           ],
         ),

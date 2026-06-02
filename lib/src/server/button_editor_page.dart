@@ -204,6 +204,10 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                 ? '${action.modifiers.map((m) => m.toUpperCase()).join('+')}+'
                 : '';
         return 'Keystroke: $modifierText${action.key.toUpperCase()}';
+      case ActionType.promptText:
+        return 'Asks the device for text, then types it';
+      case ActionType.promptKeystroke:
+        return 'Asks the device for a key combo, then sends it';
     }
   }
 
@@ -216,6 +220,10 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Preset Command';
       case ActionType.keystroke:
         return 'Keystroke';
+      case ActionType.promptText:
+        return 'Prompt for Text';
+      case ActionType.promptKeystroke:
+        return 'Prompt for Key Combo';
     }
   }
 
@@ -228,6 +236,10 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return Icons.list_alt;
       case ActionType.keystroke:
         return Icons.keyboard;
+      case ActionType.promptText:
+        return Icons.keyboard_alt_outlined;
+      case ActionType.promptKeystroke:
+        return Icons.touch_app_outlined;
     }
   }
 

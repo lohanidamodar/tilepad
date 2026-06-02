@@ -155,4 +155,39 @@ class Win32Keyboard {
       return false;
     }
   }
+
+  /// Types arbitrary [text] into the focused window using Win32 SendInput with
+  /// Unicode events, so any character can be sent regardless of layout.
+  static bool typeText(String text) {
+    if (text.isEmpty) return true;
+    try {
+      // One key-down + key-up event per UTF-16 code unit.
+      final units = text.codeUnits;
+      final inputs = calloc<INPUT>(units.length * 2);
+      var index = 0;
+      for (final unit in units) {
+        // Key down
+        inputs[index].type = INPUT_KEYBOARD;
+        inputs[index].ki.wVk = const VIRTUAL_KEY(0);
+        inputs[index].ki.wScan = unit;
+        inputs[index].ki.dwFlags = KEYEVENTF_UNICODE;
+        index++;
+        // Key up
+        inputs[index].type = INPUT_KEYBOARD;
+        inputs[index].ki.wVk = const VIRTUAL_KEY(0);
+        inputs[index].ki.wScan = unit;
+        inputs[index].ki.dwFlags = KEYBD_EVENT_FLAGS(
+          KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+        );
+        index++;
+      }
+
+      final result = SendInput(index, inputs, sizeOf<INPUT>());
+      calloc.free(inputs);
+      return result.value == index;
+    } catch (e) {
+      debugPrint('Error typing text via Win32: $e');
+      return false;
+    }
+  }
 }

@@ -5,6 +5,7 @@ import '../models/button.dart';
 import '../utils/accessibility.dart';
 import '../utils/macro_icons.dart';
 import '../utils/theme.dart';
+import '../widgets/key_combo_picker.dart';
 import 'client_providers.dart';
 
 /// Widget that displays a grid of macro buttons with enhanced visual feedback
@@ -181,19 +182,21 @@ class ButtonGrid extends ConsumerWidget {
       enabled: isConnected,
       onPressed: () {
         // Check if connection is active before sending command
-        if (isConnected) {
-          // Note: AccessibleButton already provides light haptic feedback on
-          // tap-down, so we avoid a duplicate buzz here.
-
-          // Announce button press to screen readers
-          AccessibilityUtils.announce(context, 'Activated ${button.name}');
-
-          if (onButtonPressed != null) {
-            onButtonPressed!(button.id);
-          }
-        } else {
+        if (!isConnected) {
           // Connection is lost, show dialog to reconnect
           _handleConnectionLoss(context, ref);
+          return;
+        }
+
+        // Note: AccessibleButton already provides light haptic feedback on
+        // tap-down, so we avoid a duplicate buzz here.
+        AccessibilityUtils.announce(context, 'Activated ${button.name}');
+
+        if (button.isPrompt) {
+          // Dynamic button: ask the user what to send, then send it.
+          _handleDynamicPress(context, ref, button);
+        } else if (onButtonPressed != null) {
+          onButtonPressed!(button.id);
         }
       },
       child: AnimatedButton(
@@ -205,6 +208,120 @@ class ButtonGrid extends ConsumerWidget {
           // This will be handled by AccessibleButton
         },
       ),
+    );
+  }
+
+  /// Last value sent from each dynamic button, used to prefill the prompt.
+  static final Map<String, String> _lastText = {};
+  static final Map<String, ({String key, Set<String> modifiers})> _lastCombo =
+      {};
+
+  /// Handles pressing a dynamic button by asking the user what to send.
+  Future<void> _handleDynamicPress(
+    BuildContext context,
+    WidgetRef ref,
+    Button button,
+  ) async {
+    final notifier = ref.read(connectionStateProvider.notifier);
+
+    if (button.promptActionType == ActionType.promptText) {
+      final text = await _showTextPrompt(context, button);
+      if (text != null && text.isNotEmpty) {
+        _lastText[button.id] = text;
+        notifier.pressButton(button.id, text: text);
+      }
+    } else if (button.promptActionType == ActionType.promptKeystroke) {
+      final combo = await _showKeyComboPrompt(context, button);
+      if (combo != null) {
+        _lastCombo[button.id] = combo;
+        notifier.pressButton(
+          button.id,
+          key: combo.key,
+          modifiers: combo.modifiers.toList(),
+        );
+      }
+    }
+  }
+
+  /// Prompts for free text to send.
+  Future<String?> _showTextPrompt(BuildContext context, Button button) {
+    final controller = TextEditingController(text: _lastText[button.id] ?? '');
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(button.name),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            minLines: 1,
+            maxLines: 4,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              labelText: 'Text to send',
+              hintText: 'Type the text to send…',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (v) => Navigator.of(context).pop(v),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Prompts for a key combination to send.
+  Future<({String key, Set<String> modifiers})?> _showKeyComboPrompt(
+    BuildContext context,
+    Button button,
+  ) {
+    final last = _lastCombo[button.id];
+    var key = last?.key ?? 'a';
+    var modifiers = {...?last?.modifiers};
+    return showDialog<({String key, Set<String> modifiers})>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(button.name),
+          content: SizedBox(
+            width: 360,
+            child: SingleChildScrollView(
+              child: KeyComboPicker(
+                initialKey: key,
+                initialModifiers: modifiers,
+                onChanged: (k, m) {
+                  key = k;
+                  modifiers = m;
+                },
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed:
+                  () => Navigator.of(
+                    context,
+                  ).pop((key: key, modifiers: modifiers)),
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Send'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

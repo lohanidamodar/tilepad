@@ -291,7 +291,24 @@ class MarcoServer {
     }
 
     try {
-      final result = await _commandExecutor.execute(button);
+      final CommandResult result;
+      final promptType = button.promptActionType;
+      if (promptType == ActionType.promptText) {
+        // Type the text the client supplied at press time.
+        final text = (payload['text'] as String?) ?? '';
+        result = await _commandExecutor.executeTypeText(text);
+      } else if (promptType == ActionType.promptKeystroke) {
+        // Send the key combination the client chose at press time.
+        final key = (payload['key'] as String?) ?? '';
+        final modifiers =
+            (payload['modifiers'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const <String>[];
+        result = await _commandExecutor.executeKeystroke(key, modifiers);
+      } else {
+        result = await _commandExecutor.execute(button);
+      }
       _webSocketService.sendMessage(
         Message(
           type: MessageType.commandResult,

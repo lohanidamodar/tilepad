@@ -59,6 +59,13 @@ class CommandExecutor {
 
       case ActionType.keystroke:
         return await executeKeystroke(action.key, action.modifiers);
+
+      case ActionType.promptText:
+        // Without a client-supplied value, fall back to any stored default.
+        return await executeTypeText(action.command);
+
+      case ActionType.promptKeystroke:
+        return await executeKeystroke(action.key, action.modifiers);
     }
   }
 
@@ -70,7 +77,50 @@ class CommandExecutor {
         return await executeCommand(button.command);
 
       case ButtonType.keystroke:
+      case ButtonType.promptKeystroke:
         return await executeKeystroke(button.key, button.modifiers);
+
+      case ButtonType.promptText:
+        return await executeTypeText(button.command);
+    }
+  }
+
+  /// Types arbitrary [text] into the currently focused window.
+  ///
+  /// Used by dynamic "Prompt for Text" buttons, where the text is supplied by
+  /// the client at press time.
+  Future<CommandResult> executeTypeText(String text) async {
+    if (text.isEmpty) {
+      return CommandResult(success: true, output: '', error: '');
+    }
+    try {
+      if (Platform.isWindows) {
+        final ok = Win32Keyboard.typeText(text);
+        return CommandResult(
+          success: ok,
+          output: ok ? 'Typed "$text"' : '',
+          error: ok ? '' : 'Failed to type text',
+        );
+      } else if (Platform.isMacOS) {
+        final escaped = text.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+        return await executeCommand(
+          'osascript -e \'tell application "System Events" to keystroke "$escaped"\'',
+        );
+      } else if (Platform.isLinux) {
+        final escaped = text.replaceAll("'", "'\\''");
+        return await executeCommand("xdotool type --clearmodifiers -- '$escaped'");
+      }
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'Typing text is not supported on this platform',
+      );
+    } catch (e) {
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'Error typing text: $e',
+      );
     }
   }
 

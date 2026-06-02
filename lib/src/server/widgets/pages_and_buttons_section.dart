@@ -483,6 +483,10 @@ class PagesAndButtonsSection extends StatelessWidget {
                 ? '${action.modifiers.map((m) => m.toUpperCase()).join('+')}+'
                 : '';
         return 'Keystroke: $modifierText${action.key.toUpperCase()}';
+      case models.ActionType.promptText:
+        return 'Prompt for text';
+      case models.ActionType.promptKeystroke:
+        return 'Prompt for key combo';
     }
   }
 }
