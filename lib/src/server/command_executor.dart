@@ -9,9 +9,21 @@ import '../models/window_info.dart';
 import '../utils/win32_keyboard.dart';
 import '../utils/win32_commands.dart';
 import '../utils/win32_windows.dart';
+import 'plugins/plugin_host.dart';
+
+/// Invokes a plugin action and returns its result. Wired by the server to
+/// [PluginHost.invoke]; left null in contexts without a plugin host.
+typedef PluginActionInvoker = Future<PluginActionResult> Function(
+  String pluginId,
+  String actionId,
+  Map<String, dynamic> settings,
+);
 
 /// Service responsible for executing shell commands and keystrokes
 class CommandExecutor {
+  /// Optional bridge to the plugin host for [ActionType.plugin] actions.
+  PluginActionInvoker? pluginInvoker;
+
   /// Executes a button with all of its actions in sequence
   Future<CommandResult> execute(Button button) async {
     // If there are no actions, return an error
@@ -76,7 +88,29 @@ class CommandExecutor {
           output: 'Pick a window on the device',
           error: '',
         );
+
+      case ActionType.plugin:
+        return await executePluginAction(action);
     }
+  }
+
+  /// Routes a plugin action to the plugin host via [pluginInvoker].
+  Future<CommandResult> executePluginAction(ButtonAction action) async {
+    final invoker = pluginInvoker;
+    if (invoker == null) {
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'No plugin host available to run this plugin action',
+      );
+    }
+    final result =
+        await invoker(action.pluginId, action.pluginActionId, action.settings);
+    return CommandResult(
+      success: result.success,
+      output: result.output,
+      error: result.error,
+    );
   }
 
   /// Legacy method for backward compatibility
@@ -99,6 +133,18 @@ class CommandExecutor {
           output: 'Pick a window on the device',
           error: '',
         );
+
+      case ButtonType.plugin:
+        // Plugin actions use the new multi-action path; route via the first
+        // action so legacy single-action callers still work.
+        if (button.actions.isEmpty) {
+          return CommandResult(
+            success: false,
+            output: '',
+            error: 'Plugin button has no action to run',
+          );
+        }
+        return await executePluginAction(button.actions.first);
     }
   }
 

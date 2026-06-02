@@ -19,6 +19,9 @@ enum ActionType {
 
   /// Let the client pick one of the server's open windows to bring to front
   selectWindow,
+
+  /// Invoke an action provided by an installed plugin
+  plugin,
 }
 
 /// Represents a single action that can be performed by a button
@@ -39,6 +42,15 @@ class ButtonAction {
   /// Can include: ctrl, alt, shift, meta/win
   List<String> modifiers;
 
+  /// Plugin id that owns this action (for [ActionType.plugin]).
+  String pluginId;
+
+  /// The plugin's action id to invoke (for [ActionType.plugin]).
+  String pluginActionId;
+
+  /// Field values for the plugin action (for [ActionType.plugin]).
+  Map<String, dynamic> settings;
+
   /// Creates a new button action with the given properties
   ButtonAction({
     String? id,
@@ -46,7 +58,11 @@ class ButtonAction {
     this.command = '',
     this.key = '',
     this.modifiers = const [],
-  }) : id = id ?? const Uuid().v4();
+    this.pluginId = '',
+    this.pluginActionId = '',
+    Map<String, dynamic>? settings,
+  })  : id = id ?? const Uuid().v4(),
+        settings = settings ?? <String, dynamic>{};
 
   /// Creates a button action from a JSON map
   factory ButtonAction.fromJson(Map<String, dynamic> json) {
@@ -63,6 +79,11 @@ class ButtonAction {
               ?.map((e) => e as String)
               .toList() ??
           const [],
+      pluginId: json['pluginId'] as String? ?? '',
+      pluginActionId: json['pluginActionId'] as String? ?? '',
+      settings:
+          (json['settings'] as Map<String, dynamic>?)?.cast<String, dynamic>() ??
+          <String, dynamic>{},
     );
   }
 
@@ -74,8 +95,45 @@ class ButtonAction {
       'command': command,
       'key': key,
       'modifiers': modifiers,
+      // Plugin fields are written only when relevant to keep legacy JSON clean.
+      if (type == ActionType.plugin) 'pluginId': pluginId,
+      if (type == ActionType.plugin) 'pluginActionId': pluginActionId,
+      if (settings.isNotEmpty) 'settings': settings,
     };
   }
+}
+
+/// Whether a live plugin state drives a button's title text or its icon.
+enum StateBindingMode { title, icon }
+
+/// Binds a button to a live plugin state so the client renders a "live tile".
+class StateBinding {
+  final String pluginId;
+  final String stateId;
+  final StateBindingMode mode;
+
+  StateBinding({
+    required this.pluginId,
+    required this.stateId,
+    this.mode = StateBindingMode.title,
+  });
+
+  factory StateBinding.fromJson(Map<String, dynamic> json) {
+    return StateBinding(
+      pluginId: json['pluginId'] as String? ?? '',
+      stateId: json['stateId'] as String? ?? '',
+      mode: StateBindingMode.values.firstWhere(
+        (e) => e.name == (json['mode'] as String?),
+        orElse: () => StateBindingMode.title,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'pluginId': pluginId,
+        'stateId': stateId,
+        'mode': mode.name,
+      };
 }
 
 /// Represents a custom button that can be displayed on the client
@@ -95,6 +153,10 @@ class Button {
 
   /// Background color of the button (in hex format)
   String color;
+
+  /// Optional binding to a live plugin state. When set, the client renders this
+  /// button as a "live tile" driven by the bound state.
+  StateBinding? stateBinding;
 
   // The following properties are kept for backward compatibility
   // and convenience when dealing with a single action
@@ -142,6 +204,7 @@ class Button {
     String key = '',
     List<String> modifiers = const [],
     this.color = '#4285F4', // Default Google blue
+    this.stateBinding,
   }) : id = id ?? const Uuid().v4(),
        actions = actions ?? [] {
     // If actions weren't provided but type was, create a legacy-style action
@@ -162,6 +225,10 @@ class Button {
     // Check if the JSON has the new actions array
     final actionsList = json['actions'] as List<dynamic>?;
 
+    final stateBindingJson = json['stateBinding'] as Map<String, dynamic>?;
+    final stateBinding =
+        stateBindingJson != null ? StateBinding.fromJson(stateBindingJson) : null;
+
     if (actionsList != null) {
       // New format with multiple actions
       return Button(
@@ -176,6 +243,7 @@ class Button {
                 )
                 .toList(),
         color: json['color'] as String? ?? '#4285F4',
+        stateBinding: stateBinding,
       );
     } else {
       // Legacy format with a single action
@@ -195,6 +263,7 @@ class Button {
                 .toList() ??
             const [],
         color: json['color'] as String? ?? '#4285F4',
+        stateBinding: stateBinding,
       );
     }
   }
@@ -207,6 +276,7 @@ class Button {
       'iconName': iconName,
       'actions': actions.map((action) => action.toJson()).toList(),
       'color': color,
+      if (stateBinding != null) 'stateBinding': stateBinding!.toJson(),
     };
   }
 
@@ -225,6 +295,8 @@ class Button {
         return ButtonType.promptKeystroke;
       case ActionType.selectWindow:
         return ButtonType.selectWindow;
+      case ActionType.plugin:
+        return ButtonType.plugin;
     }
   }
 
@@ -243,6 +315,8 @@ class Button {
         return ActionType.promptKeystroke;
       case ButtonType.selectWindow:
         return ActionType.selectWindow;
+      case ButtonType.plugin:
+        return ActionType.plugin;
     }
   }
 }
@@ -316,4 +390,7 @@ enum ButtonType {
 
   /// Let the client pick one of the server's open windows to bring to front
   selectWindow,
+
+  /// Invoke an action provided by an installed plugin
+  plugin,
 }

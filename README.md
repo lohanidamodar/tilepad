@@ -13,6 +13,7 @@
   <a href="#getting-started">Getting Started</a> •
   <a href="#installation">Installation</a> •
   <a href="#usage">Usage</a> •
+  <a href="#plugins">Plugins</a> •
   <a href="#accessibility">Accessibility</a> •
   <a href="#contributing">Contributing</a>
 </p>
@@ -165,6 +166,27 @@ flutter build web --release
    - Select a color theme
    - Add actions (commands, keystrokes, or presets)
 5. **Save the button** - it will immediately appear on connected clients
+
+## 🧩 Plugins
+
+MarcoDeck supports a **plugin system** so developers can add new actions and live
+data **without modifying or recompiling the app** — the same out-of-process model
+used by Stream Deck and Touch Portal.
+
+A plugin is a folder with a `manifest.json` and an executable written in **any
+language**. The server launches it and talks to it over a local WebSocket using a
+small JSON protocol. Plugins can:
+
+- add **configurable actions** (native-rendered settings fields),
+- supply **dynamic option lists** at runtime,
+- expose **global settings**, and
+- stream **live state** that appears on the phone as a live tile (title or icon).
+
+Install a plugin by dropping its folder into the plugins directory (server →
+**Plugins → Open plugins folder**), pressing **Rescan**, and enabling it.
+
+- Protocol & manifest reference: [`docs/plugins/protocol.md`](docs/plugins/protocol.md)
+- Working example: [`examples/plugins/hello_dart/`](examples/plugins/hello_dart/)
 
 ## ♿ Accessibility
 

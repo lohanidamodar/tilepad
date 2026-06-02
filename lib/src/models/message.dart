@@ -26,6 +26,9 @@ enum MessageType {
   /// Response with the server's list of open windows
   windowsResponse,
 
+  /// Live plugin state update forwarded to clients (for live tiles)
+  stateUpdate,
+
   /// Command execution result
   commandResult,
 

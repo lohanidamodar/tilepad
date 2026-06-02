@@ -48,6 +48,14 @@ abstract class ClientWebSocketService implements WebSocketService {
   void cancelReconnection();
 }
 
+/// A message received from a server client, tagged with the sender's id so the
+/// server can reply to just that client.
+class AddressedMessage {
+  final Message message;
+  final String clientId;
+  AddressedMessage(this.message, this.clientId);
+}
+
 /// A server implementation of [WebSocketService]
 abstract class ServerWebSocketService implements WebSocketService {
   /// Factory constructor to create the appropriate implementation
@@ -58,6 +66,13 @@ abstract class ServerWebSocketService implements WebSocketService {
 
   /// Sends a message to all clients
   void broadcast(Message message);
+
+  /// Sends a message to a single client by its [ClientInfo.id]. No-op if the
+  /// client is not connected.
+  void sendMessageToClient(String clientId, Message message);
+
+  /// Stream of messages tagged with the sending client's id.
+  Stream<AddressedMessage> get addressedMessageStream;
 
   /// Gets a list of connected clients
   List<ClientInfo> get connectedClients;

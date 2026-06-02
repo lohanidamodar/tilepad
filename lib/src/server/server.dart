@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart'; // Add Flutter foundation import
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/button.dart';
@@ -11,6 +14,11 @@ import '../network/discovery_service_stub.dart';
 import '../utils/friendly_name.dart';
 import 'button_manager.dart';
 import 'command_executor.dart';
+import 'plugins/plugin_host.dart';
+import 'plugins/plugin_manager.dart';
+import 'plugins/plugin_manifest.dart';
+import 'plugins/plugin_registry.dart';
+import 'plugins/state_store.dart';
 
 /// Server class that handles client connections and executes commands
 class MarcoServer {
@@ -25,6 +33,16 @@ class MarcoServer {
 
   /// The command executor
   final CommandExecutor _commandExecutor = CommandExecutor();
+
+  /// Loopback port the plugin host listens on for plugin processes.
+  final int _pluginPort;
+
+  /// Plugin subsystem (null until the server is started).
+  PluginHost? _pluginHost;
+  PluginRegistry? _pluginRegistry;
+  PluginManager? _pluginManager;
+  StreamSubscription<StateEntry>? _stateSub;
+  Directory? _pluginsDir;
 
   /// Stream controller for client connection events
   final _clientsController = StreamController<List<ClientInfo>>.broadcast();
@@ -46,9 +64,25 @@ class MarcoServer {
 
   /// Creates a new server
   // A named parameter can't be a private initializing formal (`this._port`),
-  // so assign it in the initializer list instead.
-  // ignore: prefer_initializing_formals
-  MarcoServer({int port = 8080}) : _port = port;
+  // so assign these in the initializer list instead.
+  // ignore_for_file: prefer_initializing_formals
+  MarcoServer({int port = 8080, int pluginPort = 8091})
+      : _port = port,
+        _pluginPort = pluginPort;
+
+  /// The installed plugins, or empty if the server has not started yet.
+  List<InstalledPlugin> get plugins => _pluginRegistry?.plugins ?? const [];
+
+  /// Plugin discovery/parse errors surfaced for the UI.
+  List<String> get pluginErrors => _pluginRegistry?.errors ?? const [];
+
+  /// Whether a plugin is currently connected to the host.
+  bool isPluginConnected(String id) => _pluginHost?.isConnected(id) ?? false;
+
+  /// Emits a pluginId whenever its connection state changes, so the UI can
+  /// refresh enabled/connected status live. Empty if the server isn't started.
+  Stream<String> get pluginConnectionChanges =>
+      _pluginHost?.connectionChanges ?? const Stream.empty();
 
   /// Gets the server's IP address
   Future<String> getServerIp() async {
@@ -156,14 +190,21 @@ class MarcoServer {
       );
       debugPrint('UDP discovery broadcasting started');
 
-      // Listen for client messages
-      _webSocketService.messageStream.listen(_handleClientMessage);
+      // Listen for client messages (tagged with the sender so connect-time
+      // replays can target just that client instead of broadcasting).
+      _webSocketService.addressedMessageStream.listen(
+        (m) => _handleClientMessage(m.message, m.clientId),
+      );
 
       // Listen for client connections and disconnections
       _webSocketService.clientConnectionStream.listen(_handleClientConnection);
 
       // Initialize connected clients list
       _updateConnectedClients();
+
+      // Bring up the plugin subsystem (best-effort; failures here must not stop
+      // the core server).
+      await _startPlugins();
 
       return true;
     } catch (e) {
@@ -226,6 +267,8 @@ class MarcoServer {
       await _discoveryService.stopBroadcasting();
       debugPrint('UDP discovery broadcasting stopped');
 
+      await _stopPlugins();
+
       await _webSocketService.close();
       _isRunning = false;
       _connectedClients = [];
@@ -234,28 +277,194 @@ class MarcoServer {
     }
   }
 
-  /// Handles a message from a client
-  void _handleClientMessage(Message message) async {
+  // ---------------------------------------------------------------------------
+  // Plugin subsystem
+  // ---------------------------------------------------------------------------
+
+  /// Directory where plugins live: `<app support>/plugins`.
+  Future<Directory> _pluginsDirectory() async {
+    final support = await getApplicationSupportDirectory();
+    return Directory(p.join(support.path, 'plugins'));
+  }
+
+  /// Starts the plugin host, discovers plugins, launches enabled ones, and wires
+  /// action invocation + live-state forwarding. Best-effort: never throws.
+  Future<void> _startPlugins() async {
+    try {
+      final host = PluginHost();
+      await host.start(port: _pluginPort);
+      final dir = await _pluginsDirectory();
+      _pluginsDir = dir;
+      final registry = PluginRegistry(dir);
+      await registry.load();
+      final manager = PluginManager(registry: registry, host: host);
+
+      _pluginHost = host;
+      _pluginRegistry = registry;
+      _pluginManager = manager;
+
+      // Route plugin actions through the host.
+      _commandExecutor.pluginInvoker = host.invoke;
+
+      // Forward every live-state change to all connected clients.
+      _stateSub = host.stateStore.changes.listen((entry) {
+        if (!_isRunning) return;
+        _webSocketService.broadcast(
+          Message(type: MessageType.stateUpdate, payload: entry.toJson()),
+        );
+      });
+
+      await manager.startAll();
+      debugPrint('Plugin subsystem started (${registry.plugins.length} found)');
+    } catch (e) {
+      debugPrint('Plugin subsystem failed to start: $e');
+    }
+  }
+
+  Future<void> _stopPlugins() async {
+    await _stateSub?.cancel();
+    _stateSub = null;
+    await _pluginManager?.stopAll();
+    await _pluginHost?.stop();
+    _commandExecutor.pluginInvoker = null;
+    _pluginHost = null;
+    _pluginManager = null;
+    _pluginRegistry = null;
+  }
+
+  /// Replays the current live-state snapshot to a single client (on connect).
+  void _sendStateSnapshot(String clientId) {
+    final host = _pluginHost;
+    if (host == null) return;
+    for (final entry in host.stateStore.snapshot()) {
+      _webSocketService.sendMessageToClient(
+        clientId,
+        Message(type: MessageType.stateUpdate, payload: entry.toJson()),
+      );
+    }
+  }
+
+  /// Installs a plugin from a `.zip` and returns its id.
+  Future<String> installPlugin(File zip) async {
+    final registry = _pluginRegistry;
+    if (registry == null) throw StateError('Server not started');
+    final installed = await registry.installFromZip(zip);
+    return installed.manifest.id;
+  }
+
+  /// Installs a plugin by copying a source folder into the plugins directory.
+  Future<String> installPluginFromDirectory(Directory source) async {
+    final registry = _pluginRegistry;
+    if (registry == null) throw StateError('Server not started');
+    final installed = await registry.installFromDirectory(source);
+    return installed.manifest.id;
+  }
+
+  /// Installs a dropped/picked path which may be a plugin folder or a `.zip`.
+  /// Throws [PluginInstallException] if it is neither a valid folder (with a
+  /// manifest) nor a zip.
+  Future<String> installPluginFromPath(String path) async {
+    if (await Directory(path).exists()) {
+      return installPluginFromDirectory(Directory(path));
+    }
+    if (await File(path).exists() && path.toLowerCase().endsWith('.zip')) {
+      return installPlugin(File(path));
+    }
+    throw PluginInstallException(
+      'Drop a plugin folder (with a manifest.json) or a .zip file',
+    );
+  }
+
+  /// Absolute path to the plugins directory (empty until the server starts).
+  String get pluginsDirectoryPath => _pluginsDir?.path ?? '';
+
+  /// Re-scans the plugins directory to pick up newly added plugin folders.
+  Future<void> rescanPlugins() async {
+    await _pluginRegistry?.load();
+  }
+
+  /// Opens the plugins directory in the OS file manager so the user can drop a
+  /// plugin folder into it.
+  Future<void> openPluginsFolder() async {
+    final dir = _pluginsDir;
+    if (dir == null) return;
+    if (!await dir.exists()) await dir.create(recursive: true);
+    try {
+      if (Platform.isWindows) {
+        await Process.run('explorer.exe', [dir.path]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [dir.path]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [dir.path]);
+      }
+    } catch (e) {
+      debugPrint('Failed to open plugins folder: $e');
+    }
+  }
+
+  /// Enables a plugin (launches its process).
+  Future<void> enablePlugin(String id) => _pluginManager?.enable(id) ?? Future.value();
+
+  /// Disables a plugin (stops its process).
+  Future<void> disablePlugin(String id) =>
+      _pluginManager?.disable(id) ?? Future.value();
+
+  /// Removes a plugin entirely.
+  Future<void> removePlugin(String id) async {
+    await _pluginManager?.disable(id);
+    await _pluginRegistry?.remove(id);
+  }
+
+  /// Updates and persists a plugin's settings, pushing them to the process.
+  Future<void> updatePluginSettings(String id, Map<String, dynamic> values) =>
+      _pluginManager?.updateSettings(id, values) ?? Future.value();
+
+  /// Requests dynamic option values for a plugin select field.
+  Future<List<PluginFieldOption>> requestPluginList(
+    String pluginId,
+    String listId, {
+    Map<String, dynamic> fields = const {},
+  }) async {
+    final host = _pluginHost;
+    if (host == null) return const [];
+    try {
+      return await host.requestList(pluginId, listId, fields: fields);
+    } catch (e) {
+      debugPrint('requestPluginList failed: $e');
+      return const [];
+    }
+  }
+
+  /// Handles a message from a client. [clientId] identifies the sender so
+  /// replies (acks, pages, state snapshot, results) go only to that client.
+  void _handleClientMessage(Message message, String clientId) async {
     switch (message.type) {
       case MessageType.connect:
         // Send connect acknowledgment
-        _webSocketService.sendMessage(Message(type: MessageType.connectAck));
+        _webSocketService.sendMessageToClient(
+          clientId,
+          Message(type: MessageType.connectAck),
+        );
 
         // Send pages with buttons to the newly connected client
-        _sendPagesToClient();
+        _sendPagesToClient(clientId);
+        // Replay current live plugin state so live tiles render immediately.
+        _sendStateSnapshot(clientId);
         break;
 
       case MessageType.getButtons:
         // Send pages with buttons
-        _sendPagesToClient();
+        _sendPagesToClient(clientId);
+        _sendStateSnapshot(clientId);
         break;
 
       case MessageType.buttonPress:
-        _handleButtonPress(message.payload);
+        _handleButtonPress(message.payload, clientId);
         break;
 
       case MessageType.getWindows:
-        _webSocketService.sendMessage(
+        _webSocketService.sendMessageToClient(
+          clientId,
           Message(
             type: MessageType.windowsResponse,
             payload:
@@ -271,9 +480,10 @@ class MarcoServer {
     }
   }
 
-  /// Sends all pages with their buttons to the client
-  void _sendPagesToClient() {
-    _webSocketService.sendMessage(
+  /// Sends all pages with their buttons to a single client.
+  void _sendPagesToClient(String clientId) {
+    _webSocketService.sendMessageToClient(
+      clientId,
       Message(
         type: MessageType.pagesResponse,
         payload: _buttonManager.pages.map((p) => p.toJson()).toList(),
@@ -282,7 +492,7 @@ class MarcoServer {
   }
 
   /// Handles a button press message
-  void _handleButtonPress(dynamic payload) async {
+  void _handleButtonPress(dynamic payload, String clientId) async {
     if (payload == null || !payload.containsKey('buttonId')) {
       return;
     }
@@ -291,7 +501,8 @@ class MarcoServer {
     final button = _buttonManager.getButton(buttonId);
 
     if (button == null) {
-      _webSocketService.sendMessage(
+      _webSocketService.sendMessageToClient(
+        clientId,
         Message(
           type: MessageType.error,
           payload: {'error': 'Button not found'},
@@ -323,7 +534,8 @@ class MarcoServer {
       } else {
         result = await _commandExecutor.execute(button);
       }
-      _webSocketService.sendMessage(
+      _webSocketService.sendMessageToClient(
+        clientId,
         Message(
           type: MessageType.commandResult,
           payload: {
@@ -335,7 +547,8 @@ class MarcoServer {
         ),
       );
     } catch (e) {
-      _webSocketService.sendMessage(
+      _webSocketService.sendMessageToClient(
+        clientId,
         Message(
           type: MessageType.commandResult,
           payload: {
@@ -438,7 +651,7 @@ class MarcoServer {
   }
 
   /// Disposes the server resources
-  void dispose() async {
+  Future<void> dispose() async {
     await stop();
     await _discoveryService.dispose();
     await _clientsController.close();

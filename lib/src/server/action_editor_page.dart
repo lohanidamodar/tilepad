@@ -4,6 +4,9 @@ import 'package:picons/picons.dart';
 import 'dart:io' show Platform;
 
 import '../models/button.dart';
+import 'plugins/plugin_manifest.dart';
+import 'plugins_screen.dart' show PluginFieldInput;
+import 'server.dart';
 
 /// Predefined command with name, description, and platform-specific implementation
 class PredefinedCommand {
@@ -181,8 +184,11 @@ class ActionEditorPage extends StatefulWidget {
   /// The action to edit, null if creating a new action
   final ButtonAction? action;
 
+  /// The server, used to list plugin actions and fetch dynamic option lists.
+  final MarcoServer server;
+
   /// Creates a new action editor page
-  const ActionEditorPage({super.key, this.action});
+  const ActionEditorPage({super.key, this.action, required this.server});
 
   @override
   State<ActionEditorPage> createState() => _ActionEditorPageState();
@@ -196,6 +202,14 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
   ActionType _selectedType = ActionType.command;
   String _selectedKey = 'a';
   final Set<String> _selectedModifiers = <String>{};
+
+  // Plugin action properties
+  String? _pluginId;
+  String? _pluginActionId;
+  final Map<String, dynamic> _pluginSettings = <String, dynamic>{};
+
+  /// Cached dynamic option lists, keyed by the list id.
+  final Map<String, List<PluginFieldOption>> _dynamicOptions = {};
 
   // Common keys for keystroke selection. Named keys come first so they're
   // easy to find without scrolling past the whole alphabet.
@@ -304,6 +318,57 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
       if (widget.action!.modifiers.isNotEmpty) {
         _selectedModifiers.addAll(widget.action!.modifiers);
       }
+
+      if (widget.action!.type == ActionType.plugin) {
+        _pluginId = widget.action!.pluginId.isEmpty
+            ? null
+            : widget.action!.pluginId;
+        _pluginActionId = widget.action!.pluginActionId.isEmpty
+            ? null
+            : widget.action!.pluginActionId;
+        _pluginSettings.addAll(widget.action!.settings);
+        _prefetchDynamicLists();
+      }
+    }
+  }
+
+  /// The manifest of the currently selected plugin, if any.
+  PluginManifest? get _selectedPluginManifest {
+    if (_pluginId == null) return null;
+    for (final plugin in widget.server.plugins) {
+      if (plugin.manifest.id == _pluginId) return plugin.manifest;
+    }
+    return null;
+  }
+
+  /// The currently selected plugin action definition, if any.
+  PluginActionDef? get _selectedPluginAction {
+    final manifest = _selectedPluginManifest;
+    if (manifest == null || _pluginActionId == null) return null;
+    return manifest.action(_pluginActionId!);
+  }
+
+  /// Fetches options for every dynamic `select` field of the chosen action.
+  Future<void> _prefetchDynamicLists() async {
+    final action = _selectedPluginAction;
+    final pluginId = _pluginId;
+    final actionId = _pluginActionId;
+    if (action == null || pluginId == null) return;
+    for (final field in action.fields) {
+      final listId = field.optionsFrom;
+      if (field.type == PluginFieldType.select && listId != null) {
+        // Pass the current field values so plugins can compute dependent lists.
+        final options = await widget.server.requestPluginList(
+          pluginId,
+          listId,
+          fields: Map<String, dynamic>.from(_pluginSettings),
+        );
+        // Discard if the user switched plugin/action while we were awaiting.
+        if (!mounted || _pluginId != pluginId || _pluginActionId != actionId) {
+          return;
+        }
+        setState(() => _dynamicOptions[listId] = options);
+      }
     }
   }
 
@@ -328,6 +393,17 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return;
       }
 
+      if (_selectedType == ActionType.plugin &&
+          (_pluginId == null || _pluginActionId == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please choose a plugin and an action'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final action = ButtonAction(
         id: widget.action?.id,
         type: _selectedType,
@@ -341,6 +417,12 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
             _selectedType == ActionType.keystroke
                 ? List<String>.from(_selectedModifiers)
                 : const [],
+        pluginId: _selectedType == ActionType.plugin ? (_pluginId ?? '') : '',
+        pluginActionId:
+            _selectedType == ActionType.plugin ? (_pluginActionId ?? '') : '',
+        settings: _selectedType == ActionType.plugin
+            ? Map<String, dynamic>.from(_pluginSettings)
+            : const {},
       );
 
       Navigator.of(context).pop(action);
@@ -362,6 +444,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return 'Prompt Keys';
       case ActionType.selectWindow:
         return 'Select Window';
+      case ActionType.plugin:
+        return 'Plugin';
     }
   }
 
@@ -380,6 +464,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return Icons.touch_app_outlined;
       case ActionType.selectWindow:
         return Icons.web_asset;
+      case ActionType.plugin:
+        return Icons.extension;
     }
   }
 
@@ -865,9 +951,93 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                     'When this button is pressed, the device shows the '
                     'server\'s open windows and brings the chosen one to front.',
               ),
+
+            if (_selectedType == ActionType.plugin) _buildPluginSection(),
           ],
         ),
       ),
+    );
+  }
+
+  /// Builds the plugin action picker and its native settings fields.
+  Widget _buildPluginSection() {
+    final plugins = widget.server.plugins;
+    if (plugins.isEmpty) {
+      return _buildPromptInfoCard(
+        icon: Icons.extension_off_outlined,
+        title: 'No plugins installed',
+        description:
+            'Install and enable a plugin from the Plugins screen to use '
+            'plugin actions here.',
+      );
+    }
+
+    final manifest = _selectedPluginManifest;
+    final action = _selectedPluginAction;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _pluginId,
+          decoration: const InputDecoration(
+            labelText: 'Plugin',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            for (final plugin in plugins)
+              DropdownMenuItem(
+                value: plugin.manifest.id,
+                child: Text(plugin.manifest.name),
+              ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _pluginId = value;
+              _pluginActionId = null;
+              _pluginSettings.clear();
+              _dynamicOptions.clear();
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        if (manifest != null)
+          DropdownButtonFormField<String>(
+            initialValue: _pluginActionId,
+            decoration: const InputDecoration(
+              labelText: 'Action',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              for (final a in manifest.actions)
+                DropdownMenuItem(value: a.id, child: Text(a.name)),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _pluginActionId = value;
+                _pluginSettings.clear();
+                _dynamicOptions.clear();
+              });
+              _prefetchDynamicLists();
+            },
+          ),
+        if (action != null && action.fields.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          for (final field in action.fields)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: PluginFieldInput(
+                field: field,
+                value: _pluginSettings[field.key] ?? field.defaultValue,
+                dynamicOptions: field.optionsFrom != null
+                    ? (_dynamicOptions[field.optionsFrom] ?? const [])
+                    : const [],
+                onChanged: (v) =>
+                    setState(() => _pluginSettings[field.key] = v),
+              ),
+            ),
+        ],
+      ],
     );
   }
 }

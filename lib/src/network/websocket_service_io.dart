@@ -486,6 +486,8 @@ class IOServerWebSocketService implements ServerWebSocketService {
   final List<WebSocket> _clients = [];
   final List<ClientInfo> _connectedClients = [];
   final _messageController = StreamController<Message>.broadcast();
+  final _addressedMessageController =
+      StreamController<AddressedMessage>.broadcast();
   final _clientConnectionController =
       StreamController<ClientConnectionEvent>.broadcast();
 
@@ -493,8 +495,29 @@ class IOServerWebSocketService implements ServerWebSocketService {
   Stream<Message> get messageStream => _messageController.stream;
 
   @override
+  Stream<AddressedMessage> get addressedMessageStream =>
+      _addressedMessageController.stream;
+
+  @override
   Stream<ClientConnectionEvent> get clientConnectionStream =>
       _clientConnectionController.stream;
+
+  /// Forwards a message to both the plain and addressed streams.
+  void _emit(Message message, String clientId) {
+    _messageController.add(message);
+    _addressedMessageController.add(AddressedMessage(message, clientId));
+  }
+
+  @override
+  void sendMessageToClient(String clientId, Message message) {
+    final index = _connectedClients.indexWhere((c) => c.id == clientId);
+    if (index < 0 || index >= _clients.length) return;
+    try {
+      _clients[index].add(message.encode());
+    } catch (e) {
+      debugPrint('Error sending message to client $clientId: $e');
+    }
+  }
 
   @override
   List<ClientInfo> get connectedClients => List.unmodifiable(_connectedClients);
@@ -621,7 +644,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
                     }
 
                     // Also add to message stream for app-level handling
-                    _messageController.add(message);
+                    _emit(message, clientInfo.id);
                   } else if (message.type == MessageType.ping) {
                     // Respond to ping with pong
                     try {
@@ -655,7 +678,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
                     debugPrint('Received pong from ${clientInfo.ipAddress}');
                   } else {
                     // Forward other messages to the message stream
-                    _messageController.add(message);
+                    _emit(message, clientInfo.id);
                   }
                 } catch (e) {
                   debugPrint('Error decoding message: $e');

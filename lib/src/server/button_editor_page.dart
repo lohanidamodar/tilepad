@@ -5,17 +5,26 @@ import '../utils/macro_icons.dart';
 import '../models/button.dart';
 import '../utils/icon_picker_dialog.dart';
 import 'action_editor_page.dart';
+import 'server.dart';
 
 /// Page for editing a macro button's properties
 class ButtonEditorPage extends StatefulWidget {
   /// The button to edit, null if creating a new button
   final Button? button;
 
+  /// The server, used to offer plugin actions and live-tile state bindings.
+  final MarcoServer server;
+
   /// Callback when button is saved
   final Function(Button button) onSave;
 
   /// Creates a new button editor page
-  const ButtonEditorPage({super.key, this.button, required this.onSave});
+  const ButtonEditorPage({
+    super.key,
+    this.button,
+    required this.server,
+    required this.onSave,
+  });
 
   @override
   State<ButtonEditorPage> createState() => _ButtonEditorPageState();
@@ -29,6 +38,9 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
   // List of actions for this button
   List<ButtonAction> _actions = [];
+
+  /// Optional live-tile binding to a plugin state.
+  StateBinding? _stateBinding;
 
   final List<Color> _presetColors = [
     const Color(0xFF4285F4), // Google Blue
@@ -55,7 +67,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
       _selectedIcon = widget.button!.iconName;
       _selectedColor = widget.button!.color;
 
-      // Copy actions
+      // Copy actions (including plugin fields so editing preserves them)
       _actions =
           widget.button!.actions
               .map(
@@ -65,9 +77,13 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                   command: action.command,
                   key: action.key,
                   modifiers: List<String>.from(action.modifiers),
+                  pluginId: action.pluginId,
+                  pluginActionId: action.pluginActionId,
+                  settings: Map<String, dynamic>.from(action.settings),
                 ),
               )
               .toList();
+      _stateBinding = widget.button!.stateBinding;
     }
   }
 
@@ -97,6 +113,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         iconName: _selectedIcon,
         actions: _actions,
         color: _selectedColor,
+        stateBinding: _stateBinding,
       );
 
       widget.onSave(button);
@@ -147,7 +164,10 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
   Future<void> _navigateToActionEditor(ButtonAction? action, int index) async {
     final result = await Navigator.push<ButtonAction>(
       context,
-      MaterialPageRoute(builder: (context) => ActionEditorPage(action: action)),
+      MaterialPageRoute(
+        builder: (context) =>
+            ActionEditorPage(action: action, server: widget.server),
+      ),
     );
 
     if (result != null) {
@@ -210,6 +230,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Asks the device for a key combo, then sends it';
       case ActionType.selectWindow:
         return 'Lets the device pick a window to bring to front';
+      case ActionType.plugin:
+        return 'Plugin: ${action.pluginActionId}';
     }
   }
 
@@ -228,6 +250,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Prompt for Key Combo';
       case ActionType.selectWindow:
         return 'Select Window';
+      case ActionType.plugin:
+        return 'Plugin Action';
     }
   }
 
@@ -246,7 +270,132 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return Icons.touch_app_outlined;
       case ActionType.selectWindow:
         return Icons.web_asset;
+      case ActionType.plugin:
+        return Icons.extension;
     }
+  }
+
+  /// Builds the optional "Live Tile" section that binds the button to a plugin
+  /// state so the client shows live text/icon.
+  Widget _buildLiveTileSection() {
+    // Gather all states exposed by installed plugins.
+    final states = <_StateOption>[];
+    for (final plugin in widget.server.plugins) {
+      for (final state in plugin.manifest.states) {
+        states.add(_StateOption(
+          pluginId: plugin.manifest.id,
+          stateId: state.id,
+          label: '${plugin.manifest.name}: ${state.label}',
+        ));
+      }
+    }
+
+    final theme = Theme.of(context);
+    final currentKey = _stateBinding == null
+        ? null
+        : '${_stateBinding!.pluginId}|${_stateBinding!.stateId}';
+    final hasMatch = states.any((s) => s.key == currentKey);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            color: theme.colorScheme.primary,
+            child: Text(
+              'Live Tile (optional)',
+              style: TextStyle(
+                color: theme.colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: states.isEmpty
+                ? Text(
+                    'Install and enable a plugin that exposes live states to '
+                    'drive this button with live data.',
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Show a live value from a plugin on this button.',
+                        style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String?>(
+                        initialValue: hasMatch ? currentKey : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Bound state',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                              value: null, child: Text('None')),
+                          for (final s in states)
+                            DropdownMenuItem<String?>(
+                                value: s.key, child: Text(s.label)),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == null) {
+                              _stateBinding = null;
+                            } else {
+                              final match =
+                                  states.firstWhere((s) => s.key == value);
+                              _stateBinding = StateBinding(
+                                pluginId: match.pluginId,
+                                stateId: match.stateId,
+                                mode: _stateBinding?.mode ??
+                                    StateBindingMode.title,
+                              );
+                            }
+                          });
+                        },
+                      ),
+                      if (_stateBinding != null) ...[
+                        const SizedBox(height: 12),
+                        SegmentedButton<StateBindingMode>(
+                          segments: const [
+                            ButtonSegment(
+                              value: StateBindingMode.title,
+                              label: Text('Title'),
+                              icon: Icon(Icons.title),
+                            ),
+                            ButtonSegment(
+                              value: StateBindingMode.icon,
+                              label: Text('Icon'),
+                              icon: Icon(Icons.image_outlined),
+                            ),
+                          ],
+                          selected: {_stateBinding!.mode},
+                          onSelectionChanged: (modes) {
+                            setState(() {
+                              _stateBinding = StateBinding(
+                                pluginId: _stateBinding!.pluginId,
+                                stateId: _stateBinding!.stateId,
+                                mode: modes.first,
+                              );
+                            });
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -399,6 +548,10 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                 ],
               ),
             ),
+            const SizedBox(height: 24),
+
+            // Live tile section (plugin-driven dynamic title/icon)
+            _buildLiveTileSection(),
             const SizedBox(height: 24),
 
             // Button appearance section
@@ -602,4 +755,17 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
   /// Resolves a stored icon identifier to its Phosphor [IconData].
   IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
+}
+
+/// A selectable plugin state for the live-tile dropdown.
+class _StateOption {
+  final String pluginId;
+  final String stateId;
+  final String label;
+  _StateOption({
+    required this.pluginId,
+    required this.stateId,
+    required this.label,
+  });
+  String get key => '$pluginId|$stateId';
 }

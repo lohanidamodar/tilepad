@@ -1,0 +1,47 @@
+{
+  "id": "com.marcodeck.hello_dart",
+  "name": "Hello (Dart Demo)",
+  "version": "1.0.0",
+  "author": "MarcoDeck",
+  "apiVersion": 1,
+  "run": {
+    "windows": "dart plugin.dart",
+    "macos": "dart plugin.dart",
+    "linux": "dart plugin.dart"
+  },
+  "settings": [
+    {
+      "key": "greeting",
+      "type": "string",
+      "label": "Greeting word",
+      "default": "Hello"
+    }
+  ],
+  "actions": [
+    {
+      "id": "say_hello",
+      "name": "Say Hello",
+      "fields": [
+        { "key": "name", "type": "string", "label": "Name", "default": "World" }
+      ]
+    },
+    {
+      "id": "pick_color",
+      "name": "Pick Favourite Colour",
+      "fields": [
+        {
+          "key": "color",
+          "type": "select",
+          "label": "Colour",
+          "optionsFrom": "colors"
+        }
+      ]
+    }
+  ],
+  "states": [
+    { "id": "clock", "label": "Server Clock", "type": "string" }
+  ],
+  "lists": [
+    { "id": "colors", "label": "Colours" }
+  ]
+}
