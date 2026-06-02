@@ -48,7 +48,7 @@ void main() {
 
     test('maps an invoker failure to a failed CommandResult', () async {
       final executor = CommandExecutor()
-        ..pluginInvoker = (_, __, ___) async =>
+        ..pluginInvoker = (_, _, _) async =>
             PluginActionResult(success: false, error: 'boom');
       final action = ButtonAction(
         type: ActionType.plugin,

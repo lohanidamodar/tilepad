@@ -177,8 +177,28 @@ class ButtonGrid extends ConsumerWidget {
     final isConnected =
         ref.read(connectionStateProvider).status == ConnectionStatus.connected;
 
+    // Resolve a live-tile binding: a plugin state can drive the title or icon.
+    var label = button.name;
+    var icon = _getIconData(button.iconName);
+    final binding = button.stateBinding;
+    if (binding != null) {
+      final states = ref.watch(pluginStatesProvider);
+      final value = states[
+          PluginStatesNotifier.keyFor(binding.pluginId, binding.stateId)];
+      if (value != null) {
+        if (binding.mode == StateBindingMode.title &&
+            value.displayText.isNotEmpty) {
+          label = value.displayText;
+        } else if (binding.mode == StateBindingMode.icon &&
+            value.image != null &&
+            value.image!.isNotEmpty) {
+          icon = _getIconData(value.image!);
+        }
+      }
+    }
+
     return AccessibleButton(
-      label: button.name,
+      label: label,
       hint: AccessibilityUtils.getButtonStateLabel(isConnected, false),
       enabled: isConnected,
       onPressed: () {
@@ -202,8 +222,8 @@ class ButtonGrid extends ConsumerWidget {
       },
       child: AnimatedButton(
         color: buttonColor,
-        icon: _getIconData(button.iconName),
-        label: button.name,
+        icon: icon,
+        label: label,
         isEnabled: isConnected,
         onPressed: () {
           // This will be handled by AccessibleButton

@@ -106,7 +106,7 @@ void main() {
       final bytes =
           utf8.encode(jsonEncode(manifest('com.zip', name: 'Zipped')));
       archive.addFile(ArchiveFile('pluginX/manifest.json', bytes.length, bytes));
-      final zipBytes = ZipEncoder().encode(archive)!;
+      final zipBytes = ZipEncoder().encode(archive);
       final zipFile = File(p.join(tmp.path, 'plugin.zip'))
         ..writeAsBytesSync(zipBytes);
 
@@ -126,7 +126,7 @@ void main() {
       final archive = Archive();
       final bytes = utf8.encode('hello');
       archive.addFile(ArchiveFile('readme.txt', bytes.length, bytes));
-      final zipBytes = ZipEncoder().encode(archive)!;
+      final zipBytes = ZipEncoder().encode(archive);
       final zipFile = File(p.join(tmp.path, 'bad.zip'))
         ..writeAsBytesSync(zipBytes);
 

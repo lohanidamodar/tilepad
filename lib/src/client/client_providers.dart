@@ -108,6 +108,42 @@ class PagesNotifier extends Notifier<List<Page>> {
   void set(List<Page> value) => state = value;
 }
 
+/// The latest live value of a plugin state, used to drive live tiles.
+class PluginStateValue {
+  final dynamic value;
+  final String? image;
+  const PluginStateValue({this.value, this.image});
+
+  /// The value rendered as a button title.
+  String get displayText => value?.toString() ?? '';
+}
+
+/// Provider for live plugin state values, keyed by `'pluginId|stateId'`.
+final pluginStatesProvider =
+    NotifierProvider<PluginStatesNotifier, Map<String, PluginStateValue>>(
+  PluginStatesNotifier.new,
+);
+
+/// Notifier holding the latest value per plugin state.
+class PluginStatesNotifier extends Notifier<Map<String, PluginStateValue>> {
+  @override
+  Map<String, PluginStateValue> build() => {};
+
+  static String keyFor(String pluginId, String stateId) =>
+      '$pluginId|$stateId';
+
+  /// Updates a single state value (immutably, so widgets rebuild).
+  void update(String pluginId, String stateId,
+      {dynamic value, String? image}) {
+    final next = Map<String, PluginStateValue>.from(state);
+    next[keyFor(pluginId, stateId)] =
+        PluginStateValue(value: value, image: image);
+    state = next;
+  }
+
+  void clear() => state = {};
+}
+
 /// Provider for the currently selected page index
 final selectedPageIndexProvider =
     NotifierProvider<SelectedPageIndexNotifier, int>(
@@ -920,6 +956,10 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
         _handleWindowsResponse(message.payload);
         break;
 
+      case MessageType.stateUpdate:
+        _handleStateUpdate(message.payload);
+        break;
+
       case MessageType.error:
         debugPrint('Error from server: ${message.payload['error']}');
         break;
@@ -965,6 +1005,23 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
       }
     } catch (e) {
       debugPrint('Error handling pages response: $e');
+    }
+  }
+
+  /// Handles a live plugin state update (drives live tiles).
+  void _handleStateUpdate(dynamic payload) {
+    try {
+      final pluginId = payload['pluginId'] as String?;
+      final stateId = payload['stateId'] as String?;
+      if (pluginId == null || stateId == null) return;
+      ref.read(pluginStatesProvider.notifier).update(
+            pluginId,
+            stateId,
+            value: payload['value'],
+            image: payload['image'] as String?,
+          );
+    } catch (e) {
+      debugPrint('Error handling state update: $e');
     }
   }
 
