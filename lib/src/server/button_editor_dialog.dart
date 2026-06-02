@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:io' show Platform;
+
+import 'package:flutter/material.dart';
+import 'package:picons/picons.dart';
 
 import '../models/button.dart';
 import '../utils/icon_picker_dialog.dart';
+import '../utils/macro_icons.dart';
 
 /// Predefined command with name, description, and platform-specific implementation
 class PredefinedCommand {
@@ -53,7 +55,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'pmset sleepnow',
       'linux': 'systemctl suspend',
     },
-    icon: FontAwesomeIcons.powerOff,
+    icon: PiconsRegular.power,
   ),
   PredefinedCommand(
     name: 'Shutdown Computer',
@@ -63,7 +65,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'sudo shutdown -h now',
       'linux': 'sudo shutdown -h now',
     },
-    icon: FontAwesomeIcons.powerOff,
+    icon: PiconsRegular.power,
   ),
   PredefinedCommand(
     name: 'Restart Computer',
@@ -73,7 +75,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'sudo shutdown -r now',
       'linux': 'sudo reboot',
     },
-    icon: FontAwesomeIcons.arrowsRotate,
+    icon: PiconsRegular.arrowsClockwise,
   ),
   PredefinedCommand(
     name: 'Lock Screen',
@@ -83,7 +85,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'pmset displaysleepnow',
       'linux': 'xdg-screensaver lock',
     },
-    icon: FontAwesomeIcons.lock,
+    icon: PiconsRegular.lock,
   ),
   PredefinedCommand(
     name: 'Copy Selection',
@@ -95,7 +97,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e \'tell application "System Events" to keystroke "c" using command down\'',
       'linux': 'xdotool key ctrl+c',
     },
-    icon: FontAwesomeIcons.copy,
+    icon: PiconsRegular.copy,
   ),
   PredefinedCommand(
     name: 'Paste',
@@ -107,7 +109,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e \'tell application "System Events" to keystroke "v" using command down\'',
       'linux': 'xdotool key ctrl+v',
     },
-    icon: FontAwesomeIcons.paste,
+    icon: PiconsRegular.clipboard,
   ),
   PredefinedCommand(
     name: 'Take Screenshot',
@@ -118,7 +120,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'screencapture -i ~/Desktop/screenshot.png',
       'linux': 'gnome-screenshot -i',
     },
-    icon: FontAwesomeIcons.camera,
+    icon: PiconsRegular.camera,
   ),
   PredefinedCommand(
     name: 'Volume Up',
@@ -130,7 +132,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e "set volume output volume (output volume of (get volume settings) + 10) --100%"',
       'linux': 'pactl set-sink-volume @DEFAULT_SINK@ +10%',
     },
-    icon: FontAwesomeIcons.volumeHigh,
+    icon: PiconsRegular.speakerHigh,
   ),
   PredefinedCommand(
     name: 'Volume Down',
@@ -142,7 +144,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e "set volume output volume (output volume of (get volume settings) - 10) --100%"',
       'linux': 'pactl set-sink-volume @DEFAULT_SINK@ -10%',
     },
-    icon: FontAwesomeIcons.volumeLow,
+    icon: PiconsRegular.speakerLow,
   ),
   PredefinedCommand(
     name: 'Mute/Unmute',
@@ -153,7 +155,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'osascript -e "set volume with output muted"',
       'linux': 'pactl set-sink-mute @DEFAULT_SINK@ toggle',
     },
-    icon: FontAwesomeIcons.volumeXmark,
+    icon: PiconsRegular.speakerX,
   ),
 ];
 
@@ -172,7 +174,7 @@ class ButtonEditorDialog extends StatefulWidget {
 class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  String _selectedIcon = FontAwesomeIcons.lightbulb.codePoint.toString();
+  String _selectedIcon = MacroIcons.defaultId;
   String _selectedColor = '#4285F4';
 
   // List of actions for this button
@@ -198,28 +200,7 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     const Color(0xFF607D8B), // Blue Grey
   ];
 
-  final List<IconData> _presetIcons = [
-    FontAwesomeIcons.lightbulb,
-    FontAwesomeIcons.computer,
-    FontAwesomeIcons.play,
-    FontAwesomeIcons.stop,
-    FontAwesomeIcons.volumeHigh,
-    FontAwesomeIcons.volumeXmark,
-    FontAwesomeIcons.display,
-    FontAwesomeIcons.fire,
-    FontAwesomeIcons.powerOff,
-    FontAwesomeIcons.windowRestore,
-    FontAwesomeIcons.folderOpen,
-    FontAwesomeIcons.terminal,
-    FontAwesomeIcons.circlePlay,
-    FontAwesomeIcons.clockRotateLeft,
-    FontAwesomeIcons.desktop,
-    FontAwesomeIcons.keyboard,
-    FontAwesomeIcons.cameraRetro,
-    FontAwesomeIcons.solidEnvelope,
-    FontAwesomeIcons.penToSquare,
-    FontAwesomeIcons.code,
-  ];
+  final List<IconData> _presetIcons = MacroIcons.presets;
 
   // Common keys for keystroke selection
   final List<String> _commonKeys = [
@@ -545,6 +526,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
                 ? '${action.modifiers.map((m) => m.toUpperCase()).join('+')}+'
                 : '';
         return 'Keystroke: $modifierText${action.key.toUpperCase()}';
+      case ActionType.promptText:
+        return 'Asks the device for text, then types it';
+      case ActionType.promptKeystroke:
+        return 'Asks the device for a key combo, then sends it';
+      case ActionType.selectWindow:
+        return 'Lets the device pick a window to bring to front';
     }
   }
 
@@ -652,6 +639,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         return 'Preset Command';
       case ActionType.keystroke:
         return 'Keystroke';
+      case ActionType.promptText:
+        return 'Prompt for Text';
+      case ActionType.promptKeystroke:
+        return 'Prompt for Key Combo';
+      case ActionType.selectWindow:
+        return 'Select Window';
     }
   }
 
@@ -664,6 +657,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         return Icons.list_alt;
       case ActionType.keystroke:
         return Icons.keyboard;
+      case ActionType.promptText:
+        return Icons.keyboard_alt_outlined;
+      case ActionType.promptKeystroke:
+        return Icons.touch_app_outlined;
+      case ActionType.selectWindow:
+        return Icons.web_asset;
     }
   }
 
@@ -1080,24 +1079,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
     );
   }
 
-  /// Gets an IconData from a string code point
-  IconData _getIconData(String iconName) {
-    try {
-      // Try to parse the icon as a code point
-      final codePoint = int.tryParse(iconName);
-      if (codePoint != null) {
-        // Use FontAwesomeSolid font family for FontAwesome icons
-        return IconData(
-          codePoint,
-          fontFamily: 'FontAwesomeSolid',
-          fontPackage: 'font_awesome_flutter',
-        );
-      }
-      return Icons.smart_button;
-    } catch (e) {
-      return Icons.smart_button;
-    }
-  }
+  /// Resolves a stored icon identifier to its Phosphor [IconData].
+  IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
 }
 
 /// Helper class for modifier key options

@@ -1,6 +1,6 @@
 // filepath: g:\dev\projects\macro-deck\lib\src\server\button_editor_page.dart
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../utils/macro_icons.dart';
 
 import '../models/button.dart';
 import '../utils/icon_picker_dialog.dart';
@@ -24,7 +24,7 @@ class ButtonEditorPage extends StatefulWidget {
 class _ButtonEditorPageState extends State<ButtonEditorPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  String _selectedIcon = FontAwesomeIcons.lightbulb.codePoint.toString();
+  String _selectedIcon = MacroIcons.defaultId;
   String _selectedColor = '#4285F4';
 
   // List of actions for this button
@@ -43,28 +43,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
     const Color(0xFF607D8B), // Blue Grey
   ];
 
-  final List<IconData> _presetIcons = [
-    FontAwesomeIcons.lightbulb,
-    FontAwesomeIcons.computer,
-    FontAwesomeIcons.play,
-    FontAwesomeIcons.stop,
-    FontAwesomeIcons.volumeHigh,
-    FontAwesomeIcons.volumeXmark,
-    FontAwesomeIcons.display,
-    FontAwesomeIcons.fire,
-    FontAwesomeIcons.powerOff,
-    FontAwesomeIcons.windowRestore,
-    FontAwesomeIcons.folderOpen,
-    FontAwesomeIcons.terminal,
-    FontAwesomeIcons.circlePlay,
-    FontAwesomeIcons.clockRotateLeft,
-    FontAwesomeIcons.desktop,
-    FontAwesomeIcons.keyboard,
-    FontAwesomeIcons.cameraRetro,
-    FontAwesomeIcons.solidEnvelope,
-    FontAwesomeIcons.penToSquare,
-    FontAwesomeIcons.code,
-  ];
+  final List<IconData> _presetIcons = MacroIcons.presets;
 
   @override
   void initState() {
@@ -114,7 +93,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
       final button = Button(
         id: widget.button?.id,
-        name: _nameController.text,
+        name: _nameController.text.trim(),
         iconName: _selectedIcon,
         actions: _actions,
         color: _selectedColor,
@@ -127,14 +106,21 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
   /// Converts a color to a hex string
   String _colorToHex(Color color) {
-    // ignore: deprecated_member_use
-    return '#${color.value.toRadixString(16).substring(2)}';
+    return '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
   }
 
-  /// Converts a hex string to a Color
+  /// Converts a hex string to a Color, falling back to the default colour
+  /// when the stored value is malformed.
   Color _hexToColor(String hexString) {
-    final hexColor = hexString.replaceAll('#', '');
-    return Color(int.parse('FF$hexColor', radix: 16));
+    var hexColor = hexString.replaceAll('#', '').trim();
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    final value = int.tryParse(hexColor, radix: 16);
+    if (value == null || hexColor.length != 8) {
+      return const Color(0xFF4285F4);
+    }
+    return Color(value);
   }
 
   /// Handles icon selection and stores the code point
@@ -218,6 +204,12 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                 ? '${action.modifiers.map((m) => m.toUpperCase()).join('+')}+'
                 : '';
         return 'Keystroke: $modifierText${action.key.toUpperCase()}';
+      case ActionType.promptText:
+        return 'Asks the device for text, then types it';
+      case ActionType.promptKeystroke:
+        return 'Asks the device for a key combo, then sends it';
+      case ActionType.selectWindow:
+        return 'Lets the device pick a window to bring to front';
     }
   }
 
@@ -230,6 +222,12 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Preset Command';
       case ActionType.keystroke:
         return 'Keystroke';
+      case ActionType.promptText:
+        return 'Prompt for Text';
+      case ActionType.promptKeystroke:
+        return 'Prompt for Key Combo';
+      case ActionType.selectWindow:
+        return 'Select Window';
     }
   }
 
@@ -242,6 +240,12 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return Icons.list_alt;
       case ActionType.keystroke:
         return Icons.keyboard;
+      case ActionType.promptText:
+        return Icons.keyboard_alt_outlined;
+      case ActionType.promptKeystroke:
+        return Icons.touch_app_outlined;
+      case ActionType.selectWindow:
+        return Icons.web_asset;
     }
   }
 
@@ -266,13 +270,16 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
             // Button name
             TextFormField(
               controller: _nameController,
+              textInputAction: TextInputAction.done,
               decoration: const InputDecoration(
                 labelText: 'Button Name',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.edit),
               ),
+              // Rebuild so the live button preview reflects the typed name.
+              onChanged: (_) => setState(() {}),
               validator: (value) {
-                if (value == null || value.isEmpty) {
+                if (value == null || value.trim().isEmpty) {
                   return 'Please enter a name';
                 }
                 return null;
@@ -336,11 +343,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _actions.length,
-                      onReorder: (oldIndex, newIndex) {
+                      onReorderItem: (oldIndex, newIndex) {
                         setState(() {
-                          if (oldIndex < newIndex) {
-                            newIndex -= 1;
-                          }
                           final item = _actions.removeAt(oldIndex);
                           _actions.insert(newIndex, item);
                         });
@@ -596,22 +600,6 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
     );
   }
 
-  /// Gets an IconData from a string code point
-  IconData _getIconData(String iconName) {
-    try {
-      // Try to parse the icon as a code point
-      final codePoint = int.tryParse(iconName);
-      if (codePoint != null) {
-        // Use FontAwesomeSolid font family for FontAwesome icons
-        return IconData(
-          codePoint,
-          fontFamily: 'FontAwesomeSolid',
-          fontPackage: 'font_awesome_flutter',
-        );
-      }
-      return Icons.smart_button;
-    } catch (e) {
-      return Icons.smart_button;
-    }
-  }
+  /// Resolves a stored icon identifier to its Phosphor [IconData].
+  IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
 }

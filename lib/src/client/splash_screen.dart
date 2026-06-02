@@ -344,11 +344,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                             ),
                           ),
                           const SizedBox(width: AppTheme.spaceMedium),
-                          Text(
-                            _statusMessage,
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
+                          Flexible(
+                            child: Text(
+                              _statusMessage,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],

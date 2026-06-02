@@ -38,6 +38,7 @@ class ServerScreen extends StatefulWidget {
 class _ServerScreenState extends State<ServerScreen> {
   String _serverIp = 'Loading...';
   int _serverPort = 8080;
+  String _serverName = 'MarcoDeck Server';
   bool _isRunning = false;
   List<models.Page> _pages = [];
   models.Page? _selectedPage;
@@ -57,6 +58,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
     // Subscribe to client connection updates
     _clientsSubscription = widget.server.clientsStream.listen((clients) {
+      if (!mounted) return;
       setState(() {
         _connectedClients = clients;
       });
@@ -66,11 +68,11 @@ class _ServerScreenState extends State<ServerScreen> {
     _serverStatusSubscription = widget.server.serverStatusStream.listen((
       status,
     ) {
-      setState(() {
-        if (mounted) {
-          _showStatusMessage(status);
-        }
-      });
+      // Showing a snackbar does not change widget state, so don't wrap it in
+      // setState; just guard against the widget being disposed.
+      if (mounted) {
+        _showStatusMessage(status);
+      }
     });
   }
 
@@ -128,6 +130,7 @@ class _ServerScreenState extends State<ServerScreen> {
     try {
       final ip = await widget.server.getServerIp();
 
+      if (!mounted) return;
       setState(() {
         _serverIp = ip;
         _serverPort = widget.server.serverPort;
@@ -136,8 +139,10 @@ class _ServerScreenState extends State<ServerScreen> {
 
       final success = await widget.server.start();
 
+      if (!mounted) return;
       setState(() {
         _isRunning = success;
+        _serverName = widget.server.name;
         _connectedClients = widget.server.connectedClients;
       });
 
@@ -166,6 +171,7 @@ class _ServerScreenState extends State<ServerScreen> {
   /// Restarts the server with the current port
   Future<void> _restartServer() async {
     final success = await widget.server.restart();
+    if (!mounted) return;
     setState(() {
       _isRunning = success;
     });
@@ -176,11 +182,13 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _toggleServer() async {
     if (_isRunning) {
       await widget.server.stop();
+      if (!mounted) return;
       setState(() {
         _isRunning = false;
       });
     } else {
       final success = await widget.server.start();
+      if (!mounted) return;
       setState(() {
         _isRunning = success;
       });
@@ -246,12 +254,14 @@ class _ServerScreenState extends State<ServerScreen> {
                       final success = await widget.server.restart(
                         newPort: newPort,
                       );
+                      if (!mounted) return;
                       setState(() {
                         _isRunning = success;
                         _serverPort = newPort;
                       });
                     } else {
                       await widget.server.setPort(newPort);
+                      if (!mounted) return;
                       setState(() {
                         _serverPort = newPort;
                       });
@@ -417,20 +427,72 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
-  /// Reorders buttons within the selected page
+  /// Reorders buttons within the selected page.
+  ///
+  /// Wired to [ReorderableListView]'s `onReorderItem`, which already adjusts
+  /// `newIndex` for the removed item, so no manual adjustment is needed.
   void _reorderButtons(int oldIndex, int newIndex) {
     setState(() {
       if (_selectedPage == null) return;
-
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
 
       final button = _selectedPage!.buttons.removeAt(oldIndex);
       _selectedPage!.buttons.insert(newIndex, button);
 
       widget.server.updatePage(_selectedPage!);
     });
+  }
+
+  /// Shows a dialog to rename the server (the friendly name clients discover).
+  Future<void> _showRenameDialog() async {
+    final controller = TextEditingController(text: _serverName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Rename Server'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'This is the name clients see when discovering this server.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(labelText: 'Server name'),
+                  onSubmitted: (v) => Navigator.of(context).pop(v),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(controller.text),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+    );
+
+    if (newName != null && newName.trim().isNotEmpty) {
+      await widget.server.setName(newName);
+      if (!mounted) return;
+      setState(() => _serverName = widget.server.name);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Renamed to "${widget.server.name}". '
+              'Restart the server to broadcast the new name.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -448,13 +510,42 @@ class _ServerScreenState extends State<ServerScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                Icons.computer,
+                Icons.desktop_windows_rounded,
                 color: colorScheme.onPrimaryContainer,
                 size: 20,
               ),
             ),
             const SizedBox(width: 12),
-            const Text('MarcoDeck Server'),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _serverName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                Text(
+                  'MarcoDeck Server',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              tooltip: 'Rename server',
+              onPressed: _showRenameDialog,
+              visualDensity: VisualDensity.compact,
+              color: colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
         actions: [
@@ -476,38 +567,82 @@ class _ServerScreenState extends State<ServerScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Server Status Card
-          ServerStatusCard(
-            serverIp: _serverIp,
-            serverPort: _serverPort,
-            isRunning: _isRunning,
-            onRestartServer: _restartServer,
-            onToggleServer: _toggleServer,
-            onChangePort: _showChangePortDialog,
-          ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // On wide desktop windows, use a two-pane master/detail layout so the
+          // horizontal space is put to good use. On narrow windows fall back to
+          // a single scrolling column.
+          final isWide = constraints.maxWidth >= 900;
+          if (!isWide) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                ServerStatusCard(
+                  serverIp: _serverIp,
+                  serverPort: _serverPort,
+                  isRunning: _isRunning,
+                  onRestartServer: _restartServer,
+                  onToggleServer: _toggleServer,
+                  onChangePort: _showChangePortDialog,
+                ),
+                if (_isRunning)
+                  ConnectedClientsCard(connectedClients: _connectedClients),
+                _buildPagesSection(),
+              ],
+            );
+          }
 
-          // Connected Clients Card
-          if (_isRunning)
-            ConnectedClientsCard(connectedClients: _connectedClients),
-
-          // Pages and Buttons Section
-          PagesAndButtonsSection(
-            pages: _pages,
-            selectedPage: _selectedPage,
-            onPageSelected: (page) => setState(() => _selectedPage = page),
-            onAddPage: () => _showPageEditor(null),
-            onEditPage: _showPageEditor,
-            onDeletePage: _deletePage,
-            onAddButton: () => _navigateToButtonEditor(null),
-            onEditButton: _navigateToButtonEditor,
-            onDeleteButton: _deleteButton,
-            onReorderButtons: _reorderButtons,
-          ),
-        ],
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left pane: server status + connected clients.
+              SizedBox(
+                width: 360,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+                  children: [
+                    ServerStatusCard(
+                      serverIp: _serverIp,
+                      serverPort: _serverPort,
+                      isRunning: _isRunning,
+                      onRestartServer: _restartServer,
+                      onToggleServer: _toggleServer,
+                      onChangePort: _showChangePortDialog,
+                    ),
+                    if (_isRunning)
+                      ConnectedClientsCard(
+                        connectedClients: _connectedClients,
+                      ),
+                  ],
+                ),
+              ),
+              const VerticalDivider(width: 1),
+              // Right pane: pages and buttons.
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(8, 16, 16, 16),
+                  children: [_buildPagesSection()],
+                ),
+              ),
+            ],
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildPagesSection() {
+    return PagesAndButtonsSection(
+      pages: _pages,
+      selectedPage: _selectedPage,
+      onPageSelected: (page) => setState(() => _selectedPage = page),
+      onAddPage: () => _showPageEditor(null),
+      onEditPage: _showPageEditor,
+      onDeletePage: _deletePage,
+      onAddButton: () => _navigateToButtonEditor(null),
+      onEditButton: _navigateToButtonEditor,
+      onDeleteButton: _deleteButton,
+      onReorderButtons: _reorderButtons,
     );
   }
 }

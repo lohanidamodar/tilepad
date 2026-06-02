@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'splash_screen.dart';
+import 'settings_screen.dart';
 import 'client_providers.dart' as providers;
+import '../utils/accessibility.dart';
 import '../utils/theme.dart';
 
 /// Main entry point for the client app
@@ -31,14 +33,41 @@ class MarcoDeckClientApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final accessibility = ref.watch(accessibilitySettingsProvider);
+
+    // Apply the high-contrast accessibility option to the base themes when
+    // enabled so the toggle in Settings actually takes effect.
+    final ThemeData effectiveLight =
+        accessibility.highContrastMode
+            ? lightTheme.toHighContrast()
+            : lightTheme;
+    final ThemeData effectiveDark =
+        accessibility.highContrastMode
+            ? darkTheme.toHighContrast()
+            : darkTheme;
 
     return _EagerInitialization(
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'MarcoDeck Client',
-        theme: lightTheme,
-        darkTheme: darkTheme,
+        theme: effectiveLight,
+        darkTheme: effectiveDark,
         themeMode: themeMode,
+        // Apply the user-selected text scale globally so the Text Size slider
+        // in Settings affects the whole app.
+        builder: (context, child) {
+          final mediaQuery = MediaQuery.of(context);
+          return MediaQuery(
+            data: mediaQuery.copyWith(
+              textScaler: TextScaler.linear(accessibility.textScale),
+              // Propagate the reduce-motion preference (also respects the OS
+              // setting if it is already enabled).
+              disableAnimations:
+                  accessibility.reduceAnimations || mediaQuery.disableAnimations,
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: const SplashScreen(),
       ),
     );

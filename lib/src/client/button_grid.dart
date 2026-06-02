@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/button.dart';
+import '../models/window_info.dart';
 import '../utils/accessibility.dart';
+import '../utils/macro_icons.dart';
 import '../utils/theme.dart';
+import '../widgets/key_combo_picker.dart';
 import 'client_providers.dart';
 
 /// Widget that displays a grid of macro buttons with enhanced visual feedback
@@ -15,33 +17,25 @@ class ButtonGrid extends ConsumerWidget {
   /// Called when a button is pressed
   final Function(String buttonId)? onButtonPressed;
 
-  /// Function to convert a hex color string to a Color object
+  /// Function to convert a hex color string to a Color object.
+  ///
+  /// Defensive against malformed values received over the network: falls back
+  /// to the default button color instead of throwing and crashing the grid.
   Color _hexToColor(String hexString) {
-    final hexColor = hexString.replaceAll('#', '');
-    return Color(int.parse('FF$hexColor', radix: 16));
-  }
-
-  /// Function to convert an icon name string to an IconData object
-  IconData _getIconData(String iconName) {
-    try {
-      // Try to parse the icon as a code point
-      final codePoint = int.tryParse(iconName);
-      if (codePoint != null) {
-        // Use FontAwesomeSolid font family for FontAwesome icons
-        // Note: Non-const IconData - release builds need --no-tree-shake-icons
-        return IconData(
-          codePoint,
-          fontFamily: 'FontAwesomeSolid',
-          fontPackage: 'font_awesome_flutter',
-        );
-      }
-
-      // Default to a placeholder icon
-      return Icons.smart_button;
-    } catch (e) {
-      return Icons.smart_button;
+    var hexColor = hexString.replaceAll('#', '').trim();
+    // Allow shorthand and ARGB strings, otherwise normalise to RRGGBB.
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
     }
+    final value = int.tryParse(hexColor, radix: 16);
+    if (value == null || hexColor.length != 8) {
+      return const Color(0xFF4285F4); // Default Google blue
+    }
+    return Color(value);
   }
+
+  /// Resolves a stored icon identifier to its Phosphor [IconData].
+  IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
 
   /// Creates a new button grid
   const ButtonGrid({super.key, required this.buttons, this.onButtonPressed});
@@ -91,20 +85,38 @@ class ButtonGrid extends ConsumerWidget {
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppTheme.spaceLarge),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: AppTheme.spaceMedium,
-        mainAxisSpacing: AppTheme.spaceMedium,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: buttons.length,
-      itemBuilder: (context, index) {
-        final button = buttons[index];
-        return _buildButton(context, button, ref);
+    // Adapt the column count to the available width so the grid feels right
+    // on small phones, large phones in landscape, and tablets alike.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = _columnCountForWidth(constraints.maxWidth);
+        return GridView.builder(
+          padding: const EdgeInsets.all(AppTheme.spaceLarge),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: AppTheme.spaceMedium,
+            mainAxisSpacing: AppTheme.spaceMedium,
+            childAspectRatio: 1.0,
+          ),
+          itemCount: buttons.length,
+          itemBuilder: (context, index) {
+            final button = buttons[index];
+            return _buildButton(context, button, ref);
+          },
+        );
       },
     );
+  }
+
+  /// Chooses a comfortable column count for the available [width] so the macro
+  /// grid adapts across phones (portrait/landscape) and tablets.
+  static int _columnCountForWidth(double width) {
+    if (width < 320) return 2;
+    if (width < 480) return 3; // standard phone portrait
+    if (width < 600) return 4; // large / landscape phone
+    if (width < 840) return 5; // small tablet / wide landscape
+    if (width < 1080) return 6;
+    return 7;
   }
 
   /// Handles connection loss and shows a reconnection dialog
@@ -171,19 +183,21 @@ class ButtonGrid extends ConsumerWidget {
       enabled: isConnected,
       onPressed: () {
         // Check if connection is active before sending command
-        if (isConnected) {
-          // Provide haptic feedback
-          AccessibilityUtils.provideFeedback(FeedbackType.light);
-
-          // Announce button press to screen readers
-          AccessibilityUtils.announce(context, 'Activated ${button.name}');
-
-          if (onButtonPressed != null) {
-            onButtonPressed!(button.id);
-          }
-        } else {
+        if (!isConnected) {
           // Connection is lost, show dialog to reconnect
           _handleConnectionLoss(context, ref);
+          return;
+        }
+
+        // Note: AccessibleButton already provides light haptic feedback on
+        // tap-down, so we avoid a duplicate buzz here.
+        AccessibilityUtils.announce(context, 'Activated ${button.name}');
+
+        if (button.isPrompt) {
+          // Dynamic button: ask the user what to send, then send it.
+          _handleDynamicPress(context, ref, button);
+        } else if (onButtonPressed != null) {
+          onButtonPressed!(button.id);
         }
       },
       child: AnimatedButton(
@@ -197,10 +211,188 @@ class ButtonGrid extends ConsumerWidget {
       ),
     );
   }
+
+  /// Last value sent from each dynamic button, used to prefill the prompt.
+  static final Map<String, String> _lastText = {};
+  static final Map<String, ({String key, Set<String> modifiers})> _lastCombo =
+      {};
+
+  /// Handles pressing a dynamic button by asking the user what to send.
+  Future<void> _handleDynamicPress(
+    BuildContext context,
+    WidgetRef ref,
+    Button button,
+  ) async {
+    final notifier = ref.read(connectionStateProvider.notifier);
+
+    if (button.promptActionType == ActionType.promptText) {
+      final text = await _showTextPrompt(context, button);
+      if (text != null && text.isNotEmpty) {
+        _lastText[button.id] = text;
+        notifier.pressButton(button.id, text: text);
+      }
+    } else if (button.promptActionType == ActionType.promptKeystroke) {
+      final combo = await _showKeyComboPrompt(context, button);
+      if (combo != null) {
+        _lastCombo[button.id] = combo;
+        notifier.pressButton(
+          button.id,
+          key: combo.key,
+          modifiers: combo.modifiers.toList(),
+        );
+      }
+    } else if (button.promptActionType == ActionType.selectWindow) {
+      final windowId = await _showWindowPicker(context, ref, button);
+      if (windowId != null) {
+        notifier.pressButton(button.id, windowId: windowId);
+      }
+    }
+  }
+
+  /// Fetches the server's open windows and lets the user pick one to focus.
+  Future<String?> _showWindowPicker(
+    BuildContext context,
+    WidgetRef ref,
+    Button button,
+  ) {
+    final future = ref.read(connectionStateProvider.notifier).fetchWindows();
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(button.name),
+          content: SizedBox(
+            width: 380,
+            height: 420,
+            child: FutureBuilder<List<WindowInfo>>(
+              future: future,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final windows = snapshot.data ?? const <WindowInfo>[];
+                if (windows.isEmpty) {
+                  return const Center(child: Text('No open windows found'));
+                }
+                return ListView.separated(
+                  itemCount: windows.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final window = windows[index];
+                    return ListTile(
+                      leading: const Icon(Icons.web_asset),
+                      title: Text(
+                        window.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => Navigator.of(context).pop(window.id),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Prompts for free text to send.
+  Future<String?> _showTextPrompt(BuildContext context, Button button) {
+    final controller = TextEditingController(text: _lastText[button.id] ?? '');
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(button.name),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            minLines: 1,
+            maxLines: 4,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              labelText: 'Text to send',
+              hintText: 'Type the text to send…',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (v) => Navigator.of(context).pop(v),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Prompts for a key combination to send.
+  Future<({String key, Set<String> modifiers})?> _showKeyComboPrompt(
+    BuildContext context,
+    Button button,
+  ) {
+    final last = _lastCombo[button.id];
+    var key = last?.key ?? 'a';
+    var modifiers = {...?last?.modifiers};
+    return showDialog<({String key, Set<String> modifiers})>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(button.name),
+          content: SizedBox(
+            width: 360,
+            child: SingleChildScrollView(
+              child: KeyComboPicker(
+                initialKey: key,
+                initialModifiers: modifiers,
+                onChanged: (k, m) {
+                  key = k;
+                  modifiers = m;
+                },
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed:
+                  () => Navigator.of(
+                    context,
+                  ).pop((key: key, modifiers: modifiers)),
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
-/// Enhanced animated button widget with accessibility support
-class AnimatedButton extends StatefulWidget {
+/// Visual representation of a macro button.
+///
+/// Press scaling and haptics are handled by the surrounding [AccessibleButton];
+/// this widget is purely visual. Sizing scales with the available tile size so
+/// the same button looks right whether the grid shows 2 columns or 7.
+class AnimatedButton extends StatelessWidget {
   final Color color;
   final IconData icon;
   final String label;
@@ -217,123 +409,62 @@ class AnimatedButton extends StatefulWidget {
   });
 
   @override
-  State<AnimatedButton> createState() => _AnimatedButtonState();
-}
-
-class _AnimatedButtonState extends State<AnimatedButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _elevationAnimation;
-  final bool _isPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 150),
-      vsync: this,
-    );
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
-    _elevationAnimation = Tween<double>(begin: 4.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final effectiveColor =
-        widget.isEnabled ? widget.color : widget.color.withValues(alpha: 0.5);
+        isEnabled ? color : color.withValues(alpha: 0.45);
 
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Material(
-            color: effectiveColor,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            elevation: widget.isEnabled ? _elevationAnimation.value : 1.0,
-            shadowColor: widget.color.withValues(alpha: 0.4),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
+    // Pick a legible foreground (light or dark) for the button's colour so
+    // labels stay readable on both bright and dark custom button colours.
+    final onColor =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF1A1A1A);
+    final fg = isEnabled ? onColor : onColor.withValues(alpha: 0.6);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tile = constraints.biggest.shortestSide;
+        final iconSize = (tile * 0.42).clamp(28.0, 56.0);
+        final fontSize = (tile * 0.115).clamp(10.0, 14.0);
+
+        return Material(
+          color: effectiveColor,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          elevation: isEnabled ? 3 : 0,
+          shadowColor: color.withValues(alpha: 0.4),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  effectiveColor,
+                  Color.alphaBlend(
+                    Colors.black.withValues(alpha: 0.14),
                     effectiveColor,
-                    effectiveColor.withValues(alpha: 0.8),
-                  ],
-                ),
-                boxShadow:
-                    _isPressed || !widget.isEnabled
-                        ? []
-                        : [
-                          BoxShadow(
-                            color: widget.color.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                  ),
+                ],
               ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spaceSmall),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(AppTheme.spaceSmall),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(
-                        alpha: widget.isEnabled ? 0.2 : 0.1,
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: FaIcon(
-                      widget.icon,
-                      size: 28,
-                      color:
-                          widget.isEnabled
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spaceSmall),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spaceXSmall,
-                    ),
+                  Icon(icon, size: iconSize, color: fg),
+                  SizedBox(height: tile * 0.05),
+                  Flexible(
                     child: Text(
-                      widget.label,
+                      label,
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color:
-                            widget.isEnabled
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.6),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        shadows:
-                            widget.isEnabled
-                                ? [
-                                  const Shadow(
-                                    color: Colors.black26,
-                                    offset: Offset(0, 1),
-                                    blurRadius: 2,
-                                  ),
-                                ]
-                                : [],
+                        color: fg,
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w700,
+                        height: 1.05,
                       ),
                     ),
                   ),

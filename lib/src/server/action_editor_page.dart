@@ -1,6 +1,6 @@
 // filepath: g:\dev\projects\macro-deck\lib\src\server\action_editor_page.dart
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:picons/picons.dart';
 import 'dart:io' show Platform;
 
 import '../models/button.dart';
@@ -53,7 +53,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'pmset sleepnow',
       'linux': 'systemctl suspend',
     },
-    icon: FontAwesomeIcons.powerOff,
+    icon: PiconsRegular.power,
   ),
   PredefinedCommand(
     name: 'Shutdown Computer',
@@ -63,7 +63,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'sudo shutdown -h now',
       'linux': 'sudo shutdown -h now',
     },
-    icon: FontAwesomeIcons.powerOff,
+    icon: PiconsRegular.power,
   ),
   PredefinedCommand(
     name: 'Restart Computer',
@@ -73,7 +73,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'sudo shutdown -r now',
       'linux': 'sudo reboot',
     },
-    icon: FontAwesomeIcons.arrowsRotate,
+    icon: PiconsRegular.arrowsClockwise,
   ),
   PredefinedCommand(
     name: 'Lock Screen',
@@ -83,7 +83,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'pmset displaysleepnow',
       'linux': 'xdg-screensaver lock',
     },
-    icon: FontAwesomeIcons.lock,
+    icon: PiconsRegular.lock,
   ),
   PredefinedCommand(
     name: 'Copy Selection',
@@ -95,7 +95,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e \'tell application "System Events" to keystroke "c" using command down\'',
       'linux': 'xdotool key ctrl+c',
     },
-    icon: FontAwesomeIcons.copy,
+    icon: PiconsRegular.copy,
   ),
   PredefinedCommand(
     name: 'Paste',
@@ -107,7 +107,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e \'tell application "System Events" to keystroke "v" using command down\'',
       'linux': 'xdotool key ctrl+v',
     },
-    icon: FontAwesomeIcons.paste,
+    icon: PiconsRegular.clipboard,
   ),
   PredefinedCommand(
     name: 'Take Screenshot',
@@ -118,7 +118,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'screencapture -i ~/Desktop/screenshot.png',
       'linux': 'gnome-screenshot -i',
     },
-    icon: FontAwesomeIcons.camera,
+    icon: PiconsRegular.camera,
   ),
   PredefinedCommand(
     name: 'Volume Up',
@@ -130,7 +130,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e "set volume output volume (output volume of (get volume settings) + 10) --100%"',
       'linux': 'pactl set-sink-volume @DEFAULT_SINK@ +10%',
     },
-    icon: FontAwesomeIcons.volumeHigh,
+    icon: PiconsRegular.speakerHigh,
   ),
   PredefinedCommand(
     name: 'Volume Down',
@@ -142,7 +142,7 @@ final List<PredefinedCommand> predefinedCommands = [
           'osascript -e "set volume output volume (output volume of (get volume settings) - 10) --100%"',
       'linux': 'pactl set-sink-volume @DEFAULT_SINK@ -10%',
     },
-    icon: FontAwesomeIcons.volumeLow,
+    icon: PiconsRegular.speakerLow,
   ),
   PredefinedCommand(
     name: 'Mute/Unmute',
@@ -153,7 +153,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'macos': 'osascript -e "set volume with output muted"',
       'linux': 'pactl set-sink-mute @DEFAULT_SINK@ toggle',
     },
-    icon: FontAwesomeIcons.volumeXmark,
+    icon: PiconsRegular.speakerX,
   ),
 ];
 
@@ -197,8 +197,23 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
   String _selectedKey = 'a';
   final Set<String> _selectedModifiers = <String>{};
 
-  // Common keys for keystroke selection
+  // Common keys for keystroke selection. Named keys come first so they're
+  // easy to find without scrolling past the whole alphabet.
   final List<String> _commonKeys = [
+    'enter',
+    'tab',
+    'space',
+    'esc',
+    'backspace',
+    'delete',
+    'up',
+    'down',
+    'left',
+    'right',
+    'home',
+    'end',
+    'pageup',
+    'pagedown',
     'a',
     'b',
     'c',
@@ -247,20 +262,6 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
     'f10',
     'f11',
     'f12',
-    'enter',
-    'tab',
-    'space',
-    'backspace',
-    'delete',
-    'esc',
-    'up',
-    'down',
-    'left',
-    'right',
-    'home',
-    'end',
-    'pageup',
-    'pagedown',
   ];
 
   // Modifier keys
@@ -346,6 +347,86 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
     }
   }
 
+  /// Short label for an action type (used by the type chips).
+  String _typeLabel(ActionType type) {
+    switch (type) {
+      case ActionType.command:
+        return 'Custom';
+      case ActionType.commandPreset:
+        return 'Preset';
+      case ActionType.keystroke:
+        return 'Keystroke';
+      case ActionType.promptText:
+        return 'Prompt Text';
+      case ActionType.promptKeystroke:
+        return 'Prompt Keys';
+      case ActionType.selectWindow:
+        return 'Select Window';
+    }
+  }
+
+  /// Icon for an action type (used by the type chips).
+  IconData _typeIcon(ActionType type) {
+    switch (type) {
+      case ActionType.command:
+        return Icons.terminal;
+      case ActionType.commandPreset:
+        return Icons.list_alt;
+      case ActionType.keystroke:
+        return Icons.keyboard;
+      case ActionType.promptText:
+        return Icons.keyboard_alt_outlined;
+      case ActionType.promptKeystroke:
+        return Icons.touch_app_outlined;
+      case ActionType.selectWindow:
+        return Icons.web_asset;
+    }
+  }
+
+  /// Builds an explanatory card for the dynamic "prompt" action types.
+  Widget _buildPromptInfoCard({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: colorScheme.primaryContainer,
+              child: Icon(icon, color: colorScheme.onPrimaryContainer),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Gets a human-readable description of the keystroke
   String _getKeystrokeDescription() {
     final modifierNames = _selectedModifiers
@@ -395,30 +476,30 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SegmentedButton<ActionType>(
-                      segments: [
-                        ButtonSegment<ActionType>(
-                          value: ActionType.command,
-                          label: const Text('Custom'),
-                          icon: const Icon(Icons.terminal),
-                        ),
-                        ButtonSegment<ActionType>(
-                          value: ActionType.commandPreset,
-                          label: const Text('Preset'),
-                          icon: const Icon(Icons.list_alt),
-                        ),
-                        ButtonSegment<ActionType>(
-                          value: ActionType.keystroke,
-                          label: const Text('Keystroke'),
-                          icon: const Icon(Icons.keyboard),
-                        ),
-                      ],
-                      selected: {_selectedType},
-                      onSelectionChanged: (Set<ActionType> newSelection) {
-                        setState(() {
-                          _selectedType = newSelection.first;
-                        });
-                      },
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children:
+                          ActionType.values.map((type) {
+                            final selected = _selectedType == type;
+                            return ChoiceChip(
+                              avatar: Icon(
+                                _typeIcon(type),
+                                size: 18,
+                                color:
+                                    selected
+                                        ? Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondaryContainer
+                                        : null,
+                              ),
+                              label: Text(_typeLabel(type)),
+                              selected: selected,
+                              onSelected:
+                                  (_) =>
+                                      setState(() => _selectedType = type),
+                            );
+                          }).toList(),
                     ),
                   ],
                 ),
@@ -753,6 +834,36 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                     ],
                   ),
                 ),
+              ),
+
+            // Prompt-for-text info
+            if (_selectedType == ActionType.promptText)
+              _buildPromptInfoCard(
+                icon: Icons.keyboard_alt_outlined,
+                title: 'Prompt for Text',
+                description:
+                    'When this button is pressed, the device asks for text to '
+                    'send and the server types it into the active app.',
+              ),
+
+            // Prompt-for-key-combo info
+            if (_selectedType == ActionType.promptKeystroke)
+              _buildPromptInfoCard(
+                icon: Icons.touch_app_outlined,
+                title: 'Prompt for Key Combo',
+                description:
+                    'When this button is pressed, the device asks for a key '
+                    'combination (modifiers + key) and the server sends it.',
+              ),
+
+            // Select-window info
+            if (_selectedType == ActionType.selectWindow)
+              _buildPromptInfoCard(
+                icon: Icons.web_asset,
+                title: 'Select Window',
+                description:
+                    'When this button is pressed, the device shows the '
+                    'server\'s open windows and brings the chosen one to front.',
               ),
           ],
         ),

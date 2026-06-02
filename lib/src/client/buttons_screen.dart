@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../models/server_connection.dart';
+import '../utils/accessibility.dart';
 import 'client_providers.dart';
 import 'button_grid.dart';
 import 'server_list_screen.dart';
@@ -27,13 +30,15 @@ class ButtonsScreen extends ConsumerStatefulWidget {
 class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   final PageController _pageController = PageController();
 
-  // Reference to the WebSocket service
+  /// True while we have just connected and are still waiting for the server to
+  /// send its buttons, so we can show a loading skeleton instead of an abrupt
+  /// "no buttons" state.
+  bool _awaitingButtons = false;
+  Timer? _awaitTimer;
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize WebSocket service reference
 
     // Request buttons from server when screen is first shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -42,14 +47,26 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
         // If already connected (e.g., from splash screen), request buttons
         debugPrint('ButtonsScreen: Already connected, requesting buttons');
         ref.read(connectionStateProvider.notifier).requestButtons();
+        _beginAwaitingButtons();
       }
     });
   }
 
   @override
   void dispose() {
+    _awaitTimer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// Begins a short window during which a loading skeleton is shown while the
+  /// server's buttons are in flight.
+  void _beginAwaitingButtons() {
+    _awaitTimer?.cancel();
+    setState(() => _awaitingButtons = true);
+    _awaitTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _awaitingButtons = false);
+    });
   }
 
   void _showResultBottomSheet(BuildContext context, CommandResultEvent result) {
@@ -194,6 +211,77 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     );
   }
 
+  /// Resolves a button's display name from its id across all pages.
+  String? _buttonName(String buttonId) {
+    for (final page in ref.read(pagesProvider)) {
+      for (final button in page.buttons) {
+        if (button.id == buttonId) return button.name;
+      }
+    }
+    return null;
+  }
+
+  /// Shows lightweight feedback for a command result.
+  ///
+  /// A quick floating toast for the common case (success, no output), with a
+  /// "Details" action that opens the full result sheet whenever there is
+  /// output to show or an error to inspect.
+  void _handleCommandResult(BuildContext context, CommandResultEvent result) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final name = _buttonName(result.buttonId);
+    final hasDetail = result.success ? result.output.trim().isNotEmpty : true;
+
+    AccessibilityUtils.provideFeedback(
+      result.success ? FeedbackType.light : FeedbackType.heavy,
+    );
+
+    final fg =
+        result.success
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onErrorContainer;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor:
+            result.success
+                ? colorScheme.primaryContainer
+                : colorScheme.errorContainer,
+        duration: Duration(seconds: hasDetail ? 4 : 2),
+        content: Row(
+          children: [
+            Icon(
+              result.success
+                  ? Icons.check_circle_rounded
+                  : Icons.error_rounded,
+              color: fg,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                result.success
+                    ? 'Ran ${name ?? 'command'}'
+                    : 'Failed: ${name ?? 'command'}',
+                style: TextStyle(color: fg, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        action:
+            hasDetail
+                ? SnackBarAction(
+                  label: 'Details',
+                  textColor: fg,
+                  onPressed: () => _showResultBottomSheet(context, result),
+                )
+                : null,
+      ),
+    );
+  }
+
   void _showServerManager(BuildContext context) {
     Navigator.of(
       context,
@@ -286,11 +374,24 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     final selectedPageIndex = ref.watch(selectedPageIndexProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
-    // Show result panel when commandResult changes
+    // Show lightweight feedback when a command result arrives.
     ref.listen<CommandResultEvent?>(commandResultProvider, (previous, next) {
       if (next != null && mounted) {
-        // Show bottom sheet for result
-        _showResultBottomSheet(context, next);
+        _handleCommandResult(context, next);
+      }
+    });
+
+    // Show a loading skeleton briefly after (re)connecting, until buttons land.
+    ref.listen(connectionStateProvider, (previous, next) {
+      if (previous?.status != ConnectionStatus.connected &&
+          next.status == ConnectionStatus.connected) {
+        _beginAwaitingButtons();
+      }
+    });
+    ref.listen(pagesProvider, (previous, next) {
+      if (next.isNotEmpty && _awaitingButtons) {
+        _awaitTimer?.cancel();
+        setState(() => _awaitingButtons = false);
       }
     });
 
@@ -327,9 +428,12 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Text(
-              connectionState.connection?.name ?? 'MarcoDeck',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Flexible(
+              child: Text(
+                connectionState.connection?.name ?? 'MarcoDeck',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (isConnected)
               Container(
@@ -468,52 +572,26 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           if (isConnected)
             Column(
               children: [
-                // Page name and indicator container
-                if (pages.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.shadow.withAlpha(30),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                // Page name and indicator
+                if (pages.isNotEmpty && selectedPageIndex < pages.length)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
                     child: Column(
                       children: [
-                        // Page name
-                        if (pages.isNotEmpty &&
-                            selectedPageIndex < pages.length)
-                          Container(
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 24.0,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0,
-                              vertical: 6.0,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              pages[selectedPageIndex].name,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onPrimaryContainer,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
+                        Text(
+                          pages[selectedPageIndex].name,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                            color: colorScheme.onSurface,
                           ),
-
+                          textAlign: TextAlign.center,
+                        ),
                         // Page indicator dots
                         if (pages.length > 1)
                           Padding(
-                            padding: const EdgeInsets.only(top: 12.0),
+                            padding: const EdgeInsets.only(top: 10.0),
                             child: SmoothPageIndicator(
                               controller: _pageController,
                               count: pages.length,
@@ -521,7 +599,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                 dotHeight: 8,
                                 dotWidth: 8,
                                 activeDotColor: colorScheme.primary,
-                                dotColor: colorScheme.surface,
+                                dotColor: colorScheme.outlineVariant,
                                 spacing: 8,
                                 radius: 4,
                               ),
@@ -542,7 +620,9 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 Expanded(
                   child:
                       pages.isEmpty
-                          ? Center(
+                          ? (_awaitingButtons
+                              ? const _SkeletonGrid()
+                              : Center(
                             child: Container(
                               padding: const EdgeInsets.all(24),
                               margin: const EdgeInsets.all(24),
@@ -582,7 +662,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                                 ],
                               ),
                             ),
-                          )
+                          ))
                           : PageView.builder(
                             controller: _pageController,
                             itemCount: pages.length,
@@ -860,7 +940,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withAlpha(305),
+                    color: colorScheme.shadow.withValues(alpha: 0.2),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -942,6 +1022,71 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A subtly pulsing placeholder grid shown while the server's buttons are in
+/// flight, so connecting feels responsive instead of flashing an empty state.
+class _SkeletonGrid extends StatefulWidget {
+  const _SkeletonGrid();
+
+  @override
+  State<_SkeletonGrid> createState() => _SkeletonGridState();
+}
+
+class _SkeletonGridState extends State<_SkeletonGrid>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final columns =
+            width < 320
+                ? 2
+                : width < 480
+                    ? 3
+                    : width < 600
+                        ? 4
+                        : width < 840
+                            ? 5
+                            : 6;
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.0,
+          ),
+          itemCount: columns * 3,
+          itemBuilder: (context, index) {
+            return FadeTransition(
+              opacity: Tween<double>(begin: 0.35, end: 0.7).animate(_controller),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

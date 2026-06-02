@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/button.dart' as models;
+import '../../utils/macro_icons.dart';
 
 /// A widget that displays the pages and buttons section
 class PagesAndButtonsSection extends StatelessWidget {
@@ -307,8 +308,14 @@ class PagesAndButtonsSection extends StatelessWidget {
 
     return ReorderableListView.builder(
       shrinkWrap: true,
+      // Use our own drag handle instead of the platform default so desktop
+      // doesn't render a second, redundant handle.
+      buildDefaultDragHandles: false,
+      // This list lives inside the outer scrolling ListView of ServerScreen,
+      // so defer scrolling to the parent to avoid nested-scroll conflicts.
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      onReorder: onReorderButtons,
+      onReorderItem: onReorderButtons,
       itemCount: selectedPage!.buttons.length,
       itemBuilder: (context, index) {
         final button = selectedPage!.buttons[index];
@@ -402,7 +409,13 @@ class PagesAndButtonsSection extends StatelessWidget {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.drag_handle, color: colorScheme.onSurfaceVariant),
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: Icon(
+                      Icons.drag_indicator,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                   PopupMenuButton(
                     itemBuilder:
                         (context) => [
@@ -440,28 +453,22 @@ class PagesAndButtonsSection extends StatelessWidget {
     );
   }
 
-  /// Converts a hex string to a Color
+  /// Converts a hex string to a Color, falling back to the default colour
+  /// when the stored value is malformed.
   Color _hexToColor(String hexString) {
-    final hexColor = hexString.replaceAll('#', '');
-    return Color(int.parse('FF$hexColor', radix: 16));
+    var hexColor = hexString.replaceAll('#', '').trim();
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    final value = int.tryParse(hexColor, radix: 16);
+    if (value == null || hexColor.length != 8) {
+      return const Color(0xFF4285F4);
+    }
+    return Color(value);
   }
 
-  /// Gets an icon from a string code point
-  IconData _getIconData(String iconName) {
-    try {
-      final codePoint = int.tryParse(iconName);
-      if (codePoint != null) {
-        return IconData(
-          codePoint,
-          fontFamily: 'FontAwesomeSolid',
-          fontPackage: 'font_awesome_flutter',
-        );
-      }
-      return Icons.smart_button;
-    } catch (e) {
-      return Icons.smart_button;
-    }
-  }
+  /// Resolves a stored icon identifier to its Phosphor [IconData].
+  IconData _getIconData(String iconName) => MacroIcons.resolve(iconName);
 
   /// Gets a description of a button action
   String _getActionDescription(models.ButtonAction action) {
@@ -476,6 +483,12 @@ class PagesAndButtonsSection extends StatelessWidget {
                 ? '${action.modifiers.map((m) => m.toUpperCase()).join('+')}+'
                 : '';
         return 'Keystroke: $modifierText${action.key.toUpperCase()}';
+      case models.ActionType.promptText:
+        return 'Prompt for text';
+      case models.ActionType.promptKeystroke:
+        return 'Prompt for key combo';
+      case models.ActionType.selectWindow:
+        return 'Select a window to focus';
     }
   }
 }

@@ -10,6 +10,15 @@ enum ActionType {
 
   /// Send keystroke(s) to the system
   keystroke,
+
+  /// Prompt the client for text at press time, then type it on the server
+  promptText,
+
+  /// Prompt the client for a key combination at press time, then send it
+  promptKeystroke,
+
+  /// Let the client pick one of the server's open windows to bring to front
+  selectWindow,
 }
 
 /// Represents a single action that can be performed by a button
@@ -106,6 +115,22 @@ class Button {
   List<String> get modifiers =>
       actions.isNotEmpty ? actions.first.modifiers : const [];
 
+  /// The prompt action type if this button asks the client for input at press
+  /// time ([ActionType.promptText] or [ActionType.promptKeystroke]); otherwise
+  /// null.
+  ActionType? get promptActionType {
+    if (actions.isEmpty) return null;
+    final type = actions.first.type;
+    return (type == ActionType.promptText ||
+            type == ActionType.promptKeystroke ||
+            type == ActionType.selectWindow)
+        ? type
+        : null;
+  }
+
+  /// Whether this button prompts the client for input at press time.
+  bool get isPrompt => promptActionType != null;
+
   /// Creates a new button with the given properties
   Button({
     String? id,
@@ -194,6 +219,12 @@ class Button {
         return ButtonType.commandPreset;
       case ActionType.keystroke:
         return ButtonType.keystroke;
+      case ActionType.promptText:
+        return ButtonType.promptText;
+      case ActionType.promptKeystroke:
+        return ButtonType.promptKeystroke;
+      case ActionType.selectWindow:
+        return ButtonType.selectWindow;
     }
   }
 
@@ -206,6 +237,12 @@ class Button {
         return ActionType.commandPreset;
       case ButtonType.keystroke:
         return ActionType.keystroke;
+      case ButtonType.promptText:
+        return ActionType.promptText;
+      case ButtonType.promptKeystroke:
+        return ActionType.promptKeystroke;
+      case ButtonType.selectWindow:
+        return ActionType.selectWindow;
     }
   }
 }
@@ -270,4 +307,13 @@ enum ButtonType {
 
   /// Send keystroke(s) to the system
   keystroke,
+
+  /// Prompt the client for text at press time, then type it on the server
+  promptText,
+
+  /// Prompt the client for a key combination at press time, then send it
+  promptKeystroke,
+
+  /// Let the client pick one of the server's open windows to bring to front
+  selectWindow,
 }

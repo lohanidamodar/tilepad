@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,9 +8,11 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/button.dart';
 import '../models/message.dart';
 import '../models/server_connection.dart';
+import '../models/window_info.dart';
 import '../network/websocket_service.dart';
 import '../network/discovery_service.dart';
 import '../network/discovery_service_stub.dart';
+import '../utils/friendly_name.dart';
 
 /// Provider for device name
 final deviceNameProvider = NotifierProvider<DeviceNameNotifier, String>(
@@ -20,45 +21,10 @@ final deviceNameProvider = NotifierProvider<DeviceNameNotifier, String>(
 
 /// Notifier for device name
 class DeviceNameNotifier extends Notifier<String> {
-  /// Generate a random device name
-  String _generateRandomName() {
-    final adjectives = [
-      'Swift',
-      'Bright',
-      'Cool',
-      'Quick',
-      'Smart',
-      'Bold',
-      'Neat',
-      'Fast',
-      'Sleek',
-      'Sharp',
-    ];
-    final nouns = [
-      'Falcon',
-      'Tiger',
-      'Eagle',
-      'Phoenix',
-      'Dragon',
-      'Wolf',
-      'Hawk',
-      'Lion',
-      'Panther',
-      'Cobra',
-    ];
-
-    final random = Random();
-    final adjective = adjectives[random.nextInt(adjectives.length)];
-    final noun = nouns[random.nextInt(nouns.length)];
-    final number = random.nextInt(100);
-
-    return '$adjective $noun $number';
-  }
-
   @override
   String build() {
     _loadDeviceName();
-    return _generateRandomName();
+    return generateFriendlyName();
   }
 
   Future<void> _loadDeviceName() async {
@@ -69,7 +35,7 @@ class DeviceNameNotifier extends Notifier<String> {
         state = savedName;
       } else {
         // Generate and save a random name
-        final randomName = _generateRandomName();
+        final randomName = generateFriendlyName();
         await prefs.setString('device_name', randomName);
         state = randomName;
       }
@@ -853,11 +819,26 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     }
   }
 
-  /// Presses a button
-  void pressButton(String buttonId) {
+  /// Presses a button.
+  ///
+  /// For dynamic buttons, pass the client-supplied [text] (for prompt-text
+  /// buttons) or [key] + [modifiers] (for prompt-keystroke buttons); the server
+  /// uses these instead of any stored values.
+  void pressButton(
+    String buttonId, {
+    String? text,
+    String? key,
+    List<String>? modifiers,
+    String? windowId,
+  }) {
     if (state.status == ConnectionStatus.connected) {
+      final payload = <String, dynamic>{'buttonId': buttonId};
+      if (text != null) payload['text'] = text;
+      if (key != null) payload['key'] = key;
+      if (modifiers != null) payload['modifiers'] = modifiers;
+      if (windowId != null) payload['windowId'] = windowId;
       _webSocketService.sendMessage(
-        Message(type: MessageType.buttonPress, payload: {'buttonId': buttonId}),
+        Message(type: MessageType.buttonPress, payload: payload),
       );
     }
   }
@@ -867,6 +848,39 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     if (state.status == ConnectionStatus.connected) {
       _webSocketService.sendMessage(Message(type: MessageType.getButtons));
     }
+  }
+
+  /// Pending request for the server's window list, completed when the
+  /// matching [MessageType.windowsResponse] arrives.
+  Completer<List<WindowInfo>>? _windowsCompleter;
+
+  /// Asks the server for its open windows and resolves with the list (or an
+  /// empty list on timeout / when disconnected).
+  Future<List<WindowInfo>> fetchWindows() {
+    if (state.status != ConnectionStatus.connected) {
+      return Future.value(const []);
+    }
+    final completer = Completer<List<WindowInfo>>();
+    _windowsCompleter = completer;
+    _webSocketService.sendMessage(Message(type: MessageType.getWindows));
+    return completer.future.timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => const [],
+    );
+  }
+
+  void _handleWindowsResponse(dynamic payload) {
+    try {
+      final windows =
+          (payload as List<dynamic>)
+              .map((j) => WindowInfo.fromJson(j as Map<String, dynamic>))
+              .toList();
+      _windowsCompleter?.complete(windows);
+    } catch (e) {
+      debugPrint('Error handling windows response: $e');
+      _windowsCompleter?.complete(const []);
+    }
+    _windowsCompleter = null;
   }
 
   /// Handles a message from the server
@@ -900,6 +914,10 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
       case MessageType.commandResult:
         _handleCommandResult(message.payload);
+        break;
+
+      case MessageType.windowsResponse:
+        _handleWindowsResponse(message.payload);
         break;
 
       case MessageType.error:
