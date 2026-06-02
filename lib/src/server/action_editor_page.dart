@@ -197,8 +197,23 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
   String _selectedKey = 'a';
   final Set<String> _selectedModifiers = <String>{};
 
-  // Common keys for keystroke selection
+  // Common keys for keystroke selection. Named keys come first so they're
+  // easy to find without scrolling past the whole alphabet.
   final List<String> _commonKeys = [
+    'enter',
+    'tab',
+    'space',
+    'esc',
+    'backspace',
+    'delete',
+    'up',
+    'down',
+    'left',
+    'right',
+    'home',
+    'end',
+    'pageup',
+    'pagedown',
     'a',
     'b',
     'c',
@@ -247,20 +262,6 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
     'f10',
     'f11',
     'f12',
-    'enter',
-    'tab',
-    'space',
-    'backspace',
-    'delete',
-    'esc',
-    'up',
-    'down',
-    'left',
-    'right',
-    'home',
-    'end',
-    'pageup',
-    'pagedown',
   ];
 
   // Modifier keys

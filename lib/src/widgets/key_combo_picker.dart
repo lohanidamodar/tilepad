@@ -17,14 +17,15 @@ const List<_ModifierOption> _modifierOptions = [
   _ModifierOption('Win/Meta', 'meta', Icons.window_outlined),
 ];
 
-/// The set of keys offered for a key combination.
+/// The set of keys offered for a key combination. Common named keys are listed
+/// first so they're easy to find without scrolling past the whole alphabet.
 const List<String> kComboKeys = [
-  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', //
+  'enter', 'tab', 'space', 'esc', 'backspace', 'delete', //
+  'up', 'down', 'left', 'right', 'home', 'end', 'pageup', 'pagedown',
+  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
   'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
   '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
   'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12',
-  'enter', 'tab', 'space', 'backspace', 'delete', 'esc',
-  'up', 'down', 'left', 'right', 'home', 'end', 'pageup', 'pagedown',
 ];
 
 /// A reusable picker for a key combination — modifier chips plus a key
