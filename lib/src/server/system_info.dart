@@ -142,6 +142,10 @@ class SystemMetrics {
   static String formatGbFromKb(int kb) =>
       '${(kb / 1024 / 1024).toStringAsFixed(1)} GB';
 
+  /// Compact "used / total GB" with no decimals, for tight tiles.
+  static String formatGbPair(int usedKb, int totalKb) =>
+      '${(usedKb / 1024 / 1024).round()}/${(totalKb / 1024 / 1024).round()} GB';
+
   static String formatGbFromBytes(int bytes) =>
       '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(1)} GB';
 
@@ -232,7 +236,7 @@ class SystemInfoService {
           await File('/proc/meminfo').readAsString());
       if (mem != null) {
         _put('ram',
-            '${SystemMetrics.formatGbFromKb(mem.usedKb)} / ${SystemMetrics.formatGbFromKb(mem.totalKb)}');
+            SystemMetrics.formatGbPair(mem.usedKb, mem.totalKb));
       }
     } catch (_) {}
 
@@ -316,7 +320,7 @@ Write-Output "uptime=$up"
     final memFree = int.tryParse(m['memFree'] ?? '');
     if (memTotal != null && memFree != null) {
       _put('ram',
-          '${SystemMetrics.formatGbFromKb(memTotal - memFree)} / ${SystemMetrics.formatGbFromKb(memTotal)}');
+          SystemMetrics.formatGbPair(memTotal - memFree, memTotal));
     }
 
     final diskSize = int.tryParse(m['diskSize'] ?? '');

@@ -200,6 +200,10 @@ class ButtonGrid extends ConsumerWidget {
       hint: AccessibilityUtils.getButtonStateLabel(isConnected, false),
       enabled: isConnected,
       onPressed: () {
+        // Display-only tiles (no actions, not a prompt — e.g. system-info
+        // tiles) do nothing on tap instead of pressing and erroring.
+        if (button.actions.isEmpty && !button.isPrompt) return;
+
         // Check if connection is active before sending command
         if (!isConnected) {
           // Connection is lost, show dialog to reconnect
@@ -454,7 +458,8 @@ class AnimatedButton extends StatelessWidget {
           // monospace lines rather than one big value.
           final isMulti = hasLive && liveValue!.contains('\n');
           final iconSize =
-              (tile * (hasLive ? 0.28 : 0.42)).clamp(20.0, 56.0);
+              (tile * (isMulti ? 0.18 : (hasLive ? 0.28 : 0.42)))
+                  .clamp(16.0, 56.0);
           final fontSize = (tile * 0.115).clamp(10.0, 14.0);
 
           return Material(
@@ -498,7 +503,8 @@ class AnimatedButton extends StatelessWidget {
                               : (tile * 0.16).clamp(13.0, 22.0),
                           fontWeight:
                               isMulti ? FontWeight.w600 : FontWeight.w700,
-                          height: isMulti ? 1.4 : 1.0,
+                          height: isMulti ? 1.3 : 1.0,
+                          letterSpacing: isMulti ? -0.3 : 0,
                         ),
                       ),
                     ),
