@@ -2,7 +2,7 @@ name: marco_deck
 description: "An open source, Flutter-based alternative to Touch Portal for running a desktop macro server controlled by mobile and web clients."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.0+1
+version: 1.2.0+1
 
 environment:
   sdk: ^3.12.0
