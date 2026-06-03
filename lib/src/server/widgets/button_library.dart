@@ -53,30 +53,6 @@ String _summary(models.Button button) {
   }
 }
 
-/// A small icon/color leading badge shared by the picker and manager rows.
-class _ButtonBadge extends StatelessWidget {
-  final models.Button button;
-  const _ButtonBadge({required this.button});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Container(
-      width: t.icon.xl + t.space.sm,
-      height: t.icon.xl + t.space.sm,
-      decoration: BoxDecoration(
-        color: _hexToColor(button.color),
-        borderRadius: t.radius.brSm,
-      ),
-      child: Icon(
-        MacroIcons.resolve(button.iconName),
-        size: t.icon.lg,
-        color: Colors.white,
-      ),
-    );
-  }
-}
-
 /// Opens the full-page "add button" picker: a searchable, category-filtered
 /// grid of system presets, the built-in catalog, enabled plugins' presets and
 /// the user's library, plus a "New button" entry.
@@ -628,6 +604,8 @@ class ButtonLibraryScreen extends StatefulWidget {
 }
 
 class _ButtonLibraryScreenState extends State<ButtonLibraryScreen> {
+  String _query = '';
+
   Future<void> _createButton() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -773,58 +751,201 @@ class _ButtonLibraryScreenState extends State<ButtonLibraryScreen> {
                 ],
               ),
             )
-          : ListView.separated(
-              padding: EdgeInsets.all(t.space.lg),
-              itemCount: library.length,
-              separatorBuilder: (_, _) =>
-                  Divider(height: t.border.hairline, color: t.color.border),
-              itemBuilder: (context, index) {
-                final button = library[index];
-                return ListTile(
-                  leading: _ButtonBadge(button: button),
-                  title: Text(button.name),
-                  subtitle: Text(
-                    _summary(button),
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.labelMedium
+          : _buildGrid(t, library),
+    );
+  }
+
+  Widget _buildGrid(AppTokens t, List<models.Button> library) {
+    final q = _query.toLowerCase();
+    final filtered = _query.isEmpty
+        ? library
+        : library
+            .where((b) =>
+                b.name.toLowerCase().contains(q) ||
+                _summary(b).toLowerCase().contains(q))
+            .toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+              t.space.lg, t.space.md, t.space.lg, t.space.sm),
+          child: TextField(
+            onChanged: (v) => setState(() => _query = v),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Search buttons',
+              prefixIcon: Icon(Icons.search, size: t.icon.md),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: Icon(Icons.close, size: t.icon.md),
+                      tooltip: 'Clear',
+                      onPressed: () => setState(() => _query = ''),
+                    ),
+              border: OutlineInputBorder(borderRadius: t.radius.brSm),
+            ),
+          ),
+        ),
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Text(
+                    'No buttons match "$_query"',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
                         ?.copyWith(color: t.color.textMuted),
                   ),
-                  onTap: () => _editButton(button),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Run on the server (test without a connected client).
-                      // Client-only buttons (page navigation, prompts) have
-                      // nothing to run here, so the action is hidden for them.
-                      if (button.actions.isNotEmpty &&
-                          button.navigationTarget == null &&
-                          !button.isPrompt)
-                        IconButton(
-                          onPressed: () => _runButton(button),
-                          icon: Icon(Icons.play_arrow_rounded, size: t.icon.md),
-                          tooltip: 'Run on server',
-                          color: t.color.success,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      IconButton(
-                        onPressed: () => _editButton(button),
-                        icon: Icon(Icons.edit_outlined, size: t.icon.md),
-                        tooltip: 'Edit',
-                        color: t.color.textMuted,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      IconButton(
-                        onPressed: () => _deleteButton(button),
-                        icon: Icon(Icons.delete_outline, size: t.icon.md),
-                        tooltip: 'Delete',
-                        color: t.color.danger,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ],
+                )
+              : GridView.builder(
+                  padding: EdgeInsets.fromLTRB(
+                      t.space.lg, 0, t.space.lg, t.space.lg),
+                  gridDelegate: _kGrid,
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final button = filtered[index];
+                    return _LibraryCard(
+                      button: button,
+                      subtitle: _summary(button),
+                      onEdit: () => _editButton(button),
+                      onDelete: () => _deleteButton(button),
+                      onRun: (button.actions.isNotEmpty &&
+                              button.navigationTarget == null &&
+                              !button.isPrompt)
+                          ? () => _runButton(button)
+                          : null,
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A management card for one library button: a preview that opens the editor
+/// on tap, with an overflow menu for Run / Delete.
+class _LibraryCard extends StatelessWidget {
+  final models.Button button;
+  final String subtitle;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback? onRun;
+
+  const _LibraryCard({
+    required this.button,
+    required this.subtitle,
+    required this.onEdit,
+    required this.onDelete,
+    this.onRun,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final color = _hexToColor(button.color);
+    final onColor =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF18181B);
+    return InkWell(
+      onTap: onEdit,
+      borderRadius: t.radius.brMd,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: t.radius.brMd,
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Icon(
+                      MacroIcons.resolve(button.iconName),
+                      color: onColor,
+                      size: t.icon.xl,
+                    ),
                   ),
-                );
-              },
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, size: t.icon.md, color: onColor),
+                      tooltip: 'Manage',
+                      padding: EdgeInsets.zero,
+                      onSelected: (v) {
+                        switch (v) {
+                          case 'run':
+                            onRun?.call();
+                            break;
+                          case 'edit':
+                            onEdit();
+                            break;
+                          case 'delete':
+                            onDelete();
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        if (onRun != null)
+                          const PopupMenuItem(
+                            value: 'run',
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.play_arrow_rounded),
+                              title: Text('Run on server'),
+                            ),
+                          ),
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.edit_outlined),
+                            title: Text('Edit'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.delete_outline,
+                                color: t.color.danger),
+                            title: Text('Delete',
+                                style: TextStyle(color: t.color.danger)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+          SizedBox(height: t.space.xs),
+          Text(
+            button.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context)
+                .textTheme
+                .labelMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: t.color.textMuted),
+          ),
+        ],
+      ),
     );
   }
 }
