@@ -35,6 +35,9 @@ class PagesAndButtonsSection extends StatelessWidget {
   /// Opens the library manager (edit/delete reusable buttons).
   final VoidCallback onManageButtons;
 
+  /// Runs a tile's button on the server (test without a client). Optional.
+  final void Function(models.Tile tile)? onRunTile;
+
   const PagesAndButtonsSection({
     super.key,
     required this.pages,
@@ -50,6 +53,7 @@ class PagesAndButtonsSection extends StatelessWidget {
     required this.onResizeTile,
     required this.onReorderTile,
     required this.onManageButtons,
+    this.onRunTile,
   });
 
   /// Preset span presets a tile cycles through / can be picked from.
@@ -267,6 +271,7 @@ class PagesAndButtonsSection extends StatelessWidget {
                 onRemove: () => onRemoveTile(tiles[i]),
                 onResize: (c, r) => onResizeTile(tiles[i], c, r),
                 onMove: (newIndex) => onReorderTile(i, newIndex),
+                onRun: onRunTile == null ? null : () => onRunTile!(tiles[i]),
               ),
             ),
           ),
@@ -421,7 +426,7 @@ class _ColumnsControl extends StatelessWidget {
 }
 
 /// Possible actions surfaced in a tile's overflow menu.
-enum _TileMenuAction { edit, sizeStart, moveLeft, moveRight, remove }
+enum _TileMenuAction { run, edit, sizeStart, moveLeft, moveRight, remove }
 
 /// A single tile chip on the composer grid: the library button's color/icon/
 /// name with an overflow menu for size/move/remove and tap-to-edit.
@@ -435,6 +440,7 @@ class _TileChip extends StatelessWidget {
   final VoidCallback onRemove;
   final void Function(int colSpan, int rowSpan) onResize;
   final ValueChanged<int> onMove;
+  final VoidCallback? onRun;
 
   const _TileChip({
     required this.tile,
@@ -446,6 +452,7 @@ class _TileChip extends StatelessWidget {
     required this.onRemove,
     required this.onResize,
     required this.onMove,
+    this.onRun,
   });
 
   @override
@@ -485,6 +492,7 @@ class _TileChip extends StatelessWidget {
                     onRemove: onRemove,
                     onResize: onResize,
                     onMove: onMove,
+                    onRun: onRun,
                     index: index,
                   ),
                 ],
@@ -527,6 +535,9 @@ class _TileMenu extends StatelessWidget {
   final void Function(int colSpan, int rowSpan) onResize;
   final ValueChanged<int> onMove;
 
+  /// Runs the tile's button on the server. Null when nothing can run here.
+  final VoidCallback? onRun;
+
   const _TileMenu({
     required this.tile,
     required this.index,
@@ -538,7 +549,16 @@ class _TileMenu extends StatelessWidget {
     required this.onRemove,
     required this.onResize,
     required this.onMove,
+    this.onRun,
   });
+
+  /// Whether this tile's button has actions the server can run directly
+  /// (i.e. it isn't a client-only page-navigation or prompt button).
+  bool get _isRunnable =>
+      onRun != null &&
+      tile.button.actions.isNotEmpty &&
+      tile.button.navigationTarget == null &&
+      !tile.button.isPrompt;
 
   @override
   Widget build(BuildContext context) {
@@ -551,6 +571,9 @@ class _TileMenu extends StatelessWidget {
       splashRadius: t.icon.lg,
       onSelected: (action) {
         switch (action) {
+          case _TileMenuAction.run:
+            onRun?.call();
+            break;
           case _TileMenuAction.edit:
             onEdit();
             break;
@@ -569,6 +592,16 @@ class _TileMenu extends StatelessWidget {
         }
       },
       itemBuilder: (context) => [
+        if (_isRunnable)
+          PopupMenuItem<_TileMenuAction>(
+            value: _TileMenuAction.run,
+            child: _menuRow(
+              context,
+              Icons.play_arrow_rounded,
+              'Run on server',
+            ),
+          ),
+        if (_isRunnable) const PopupMenuDivider(),
         PopupMenuItem<_TileMenuAction>(
           value: _TileMenuAction.edit,
           child: _menuRow(context, Icons.edit_outlined, 'Edit button'),

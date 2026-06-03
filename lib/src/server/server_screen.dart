@@ -752,6 +752,46 @@ class _ServerScreenState extends State<ServerScreen> {
       onResizeTile: _resizeTile,
       onReorderTile: _reorderTile,
       onManageButtons: _openButtonLibrary,
+      onRunTile: (tile) => _runButtonOnServer(tile.button),
     );
+  }
+
+  /// Runs a tile/library button's actions on the server (test without a client)
+  /// and reports the outcome.
+  Future<void> _runButtonOnServer(models.Button button) async {
+    final t = context.tokens;
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await widget.server.executeButtonLocally(button);
+    if (!mounted) return;
+    final detail = result.output.isNotEmpty
+        ? result.output
+        : (result.error.isNotEmpty ? result.error : null);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: result.success ? t.color.success : t.color.danger,
+          content: Row(
+            children: [
+              Icon(
+                result.success ? Icons.check_circle : Icons.error,
+                color: t.color.onAccent,
+                size: t.icon.md,
+              ),
+              SizedBox(width: t.space.sm),
+              Expanded(
+                child: Text(
+                  detail == null
+                      ? (result.success ? 'Ran "${button.name}"' : 'Failed')
+                      : '${button.name}: $detail',
+                  style: TextStyle(color: t.color.onAccent),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
   }
 }
