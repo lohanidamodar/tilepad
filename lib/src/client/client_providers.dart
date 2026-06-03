@@ -565,17 +565,29 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
   void _handleConnectionStatusChange(ConnectionStatus status) {
     debugPrint('Connection status changed: $status');
 
-    // The WebSocket service can reconnect the socket on its own (its 15-attempt
+    // The WebSocket service can reconnect the socket on its own (its retry
     // loop). When it does, it only re-establishes the transport — it never
     // re-sends the app-level `connect` handshake, so the server never replies
-    // with connectAck and the session never actually completes. Detect that
-    // case (socket connected while we were reconnecting) and finish the
-    // handshake here, otherwise the client flaps and "connection failed" sticks
-    // even though the server is back.
+    // with connectAck and the session never actually completes. Whenever the
+    // socket comes up while the app is NOT yet connected (reconnecting *or*
+    // error — e.g. an earlier ack timeout), finish the handshake here. Without
+    // covering the error case the server accepts the socket (showing "Unknown
+    // Device" for the client's IP) but never learns the device name, and the
+    // client stays stuck on "Connection Failed".
     if (status == ConnectionStatus.connected &&
-        state.status == ConnectionStatus.reconnecting &&
+        (state.status == ConnectionStatus.reconnecting ||
+            state.status == ConnectionStatus.error) &&
         state.connection != null) {
       debugPrint('Socket reconnected; re-sending connect handshake');
+      // Reflect the in-progress handshake in the UI (so it no longer reads
+      // "Connection Failed") and so the ack-timeout retry path engages.
+      if (state.status == ConnectionStatus.error) {
+        state = ConnectionState(
+          status: ConnectionStatus.reconnecting,
+          connection: state.connection,
+          errorMessage: 'Reconnected, completing handshake...',
+        );
+      }
       final deviceName = ref.read(deviceNameProvider);
       _webSocketService.sendMessage(
         Message(type: MessageType.connect, payload: {'deviceName': deviceName}),
@@ -586,8 +598,12 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
     if (status == ConnectionStatus.disconnected &&
         state.status != ConnectionStatus.disconnected &&
-        state.status != ConnectionStatus.reconnecting) {
-      // If we were connected but now we're disconnected, and not already reconnecting
+        state.status != ConnectionStatus.reconnecting &&
+        state.status != ConnectionStatus.connecting) {
+      // We were connected but dropped. Ignore the `connecting` state: a fresh
+      // connect() tears down the old socket first, and that close() emits
+      // transient `disconnected` events we must not mistake for a real drop —
+      // the connect/ack timeouts are the safety net while connecting.
       debugPrint('Connection lost, updating UI to disconnected state');
 
       // Check if we have a connection to retry with
@@ -613,10 +629,15 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
   Future<bool> connect(ServerConnection connection) async {
     try {
       debugPrint('Connecting to server: ${connection.address}');
-      // If currently reconnecting, cancel that first
-      if (_isReconnecting) {
-        cancelReconnection();
-      }
+      // Stop any in-flight reconnection before starting a fresh attempt. The
+      // service runs its own socket-level reconnect loop; if we don't cancel it
+      // a user-initiated retry races that loop on the same channel and can wedge
+      // (the "retry doesn't work / froze" symptom). Cancel unconditionally —
+      // the notifier's _isReconnecting flag can be false while the service is
+      // still looping (e.g. after we surfaced an error state).
+      _webSocketService.cancelReconnection();
+      _cancelReconnectAttemptCounter();
+      _isReconnecting = false;
 
       // Update state to connecting
       state = ConnectionState(

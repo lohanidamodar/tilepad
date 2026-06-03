@@ -511,6 +511,16 @@ class WebServerWebSocketService implements ServerWebSocketService {
   }
 
   @override
+  void disconnectClient(String clientId) {
+    debugPrint('Web: Cannot disconnect client - server not supported on web');
+  }
+
+  @override
+  void updateBlockedIps(Set<String> ips) {
+    debugPrint('Web: Cannot block IPs - server not supported on web');
+  }
+
+  @override
   Future<void> close() async {
     // Nothing to close on web server stub
   }

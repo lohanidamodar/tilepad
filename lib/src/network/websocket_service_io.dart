@@ -21,6 +21,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
   WebSocketChannel? _channel;
   final _messageController = StreamController<Message>.broadcast();
   bool _isConnected = false;
+  bool _isConnecting = false;
   String? _lastConnectedAddress;
   Timer? _reconnectTimer;
   Timer? _healthCheckTimer;
@@ -84,6 +85,15 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
   @override
   Future<bool> connect(String address) async {
+    // Guard against overlapping connect() calls. The service's own reconnection
+    // loop and a user-initiated retry can both fire connect() at once; without
+    // this they race on _channel and the socket can wedge (the "froze/hangs"
+    // symptom). A concurrent caller is told to back off and retry.
+    if (_isConnecting) {
+      debugPrint('connect() already in progress; ignoring concurrent call');
+      return false;
+    }
+    _isConnecting = true;
     try {
       debugPrint('Attempting to connect to: $address');
       _lastConnectedAddress = address;
@@ -199,43 +209,30 @@ class IOClientWebSocketService implements ClientWebSocketService {
       }
 
       return false;
+    } finally {
+      _isConnecting = false;
     }
   }
 
-  /// Enhanced connection verification with timeout
+  /// Verifies the socket actually opened before reporting success.
+  ///
+  /// [WebSocketChannel.ready] completes only once the connection is established
+  /// and throws if it fails (server down / refused / unreachable). Awaiting it
+  /// prevents the old failure mode where we reported a false "connected" on a
+  /// dead socket — which left the app-level handshake unsent and the client
+  /// stuck on "Connection Failed" even though the server was reachable.
   Future<bool> _verifyConnection() async {
+    final channel = _channel;
+    if (channel == null) {
+      debugPrint('Channel closed during verification');
+      return false;
+    }
     try {
-      // Wait briefly for connection to stabilize
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Check if channel is still available
-      if (_channel == null) {
-        debugPrint('Channel closed during verification');
-        return false;
-      }
-
-      // Simply verify the channel is open - don't require immediate pong response
-      // The health check will handle ongoing connectivity monitoring
-      debugPrint('Connection channel established');
+      await channel.ready.timeout(const Duration(seconds: 10));
+      debugPrint('Connection channel ready');
       return true;
-
-      /* Removed aggressive verification ping
-      // Send verification ping with timeout
-      final verificationCompleter = Completer<bool>();
-      Timer? verificationTimeout;
-
-      // Set up timeout
-      verificationTimeout = Timer(const Duration(seconds: 5), () {
-        if (!verificationCompleter.isCompleted) {
-          verificationCompleter.complete(false);
-        }
-      });
-
-      */
-
-      /* Old verification code removed - using simple channel check above */
     } catch (e) {
-      debugPrint('Error during connection verification: $e');
+      debugPrint('Connection verification failed: $e');
       return false;
     }
   }
@@ -450,12 +447,14 @@ class IOClientWebSocketService implements ClientWebSocketService {
     // Mark as not connected
     _isConnected = false;
 
-    // Close the WebSocket channel
+    // Close the WebSocket channel. Bound the close with a timeout: a half-open
+    // socket (server vanished without a FIN) can leave sink.close() pending
+    // forever, which would hang connect()/retry. Drop the channel regardless.
     if (_channel != null) {
       try {
-        await _channel!.sink.close();
+        await _channel!.sink.close().timeout(const Duration(seconds: 2));
       } catch (e) {
-        debugPrint('Error closing channel: $e');
+        debugPrint('Error/timeout closing channel: $e');
       }
       _channel = null;
     }
@@ -485,6 +484,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
   HttpServer? _server;
   final List<WebSocket> _clients = [];
   final List<ClientInfo> _connectedClients = [];
+  final Set<String> _blockedIps = {};
   final _messageController = StreamController<Message>.broadcast();
   final _addressedMessageController =
       StreamController<AddressedMessage>.broadcast();
@@ -530,11 +530,21 @@ class IOServerWebSocketService implements ServerWebSocketService {
 
       _server!.listen((HttpRequest request) async {
         if (WebSocketTransformer.isUpgradeRequest(request)) {
+          // Reject blocked IPs before upgrading the socket.
+          final remoteIp =
+              request.connectionInfo?.remoteAddress.address ?? 'Unknown';
+          if (_blockedIps.contains(remoteIp)) {
+            debugPrint('Rejected upgrade from blocked IP: $remoteIp');
+            request.response
+              ..statusCode = HttpStatus.forbidden
+              ..close();
+            return;
+          }
+
           final webSocket = await WebSocketTransformer.upgrade(request);
 
           // Get actual client IP address from the request
-          final clientIp =
-              request.connectionInfo?.remoteAddress.address ?? 'Unknown';
+          final clientIp = remoteIp;
 
           // Check if a client with this IP already exists
           final existingClientIndex = _connectedClients.indexWhere(
@@ -775,6 +785,34 @@ class IOServerWebSocketService implements ServerWebSocketService {
   @override
   void broadcast(Message message) {
     sendMessage(message);
+  }
+
+  @override
+  void disconnectClient(String clientId) {
+    final index = _connectedClients.indexWhere((c) => c.id == clientId);
+    if (index < 0 || index >= _clients.length) return;
+    try {
+      // Closing the socket fires its onDone handler, which removes the client
+      // from the lists and emits the disconnect event.
+      _clients[index].close();
+      debugPrint('Disconnected client $clientId');
+    } catch (e) {
+      debugPrint('Error disconnecting client $clientId: $e');
+    }
+  }
+
+  @override
+  void updateBlockedIps(Set<String> ips) {
+    _blockedIps
+      ..clear()
+      ..addAll(ips);
+    // Kick any currently-connected client whose IP is now blocked. Iterate over
+    // a snapshot since closing mutates the lists via onDone.
+    for (final client in List<ClientInfo>.from(_connectedClients)) {
+      if (_blockedIps.contains(client.ipAddress)) {
+        disconnectClient(client.id);
+      }
+    }
   }
 
   @override

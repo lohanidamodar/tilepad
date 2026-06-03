@@ -820,7 +820,8 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
                             padding: EdgeInsets.symmetric(
                               vertical: tokens.space.lg,
                             ),
-                            foregroundColor: tokens.color.accent,
+                            backgroundColor: tokens.color.accent,
+                            foregroundColor: tokens.color.onAccent,
                             shape: RoundedRectangleBorder(
                               borderRadius: tokens.radius.brMd,
                             ),

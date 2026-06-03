@@ -67,6 +67,9 @@ class MarcoServer {
   /// List of connected clients
   List<ClientInfo> _connectedClients = [];
 
+  /// IP addresses blocked from connecting. Persisted across restarts.
+  final Set<String> _blockedIps = {};
+
   /// Creates a new server
   // A named parameter can't be a private initializing formal (`this._port`),
   // so assign these in the initializer list instead.
@@ -131,6 +134,51 @@ class MarcoServer {
     }
   }
 
+  /// The IP addresses currently blocked from connecting.
+  Set<String> get blockedIps => Set.unmodifiable(_blockedIps);
+
+  /// Loads the persisted IP blocklist and applies it to the running service.
+  Future<void> _loadBlockedIps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _blockedIps
+        ..clear()
+        ..addAll(prefs.getStringList('blocked_ips') ?? const []);
+      _webSocketService.updateBlockedIps(_blockedIps);
+    } catch (e) {
+      debugPrint('Error loading blocked IPs: $e');
+    }
+  }
+
+  Future<void> _saveBlockedIps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('blocked_ips', _blockedIps.toList());
+    } catch (e) {
+      debugPrint('Error saving blocked IPs: $e');
+    }
+  }
+
+  /// Forcibly disconnects a connected client by its [ClientInfo.id].
+  void disconnectClient(String clientId) {
+    _webSocketService.disconnectClient(clientId);
+  }
+
+  /// Blocks [ip] from connecting, disconnecting any current client from it.
+  Future<void> blockIp(String ip) async {
+    if (ip.isEmpty || ip == 'Unknown') return;
+    _blockedIps.add(ip);
+    _webSocketService.updateBlockedIps(_blockedIps);
+    await _saveBlockedIps();
+  }
+
+  /// Removes [ip] from the blocklist so it may connect again.
+  Future<void> unblockIp(String ip) async {
+    _blockedIps.remove(ip);
+    _webSocketService.updateBlockedIps(_blockedIps);
+    await _saveBlockedIps();
+  }
+
   /// Sets the server port
   Future<void> setPort(int port) async {
     if (_isRunning) {
@@ -186,6 +234,9 @@ class MarcoServer {
         ServerStatusType.started,
         'Server started on port $_port',
       );
+
+      // Apply the persisted IP blocklist to the freshly-started service.
+      await _loadBlockedIps();
 
       // Start UDP broadcasting for auto-discovery
       final serverIp = await getServerIp();

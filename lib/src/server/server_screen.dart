@@ -362,6 +362,36 @@ class _ServerScreenState extends State<ServerScreen> {
 
   /// Opens the add-button picker for the selected page, then places the chosen
   /// (or newly authored) library button as a tile.
+  /// Builds the connected-clients card wired to disconnect/block actions.
+  Widget _buildClientsCard() {
+    return ConnectedClientsCard(
+      connectedClients: _connectedClients,
+      blockedIps: widget.server.blockedIps,
+      onDisconnect: (client) {
+        widget.server.disconnectClient(client.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Disconnected ${client.deviceName ?? client.ipAddress}',
+            ),
+          ),
+        );
+      },
+      onBlock: (client) async {
+        await widget.server.blockIp(client.ipAddress);
+        if (!mounted) return;
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Blocked ${client.ipAddress}')),
+        );
+      },
+      onUnblock: (ip) async {
+        await widget.server.unblockIp(ip);
+        if (mounted) setState(() {});
+      },
+    );
+  }
+
   Future<void> _addTile() async {
     final page = _selectedPage;
     if (page == null) {
@@ -639,8 +669,7 @@ class _ServerScreenState extends State<ServerScreen> {
                   onToggleServer: _toggleServer,
                   onChangePort: _showChangePortDialog,
                 ),
-                if (_isRunning)
-                  ConnectedClientsCard(connectedClients: _connectedClients),
+                if (_isRunning) _buildClientsCard(),
                 _buildPagesSection(),
               ],
             );
@@ -668,10 +697,7 @@ class _ServerScreenState extends State<ServerScreen> {
                       onToggleServer: _toggleServer,
                       onChangePort: _showChangePortDialog,
                     ),
-                    if (_isRunning)
-                      ConnectedClientsCard(
-                        connectedClients: _connectedClients,
-                      ),
+                    if (_isRunning) _buildClientsCard(),
                   ],
                 ),
               ),
