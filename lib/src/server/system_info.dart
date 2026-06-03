@@ -30,9 +30,27 @@ final List<SystemState> systemStates = [
   SystemState('host', 'Host', PiconsRegular.desktopTower.codePoint.toString()),
 ];
 
-/// Ready-made library buttons, one per system metric, pre-bound as a live tile.
+/// Reserved state id of the combined multi-metric readout.
+const String systemSummaryStateId = 'summary';
+
+/// Builds the combined "System Monitor" preset (CPU/RAM/Disk/Uptime in one
+/// tile). Default-placed larger than 1x1.
+Button systemMonitorPreset() => Button(
+      name: 'System Monitor',
+      iconName: PiconsRegular.gauge.codePoint.toString(),
+      color: '#1F2937',
+      actions: const [],
+      stateBinding: StateBinding(
+        pluginId: systemSourceId,
+        stateId: systemSummaryStateId,
+        mode: StateBindingMode.title,
+      ),
+    );
+
+/// Ready-made library buttons: the combined monitor first, then one per metric.
 /// Used by the "System info" presets in the library picker.
 List<Button> systemPresetButtons() => [
+      systemMonitorPreset(),
       for (final s in systemStates)
         Button(
           name: s.label,
@@ -170,6 +188,7 @@ class SystemInfoService {
       } else if (Platform.isMacOS) {
         await _sampleMacOS();
       }
+      _publishSummary();
     } catch (e) {
       debugPrint('SystemInfoService sample error: $e');
     }
@@ -178,6 +197,20 @@ class SystemInfoService {
   void _put(String id, String? value) {
     if (value != null && value.isNotEmpty) {
       store.set(systemSourceId, id, value: value);
+    }
+  }
+
+  /// Composes the combined multi-metric `summary` state (one metric per line)
+  /// that powers the single "System Monitor" tile.
+  void _publishSummary() {
+    String? v(String id) => store.get(systemSourceId, id)?.value as String?;
+    final lines = <String>[];
+    if (v('cpu') != null) lines.add('CPU   ${v('cpu')}');
+    if (v('ram') != null) lines.add('RAM   ${v('ram')}');
+    if (v('disk') != null) lines.add('Disk  ${v('disk')}');
+    if (v('uptime') != null) lines.add('Up    ${v('uptime')}');
+    if (lines.isNotEmpty) {
+      store.set(systemSourceId, 'summary', value: lines.join('\n'));
     }
   }
 

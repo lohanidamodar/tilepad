@@ -450,8 +450,11 @@ class AnimatedButton extends StatelessWidget {
         builder: (context, constraints) {
           final tile = constraints.biggest.shortestSide;
           final hasLive = liveValue != null && liveValue!.isNotEmpty;
+          // A multi-metric readout (e.g. the System Monitor) renders as aligned
+          // monospace lines rather than one big value.
+          final isMulti = hasLive && liveValue!.contains('\n');
           final iconSize =
-              (tile * (hasLive ? 0.30 : 0.42)).clamp(22.0, 56.0);
+              (tile * (hasLive ? 0.28 : 0.42)).clamp(20.0, 56.0);
           final fontSize = (tile * 0.115).clamp(10.0, 14.0);
 
           return Material(
@@ -480,18 +483,22 @@ class AnimatedButton extends StatelessWidget {
                     ),
                   ),
                   if (hasLive) ...[
-                    SizedBox(height: tile * 0.02),
+                    SizedBox(height: tile * 0.03),
                     Flexible(
                       child: Text(
                         liveValue!,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
+                        textAlign: isMulti ? TextAlign.left : TextAlign.center,
+                        maxLines: isMulti ? 6 : 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: onColor,
-                          fontSize: (tile * 0.16).clamp(13.0, 22.0),
-                          fontWeight: FontWeight.w700,
-                          height: 1.0,
+                          fontFamily: isMulti ? 'monospace' : null,
+                          fontSize: isMulti
+                              ? (tile * 0.105).clamp(10.0, 15.0)
+                              : (tile * 0.16).clamp(13.0, 22.0),
+                          fontWeight:
+                              isMulti ? FontWeight.w600 : FontWeight.w700,
+                          height: isMulti ? 1.4 : 1.0,
                         ),
                       ),
                     ),

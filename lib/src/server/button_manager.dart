@@ -292,20 +292,18 @@ class ButtonManager {
       '#F59E0B',
     );
 
-    // Preset system-info tiles, shown off on the default System page.
-    final presets = systemPresetButtons();
-    final cpu = presets.firstWhere((b) => b.stateBinding?.stateId == 'cpu');
-    final ram = presets.firstWhere((b) => b.stateBinding?.stateId == 'ram');
+    // A single combined "System Monitor" tile (CPU/RAM/Disk/Uptime) on the
+    // default System page.
+    final monitor = systemMonitorPreset();
 
-    _library.addAll([browser, notes, sysInfo, ...presets]);
+    _library.addAll([browser, notes, sysInfo, monitor]);
     _pages = [
       Page(name: 'Applications', order: 0, columns: 4, tiles: [
         Tile(button: browser, colSpan: 2),
         Tile(button: notes),
       ]),
       Page(name: 'System', order: 1, columns: 4, tiles: [
-        Tile(button: cpu),
-        Tile(button: ram, colSpan: 2),
+        Tile(button: monitor, colSpan: 2, rowSpan: 2),
         Tile(button: sysInfo),
       ]),
     ];

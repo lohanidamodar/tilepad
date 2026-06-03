@@ -12,11 +12,14 @@ void main() {
       expect(store.get(systemSourceId, 'host'), isNotNull);
     });
 
-    test('preset buttons cover every system state and bind correctly', () {
-      final presets = systemPresetButtons();
-      expect(presets.map((b) => b.stateBinding?.stateId).toSet(),
-          systemStates.map((s) => s.id).toSet());
-      expect(presets.first.stateBinding?.pluginId, systemSourceId);
+    test('presets include the combined monitor + every metric', () {
+      final ids = systemPresetButtons()
+          .map((b) => b.stateBinding?.stateId)
+          .toSet();
+      expect(ids, containsAll(systemStates.map((s) => s.id)));
+      expect(ids, contains(systemSummaryStateId));
+      expect(systemPresetButtons().first.stateBinding?.stateId,
+          systemSummaryStateId); // monitor first
     });
   });
 

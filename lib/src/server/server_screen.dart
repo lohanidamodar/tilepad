@@ -8,6 +8,7 @@ import '../design/design.dart';
 import 'button_editor_page.dart';
 import 'plugins_screen.dart';
 import 'server.dart';
+import 'system_info.dart';
 import 'page_editor_dialog.dart';
 import 'widgets/server_status_card.dart';
 import 'widgets/connected_clients_card.dart';
@@ -379,9 +380,18 @@ class _ServerScreenState extends State<ServerScreen> {
     if (result.createNew) {
       await _createButtonAndPlace(page.id);
     } else if (result.preset != null) {
-      // Add the preset to the library, then place it.
-      widget.server.addLibraryButton(result.preset!);
-      widget.server.addTile(page.id, result.preset!.id);
+      // Add the preset to the library, then place it. The combined monitor is
+      // placed larger so its multi-metric readout fits.
+      final preset = result.preset!;
+      final isMonitor =
+          preset.stateBinding?.stateId == systemSummaryStateId;
+      widget.server.addLibraryButton(preset);
+      widget.server.addTile(
+        page.id,
+        preset.id,
+        colSpan: isMonitor ? 2 : 1,
+        rowSpan: isMonitor ? 2 : 1,
+      );
       _refreshPages();
     } else if (result.existing != null) {
       widget.server.addTile(page.id, result.existing!.id);
