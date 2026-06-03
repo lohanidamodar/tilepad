@@ -234,6 +234,12 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Asks the device for a key combo, then sends it';
       case ActionType.selectWindow:
         return 'Lets the device pick a window to bring to front';
+      case ActionType.openUrl:
+        return 'Opens ${action.command}';
+      case ActionType.mediaKey:
+        return 'Media key: ${action.key}';
+      case ActionType.navigatePage:
+        return 'Go to ${action.command} page';
       case ActionType.plugin:
         return 'Plugin: ${action.pluginActionId}';
     }
@@ -254,6 +260,12 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Prompt for Key Combo';
       case ActionType.selectWindow:
         return 'Select Window';
+      case ActionType.openUrl:
+        return 'Open URL';
+      case ActionType.mediaKey:
+        return 'Media Key';
+      case ActionType.navigatePage:
+        return 'Navigate Page';
       case ActionType.plugin:
         return 'Plugin Action';
     }
@@ -274,6 +286,12 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return Icons.touch_app_outlined;
       case ActionType.selectWindow:
         return Icons.web_asset;
+      case ActionType.openUrl:
+        return Icons.link;
+      case ActionType.mediaKey:
+        return Icons.play_circle_outline;
+      case ActionType.navigatePage:
+        return Icons.swap_horiz;
       case ActionType.plugin:
         return Icons.extension;
     }

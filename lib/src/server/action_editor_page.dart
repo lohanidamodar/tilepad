@@ -445,6 +445,12 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return 'Prompt Keys';
       case ActionType.selectWindow:
         return 'Select Window';
+      case ActionType.openUrl:
+        return 'Open URL';
+      case ActionType.mediaKey:
+        return 'Media Key';
+      case ActionType.navigatePage:
+        return 'Navigate';
       case ActionType.plugin:
         return 'Plugin';
     }
@@ -465,6 +471,12 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return Icons.touch_app_outlined;
       case ActionType.selectWindow:
         return Icons.web_asset;
+      case ActionType.openUrl:
+        return Icons.link;
+      case ActionType.mediaKey:
+        return Icons.play_circle_outline;
+      case ActionType.navigatePage:
+        return Icons.swap_horiz;
       case ActionType.plugin:
         return Icons.extension;
     }

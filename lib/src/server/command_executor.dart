@@ -89,8 +89,151 @@ class CommandExecutor {
           error: '',
         );
 
+      case ActionType.openUrl:
+        return await executeOpenUrl(action.command);
+
+      case ActionType.mediaKey:
+        return await executeMediaKey(action.key);
+
+      case ActionType.navigatePage:
+        // Page navigation happens on the client; the server has nothing to do.
+        return CommandResult(
+          success: true,
+          output: 'Handled on the device',
+          error: '',
+        );
+
       case ActionType.plugin:
         return await executePluginAction(action);
+    }
+  }
+
+  /// Opens a URL (or file/folder path) with the OS default handler.
+  Future<CommandResult> executeOpenUrl(String target) async {
+    final url = target.trim();
+    if (url.isEmpty) {
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'No URL to open',
+      );
+    }
+    try {
+      late final ProcessResult result;
+      if (Platform.isWindows) {
+        // `start` is a cmd builtin; the empty "" is the window title argument so
+        // a quoted URL isn't mistaken for it.
+        result = await Process.run('cmd.exe', ['/c', 'start', '', url]);
+      } else if (Platform.isMacOS) {
+        result = await Process.run('open', [url]);
+      } else {
+        result = await Process.run('xdg-open', [url]);
+      }
+      final ok = result.exitCode == 0;
+      return CommandResult(
+        success: ok,
+        output: ok ? 'Opened $url' : '',
+        error: ok ? '' : (result.stderr.toString().trim()),
+      );
+    } catch (e) {
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'Failed to open URL: $e',
+      );
+    }
+  }
+
+  /// Presses a media transport / volume key. [name] is one of: playPause,
+  /// next, previous, stop, mute, volumeUp, volumeDown.
+  Future<CommandResult> executeMediaKey(String name) async {
+    final key = name.trim();
+    if (key.isEmpty) {
+      return CommandResult(success: false, output: '', error: 'No media key');
+    }
+    try {
+      if (Platform.isWindows) {
+        // Win32 has dedicated virtual keys for media/volume; route through the
+        // keyboard helper which maps the media* key names to those VKs.
+        final ok = Win32Keyboard.sendKeystroke('media_$key', const []);
+        return CommandResult(
+          success: ok,
+          output: ok ? 'Media key: $key' : '',
+          error: ok ? '' : 'Failed to send media key',
+        );
+      } else if (Platform.isMacOS) {
+        final command = _macMediaKeyCommand(key);
+        if (command == null) {
+          return CommandResult(
+            success: false,
+            output: '',
+            error: 'Unsupported media key: $key',
+          );
+        }
+        return await executeCommand(command);
+      } else {
+        final command = _linuxMediaKeyCommand(key);
+        if (command == null) {
+          return CommandResult(
+            success: false,
+            output: '',
+            error: 'Unsupported media key: $key',
+          );
+        }
+        return await executeCommand(command);
+      }
+    } catch (e) {
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'Failed to send media key: $e',
+      );
+    }
+  }
+
+  /// macOS media-key command. Transport keys use `osascript` key codes; volume
+  /// uses AppleScript volume settings.
+  static String? _macMediaKeyCommand(String key) {
+    switch (key) {
+      case 'playPause':
+        return 'osascript -e \'tell application "System Events" to key code 100\'';
+      case 'next':
+        return 'osascript -e \'tell application "System Events" to key code 101\'';
+      case 'previous':
+        return 'osascript -e \'tell application "System Events" to key code 98\'';
+      case 'mute':
+        return 'osascript -e \'set volume output muted (not (output muted of (get volume settings)))\'';
+      case 'volumeUp':
+        return 'osascript -e \'set volume output volume ((output volume of (get volume settings)) + 6)\'';
+      case 'volumeDown':
+        return 'osascript -e \'set volume output volume ((output volume of (get volume settings)) - 6)\'';
+      case 'stop':
+        return 'osascript -e \'tell application "System Events" to key code 100\'';
+      default:
+        return null;
+    }
+  }
+
+  /// Linux media-key command. Transport keys use `playerctl`; volume uses
+  /// `pactl` on the default sink.
+  static String? _linuxMediaKeyCommand(String key) {
+    switch (key) {
+      case 'playPause':
+        return 'playerctl play-pause';
+      case 'next':
+        return 'playerctl next';
+      case 'previous':
+        return 'playerctl previous';
+      case 'stop':
+        return 'playerctl stop';
+      case 'mute':
+        return 'pactl set-sink-mute @DEFAULT_SINK@ toggle';
+      case 'volumeUp':
+        return 'pactl set-sink-volume @DEFAULT_SINK@ +6%';
+      case 'volumeDown':
+        return 'pactl set-sink-volume @DEFAULT_SINK@ -6%';
+      default:
+        return null;
     }
   }
 
