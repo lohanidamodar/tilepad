@@ -410,19 +410,22 @@ class _ServerScreenState extends State<ServerScreen> {
     if (result.createNew) {
       await _createButtonAndPlace(page.id);
     } else if (result.preset != null) {
-      // Place a system preset. Reuse the library button that already represents
-      // this metric (matched by live-state binding) instead of cloning a new
-      // one on every placement — otherwise the library fills with duplicate
-      // "System Monitor"/"CPU"/... entries. Add it only the first time.
       final preset = result.preset!;
-      final isMonitor =
-          preset.stateBinding?.stateId == systemSummaryStateId;
+      final binding = preset.stateBinding;
+      final isMonitor = binding?.stateId == systemSummaryStateId;
+
+      // Live-state presets (system metrics) are singletons: reuse the existing
+      // library button that represents the same state instead of cloning a new
+      // one each time. Plain catalog presets (no binding) are always added
+      // fresh so the user can place and customise several independently.
       models.Button? button;
-      for (final b in widget.server.libraryButtons) {
-        if (b.stateBinding?.pluginId == preset.stateBinding?.pluginId &&
-            b.stateBinding?.stateId == preset.stateBinding?.stateId) {
-          button = b;
-          break;
+      if (binding != null) {
+        for (final b in widget.server.libraryButtons) {
+          if (b.stateBinding?.pluginId == binding.pluginId &&
+              b.stateBinding?.stateId == binding.stateId) {
+            button = b;
+            break;
+          }
         }
       }
       if (button == null) {

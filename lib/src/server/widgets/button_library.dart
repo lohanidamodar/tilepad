@@ -4,6 +4,7 @@ import '../../design/design.dart';
 import '../../models/button.dart' as models;
 import '../../utils/macro_icons.dart';
 import '../button_editor_page.dart';
+import '../button_presets.dart';
 import '../server.dart';
 import '../system_info.dart';
 
@@ -41,6 +42,12 @@ String _summary(models.Button button) {
       return 'Prompt for key combo';
     case models.ActionType.selectWindow:
       return 'Select a window to focus';
+    case models.ActionType.openUrl:
+      return 'Open ${action.command}';
+    case models.ActionType.mediaKey:
+      return 'Media: ${action.key}';
+    case models.ActionType.navigatePage:
+      return 'Go to ${action.command} page';
     case models.ActionType.plugin:
       return 'Plugin: ${action.pluginActionId}';
   }
@@ -143,6 +150,26 @@ class _ButtonPickerSheetState extends State<_ButtonPickerSheet> {
     );
   }
 
+  /// A picker row for a ready-made preset button. Selecting it returns a
+  /// [PickerResult.preset] so the caller adds it to the library and places it.
+  Widget _presetRow(models.Button preset, String subtitle) {
+    final t = context.tokens;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: _ButtonBadge(button: preset),
+      title: Text(preset.name),
+      subtitle: Text(
+        subtitle,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context)
+            .textTheme
+            .labelMedium
+            ?.copyWith(color: t.color.textMuted),
+      ),
+      onTap: () => Navigator.of(context).pop(PickerResult.preset(preset)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -163,9 +190,21 @@ class _ButtonPickerSheetState extends State<_ButtonPickerSheet> {
     final filteredLibrary = customLibrary
         .where((b) => _matches(b.name) || _matches(_summary(b)))
         .toList();
+
+    // Built-in catalog (Media, System, Apps, …), filtered by the search query.
+    final catalog = [
+      for (final category in buttonPresetCatalog())
+        (
+          name: category.name,
+          buttons:
+              category.buttons.where((b) => _matches(b.name)).toList(),
+        ),
+    ].where((c) => c.buttons.isNotEmpty).toList();
+
     final noResults = _query.isNotEmpty &&
         filteredPresets.isEmpty &&
-        filteredLibrary.isEmpty;
+        filteredLibrary.isEmpty &&
+        catalog.isEmpty;
 
     return SafeArea(
       child: Padding(
@@ -248,18 +287,12 @@ class _ButtonPickerSheetState extends State<_ButtonPickerSheet> {
                       if (filteredPresets.isNotEmpty)
                         _sectionHeader('SYSTEM INFO'),
                       for (final preset in filteredPresets)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: _ButtonBadge(button: preset),
-                          title: Text(preset.name),
-                          subtitle: Text(
-                            'Live system metric',
-                            style: textTheme.labelMedium
-                                ?.copyWith(color: t.color.textMuted),
-                          ),
-                          onTap: () => Navigator.of(context)
-                              .pop(PickerResult.preset(preset)),
-                        ),
+                        _presetRow(preset, 'Live system metric'),
+                      for (final category in catalog) ...[
+                        _sectionHeader(category.name.toUpperCase()),
+                        for (final preset in category.buttons)
+                          _presetRow(preset, _summary(preset)),
+                      ],
                       if (filteredLibrary.isNotEmpty) ...[
                         _sectionHeader('LIBRARY'),
                         for (final button in filteredLibrary)
