@@ -77,19 +77,20 @@ class _ButtonBadge extends StatelessWidget {
   }
 }
 
-/// Shows the "add button" picker as a modal sheet: lists every library button
-/// to place on the page, plus a "New button" entry to author one.
+/// Opens the full-page "add button" picker: a searchable, category-filtered
+/// grid of system presets, the built-in catalog, enabled plugins' presets and
+/// the user's library, plus a "New button" entry.
 ///
 /// Returns a [PickerResult] describing the user's choice, or null if dismissed.
 Future<PickerResult?> showButtonPicker(
   BuildContext context, {
   required MarcoServer server,
 }) {
-  return showModalBottomSheet<PickerResult>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (context) => _ButtonPickerSheet(server: server),
+  return Navigator.of(context).push<PickerResult>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (context) => _ButtonPickerPage(server: server),
+    ),
   );
 }
 
@@ -121,238 +122,425 @@ class PickerResult {
         preset = button;
 }
 
-class _ButtonPickerSheet extends StatefulWidget {
-  final MarcoServer server;
-  const _ButtonPickerSheet({required this.server});
+/// One selectable entry in the picker grid.
+class _PickerItem {
+  final models.Button button;
+  final String subtitle;
 
-  @override
-  State<_ButtonPickerSheet> createState() => _ButtonPickerSheetState();
+  /// True when this is an existing library button (returns [PickerResult.existing]);
+  /// otherwise it's a preset (returns [PickerResult.preset]).
+  final bool isLibrary;
+
+  const _PickerItem(this.button, this.subtitle, {this.isLibrary = false});
+
+  bool get isLive => button.stateBinding != null;
+
+  PickerResult get result =>
+      isLibrary ? PickerResult.existing(button) : PickerResult.preset(button);
 }
 
-class _ButtonPickerSheetState extends State<_ButtonPickerSheet> {
+/// A named category of picker items.
+class _PickerGroup {
+  final String name;
+  final List<_PickerItem> items;
+  const _PickerGroup(this.name, this.items);
+}
+
+const String _kAll = 'All';
+const String _kLive = 'Live tiles';
+
+const SliverGridDelegateWithMaxCrossAxisExtent _kGrid =
+    SliverGridDelegateWithMaxCrossAxisExtent(
+  maxCrossAxisExtent: 150,
+  mainAxisExtent: 124,
+  crossAxisSpacing: 12,
+  mainAxisSpacing: 12,
+);
+
+class _ButtonPickerPage extends StatefulWidget {
+  final MarcoServer server;
+  const _ButtonPickerPage({required this.server});
+
+  @override
+  State<_ButtonPickerPage> createState() => _ButtonPickerPageState();
+}
+
+class _ButtonPickerPageState extends State<_ButtonPickerPage> {
   String _query = '';
+  String _category = _kAll;
 
-  bool _matches(String text) =>
-      _query.isEmpty || text.toLowerCase().contains(_query.toLowerCase());
-
-  /// Header row for a section of the picker list.
-  Widget _sectionHeader(String label) {
-    final t = context.tokens;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(0, t.space.md, 0, t.space.xs),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: t.color.textMuted,
-              letterSpacing: 0.8,
-            ),
-      ),
-    );
+  /// Builds every category group: system presets, the built-in catalog,
+  /// enabled plugins' presets, then the user's own library.
+  List<_PickerGroup> _allGroups() {
+    // System metrics live only in their own group; the Library group shows only
+    // the user's own (non-system) buttons so nothing appears twice.
+    final customLibrary = widget.server.libraryButtons
+        .where((b) => b.stateBinding?.pluginId != systemSourceId)
+        .toList();
+    return [
+      _PickerGroup('System Info', [
+        for (final b in systemPresetButtons())
+          _PickerItem(b, 'Live system metric'),
+      ]),
+      for (final c in buttonPresetCatalog())
+        _PickerGroup(
+            c.name, [for (final b in c.buttons) _PickerItem(b, _summary(b))]),
+      for (final p in widget.server.plugins)
+        if (p.enabled && p.manifest.presets.isNotEmpty)
+          _PickerGroup(p.manifest.name, [
+            for (final b
+                in pluginPresetButtons(p.manifest.id, p.manifest.presets))
+              _PickerItem(
+                  b, b.stateBinding != null ? 'Live tile' : 'Plugin action'),
+          ]),
+      _PickerGroup('Library', [
+        for (final b in customLibrary)
+          _PickerItem(b, _summary(b), isLibrary: true),
+      ]),
+    ].where((g) => g.items.isNotEmpty).toList();
   }
 
-  /// A picker row for a ready-made preset button. Selecting it returns a
-  /// [PickerResult.preset] so the caller adds it to the library and places it.
-  Widget _presetRow(models.Button preset, String subtitle) {
-    final t = context.tokens;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: _ButtonBadge(button: preset),
-      title: Text(preset.name),
-      subtitle: Text(
-        subtitle,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context)
-            .textTheme
-            .labelMedium
-            ?.copyWith(color: t.color.textMuted),
-      ),
-      onTap: () => Navigator.of(context).pop(PickerResult.preset(preset)),
-    );
+  bool _matches(_PickerItem item) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase();
+    return item.button.name.toLowerCase().contains(q) ||
+        item.subtitle.toLowerCase().contains(q);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final textTheme = Theme.of(context).textTheme;
-    final library = widget.server.libraryButtons;
+    final groups = _allGroups();
 
-    // System metrics live only in the SYSTEM INFO section, and the LIBRARY
-    // section shows only the user's own buttons. Keeping the two sets disjoint
-    // means a placed metric never appears in both sections, and old duplicate
-    // system buttons (from earlier placements) don't clutter the library list.
-    final presets = systemPresetButtons();
-    final customLibrary = library
-        .where((b) => b.stateBinding?.pluginId != systemSourceId)
-        .toList();
+    final liveCount = groups.fold<int>(
+        0, (a, g) => a + g.items.where((i) => i.isLive).length);
+    final categories = <({String label, int count})>[
+      (label: _kAll, count: groups.fold<int>(0, (a, g) => a + g.items.length)),
+      if (liveCount > 0) (label: _kLive, count: liveCount),
+      for (final g in groups) (label: g.name, count: g.items.length),
+    ];
+    final active =
+        categories.any((c) => c.label == _category) ? _category : _kAll;
 
-    final filteredPresets =
-        presets.where((p) => _matches(p.name)).toList();
-    final filteredLibrary = customLibrary
-        .where((b) => _matches(b.name) || _matches(_summary(b)))
-        .toList();
+    // Resolve the visible groups for the active category, after search.
+    final List<_PickerGroup> visible;
+    if (active == _kAll) {
+      visible = [
+        for (final g in groups)
+          _PickerGroup(g.name, g.items.where(_matches).toList()),
+      ].where((g) => g.items.isNotEmpty).toList();
+    } else if (active == _kLive) {
+      final live = [
+        for (final g in groups)
+          for (final i in g.items)
+            if (i.isLive && _matches(i)) i,
+      ];
+      visible = live.isEmpty ? const [] : [_PickerGroup(_kLive, live)];
+    } else {
+      final g = groups.firstWhere((g) => g.name == active,
+          orElse: () => const _PickerGroup('', []));
+      final items = g.items.where(_matches).toList();
+      visible = items.isEmpty ? const [] : [_PickerGroup(g.name, items)];
+    }
 
-    // Built-in catalog (Media, System, Apps, …), filtered by the search query.
-    final catalog = [
-      for (final category in buttonPresetCatalog())
-        (
-          name: category.name,
-          buttons:
-              category.buttons.where((b) => _matches(b.name)).toList(),
-        ),
-    ].where((c) => c.buttons.isNotEmpty).toList();
-
-    // Presets contributed by ENABLED plugins (hidden when a plugin is disabled).
-    final pluginCategories = [
-      for (final plugin in widget.server.plugins)
-        if (plugin.enabled && plugin.manifest.presets.isNotEmpty)
-          (
-            name: plugin.manifest.name,
-            buttons: pluginPresetButtons(
-              plugin.manifest.id,
-              plugin.manifest.presets,
-            ).where((b) => _matches(b.name)).toList(),
-          ),
-    ].where((c) => c.buttons.isNotEmpty).toList();
-
-    final noResults = _query.isNotEmpty &&
-        filteredPresets.isEmpty &&
-        filteredLibrary.isEmpty &&
-        catalog.isEmpty &&
-        pluginCategories.isEmpty;
-
-    return SafeArea(
-      child: Padding(
-        // Keep the sheet above the keyboard when the search field is focused.
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.7,
-          ),
-          child: Padding(
+    return Scaffold(
+      appBar: AppBar(title: const Text('Add button')),
+      body: Column(
+        children: [
+          Padding(
             padding: EdgeInsets.fromLTRB(
-              t.space.xl,
-              t.space.xs,
-              t.space.xl,
-              t.space.lg,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Add button', style: textTheme.titleLarge),
-                SizedBox(height: t.space.xs),
-                Text(
-                  'Place a button from your library, or create a new one.',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: t.color.textMuted,
-                  ),
-                ),
-                SizedBox(height: t.space.md),
-                TextField(
-                  autofocus: false,
-                  onChanged: (value) => setState(() => _query = value),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: 'Search buttons',
-                    prefixIcon: Icon(Icons.search, size: t.icon.md),
-                    suffixIcon: _query.isEmpty
-                        ? null
-                        : IconButton(
-                            icon: Icon(Icons.close, size: t.icon.md),
-                            onPressed: () => setState(() => _query = ''),
-                            tooltip: 'Clear',
-                          ),
-                    border: OutlineInputBorder(
-                      borderRadius: t.radius.brSm,
-                    ),
-                  ),
-                ),
-                SizedBox(height: t.space.sm),
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Container(
-                          width: t.icon.xl + t.space.sm,
-                          height: t.icon.xl + t.space.sm,
-                          decoration: BoxDecoration(
-                            color: t.color.accentSubtle,
-                            borderRadius: t.radius.brSm,
-                          ),
-                          child: Icon(
-                            Icons.add,
-                            size: t.icon.lg,
-                            color: t.color.accent,
-                          ),
-                        ),
-                        title: const Text('New button'),
-                        subtitle: Text(
-                          'Author a new button and place it',
-                          style: textTheme.labelMedium
-                              ?.copyWith(color: t.color.textMuted),
-                        ),
-                        onTap: () => Navigator.of(context)
-                            .pop(const PickerResult.create()),
+                t.space.lg, t.space.md, t.space.lg, t.space.sm),
+            child: TextField(
+              autofocus: true,
+              onChanged: (v) => setState(() => _query = v),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Search buttons',
+                prefixIcon: Icon(Icons.search, size: t.icon.md),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: Icon(Icons.close, size: t.icon.md),
+                        tooltip: 'Clear',
+                        onPressed: () => setState(() => _query = ''),
                       ),
-                      if (filteredPresets.isNotEmpty)
-                        _sectionHeader('SYSTEM INFO'),
-                      for (final preset in filteredPresets)
-                        _presetRow(preset, 'Live system metric'),
-                      for (final category in catalog) ...[
-                        _sectionHeader(category.name.toUpperCase()),
-                        for (final preset in category.buttons)
-                          _presetRow(preset, _summary(preset)),
-                      ],
-                      for (final category in pluginCategories) ...[
-                        _sectionHeader(category.name.toUpperCase()),
-                        for (final preset in category.buttons)
-                          _presetRow(
-                            preset,
-                            preset.stateBinding != null
-                                ? 'Live tile'
-                                : 'Plugin action',
-                          ),
-                      ],
-                      if (filteredLibrary.isNotEmpty) ...[
-                        _sectionHeader('LIBRARY'),
-                        for (final button in filteredLibrary)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: _ButtonBadge(button: button),
-                            title: Text(button.name),
-                            subtitle: Text(
-                              _summary(button),
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.labelMedium
-                                  ?.copyWith(color: t.color.textMuted),
-                            ),
-                            onTap: () => Navigator.of(context)
-                                .pop(PickerResult.existing(button)),
-                          ),
-                      ],
-                      if (noResults)
-                        Padding(
-                          padding: EdgeInsets.symmetric(vertical: t.space.lg),
-                          child: Center(
-                            child: Text(
-                              'No buttons match "$_query"',
-                              style: textTheme.bodyMedium
-                                  ?.copyWith(color: t.color.textMuted),
-                            ),
-                          ),
+                border: OutlineInputBorder(borderRadius: t.radius.brSm),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: 196,
+                  child: ListView(
+                    padding: EdgeInsets.symmetric(vertical: t.space.sm),
+                    children: [
+                      for (final c in categories)
+                        _CategoryTile(
+                          label: c.label,
+                          count: c.count,
+                          selected: c.label == active,
+                          onTap: () => setState(() => _category = c.label),
                         ),
                     ],
                   ),
                 ),
+                VerticalDivider(
+                    width: t.border.hairline, color: t.color.border),
+                Expanded(child: _buildGrid(t, visible, active)),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGrid(AppTokens t, List<_PickerGroup> groups, String active) {
+    final showNew = active == _kAll || active == 'Library';
+    if (groups.isEmpty && !showNew) {
+      return Center(
+        child: Text(
+          _query.isEmpty ? 'Nothing here yet' : 'No buttons match "$_query"',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: t.color.textMuted),
+        ),
+      );
+    }
+    return CustomScrollView(
+      slivers: [
+        if (showNew) ...[
+          _header(t, 'CREATE'),
+          _grid([
+            _NewButtonCard(
+              onTap: () =>
+                  Navigator.of(context).pop(const PickerResult.create()),
+            ),
+          ], t),
+        ],
+        for (final g in groups) ...[
+          _header(t, g.name.toUpperCase()),
+          _grid([
+            for (final item in g.items)
+              _ButtonCard(
+                button: item.button,
+                subtitle: item.subtitle,
+                onTap: () => Navigator.of(context).pop(item.result),
+              ),
+          ], t),
+        ],
+        SliverToBoxAdapter(child: SizedBox(height: t.space.xl)),
+      ],
+    );
+  }
+
+  Widget _header(AppTokens t, String label) => SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+              t.space.lg, t.space.md, t.space.lg, t.space.xs),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: t.color.textMuted,
+                  letterSpacing: 0.8,
+                ),
+          ),
+        ),
+      );
+
+  Widget _grid(List<Widget> cards, AppTokens t) => SliverPadding(
+        padding: EdgeInsets.fromLTRB(t.space.lg, 0, t.space.lg, t.space.sm),
+        sliver: SliverGrid(
+          gridDelegate: _kGrid,
+          delegate: SliverChildListDelegate(cards),
+        ),
+      );
+}
+
+/// A category entry in the picker's left rail.
+class _CategoryTile extends StatelessWidget {
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CategoryTile({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final color = selected ? t.color.accent : t.color.textSecondary;
+    return Material(
+      color: selected ? t.color.accentSubtle : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+              horizontal: t.space.lg, vertical: t.space.md),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: color,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                ),
+              ),
+              Text(
+                '$count',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: t.color.textMuted),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// A preview card for a button in the picker grid.
+class _ButtonCard extends StatelessWidget {
+  final models.Button button;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ButtonCard({
+    required this.button,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final color = _hexToColor(button.color);
+    final onColor =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF18181B);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: t.radius.brMd,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: t.radius.brMd,
+              ),
+              child: Center(
+                child: Icon(
+                  MacroIcons.resolve(button.iconName),
+                  color: onColor,
+                  size: t.icon.xl,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: t.space.xs),
+          Text(
+            button.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context)
+                .textTheme
+                .labelMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: t.color.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The "New button" card that authors a fresh button.
+class _NewButtonCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _NewButtonCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: t.radius.brMd,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: DottedBorderBox(
+              child: Center(
+                child: Icon(Icons.add, color: t.color.accent, size: t.icon.xl),
+              ),
+            ),
+          ),
+          SizedBox(height: t.space.xs),
+          Text(
+            'New button',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context)
+                .textTheme
+                .labelMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          Text(
+            'Author your own',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: t.color.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A subtle dashed-look container (a tinted rounded box) for the New card.
+class DottedBorderBox extends StatelessWidget {
+  final Widget child;
+  const DottedBorderBox({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      decoration: BoxDecoration(
+        color: t.color.accentSubtle,
+        borderRadius: t.radius.brMd,
+        border: Border.all(color: t.color.accent.withValues(alpha: 0.4)),
+      ),
+      child: child,
     );
   }
 }
