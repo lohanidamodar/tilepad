@@ -45,6 +45,9 @@ flutter:
 
   assets:
     - assets/
+    # First-party plugins bundled with the app and seeded into the plugins
+    # folder on first run (one directory entry per bundled plugin).
+    - assets/plugins/obs/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -9,13 +9,18 @@ protocol. Pure Dart SDK — no `pub get`.
 
 ## Setup
 
+This plugin is **bundled with MarcoDeck** — it's seeded into your plugins folder
+on first run and already appears in the **Plugins** list. Just:
+
 1. In OBS: **Tools → WebSocket Server Settings → Enable WebSocket server**.
    Note the **Port** (default `4455`) and, if set, the **Password**.
-2. Copy this `obs/` folder into your MarcoDeck plugins directory
-   (Server app → **Plugins → Open plugins folder**).
-3. In **Plugins**, press **Rescan**, enable **OBS Studio**, and set the
-   **Password** (and Host/Port if not the defaults) in its settings.
-4. Requires the Dart SDK on `PATH` (`dart --version`). It ships with Flutter.
+2. In MarcoDeck **Plugins**, enable **OBS Studio** and set the **Password**
+   (and Host/Port if not the defaults) in its settings.
+
+Release builds launch a pre-compiled native binary (`obs-plugin.exe` on
+Windows), so no Dart SDK is required on the target machine. On macOS/Linux the
+plugin runs from source via the Dart SDK until native binaries are published —
+build one with `dart run tool/build_plugins.dart` on that platform.
 
 ## Actions
 

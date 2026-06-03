@@ -1,6 +1,7 @@
 @Tags(['e2e'])
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -23,11 +24,22 @@ void main() {
   setUp(() async {
     tmp = Directory.systemTemp.createTempSync('mdk_obs_e2e');
     final src = Directory(
-        p.join(Directory.current.path, 'examples', 'plugins', 'obs'));
+        p.join(Directory.current.path, 'assets', 'plugins', 'obs'));
     final dst = Directory(p.join(tmp.path, 'obs'))..createSync(recursive: true);
     for (final name in ['manifest.json', 'plugin.dart', 'obs_protocol.dart']) {
       File(p.join(src.path, name)).copySync(p.join(dst.path, name));
     }
+    // Exercise the Dart source directly (the shipped manifest launches a
+    // pre-compiled native binary, which this test doesn't build). Rewrite the
+    // run command in the copied manifest to interpret the source on every OS.
+    final manifestFile = File(p.join(dst.path, 'manifest.json'));
+    final json = jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
+    json['run'] = {
+      'windows': 'dart plugin.dart',
+      'macos': 'dart plugin.dart',
+      'linux': 'dart plugin.dart',
+    };
+    await manifestFile.writeAsString(jsonEncode(json));
 
     host = PluginHost(requestTimeout: const Duration(seconds: 8));
     await host.start(port: 0);

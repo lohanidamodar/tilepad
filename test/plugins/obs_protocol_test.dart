@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 // Imported via relative path: the plugin is a standalone script outside the
 // app package, but its pure protocol helpers use only dart:core/convert.
-import '../../examples/plugins/obs/obs_protocol.dart';
+import '../../assets/plugins/obs/obs_protocol.dart';
 
 void main() {
   group('SHA-256 (NIST vectors)', () {
