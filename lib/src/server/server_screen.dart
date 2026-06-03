@@ -764,7 +764,19 @@ class _ServerScreenState extends State<ServerScreen> {
       onReorderTile: _reorderTile,
       onManageButtons: _openButtonLibrary,
       onRunTile: (tile) => _runButtonOnServer(tile.button),
+      onMovePage: _movePage,
     );
+  }
+
+  /// Reorders pages by moving [page] one slot earlier (-1) or later (+1).
+  void _movePage(models.Page page, int delta) {
+    final list = List<models.Page>.from(widget.server.pages);
+    final i = list.indexWhere((p) => p.id == page.id);
+    final j = i + delta;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    list.insert(j, list.removeAt(i));
+    widget.server.reorderPages(list);
+    _refreshPages();
   }
 
   /// Runs a tile/library button's actions on the server (test without a client)

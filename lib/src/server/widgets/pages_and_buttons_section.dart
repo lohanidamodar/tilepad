@@ -38,6 +38,9 @@ class PagesAndButtonsSection extends StatelessWidget {
   /// Runs a tile's button on the server (test without a client). Optional.
   final void Function(models.Tile tile)? onRunTile;
 
+  /// Moves [page] earlier (delta -1) or later (delta +1) in the page order.
+  final void Function(models.Page page, int delta)? onMovePage;
+
   const PagesAndButtonsSection({
     super.key,
     required this.pages,
@@ -54,6 +57,7 @@ class PagesAndButtonsSection extends StatelessWidget {
     required this.onReorderTile,
     required this.onManageButtons,
     this.onRunTile,
+    this.onMovePage,
   });
 
   /// Preset span presets a tile cycles through / can be picked from.
@@ -115,6 +119,34 @@ class PagesAndButtonsSection extends StatelessWidget {
         ),
         SizedBox(width: t.space.xs),
         if (selectedPage != null) ...[
+          if (onMovePage != null && pages.length > 1) ...[
+            Builder(builder: (context) {
+              final idx =
+                  pages.indexWhere((p) => p.id == selectedPage!.id);
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed:
+                        idx > 0 ? () => onMovePage!(selectedPage!, -1) : null,
+                    icon: Icon(Icons.chevron_left, size: t.icon.lg),
+                    tooltip: 'Move page left',
+                    color: t.color.textSecondary,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    onPressed: idx < pages.length - 1
+                        ? () => onMovePage!(selectedPage!, 1)
+                        : null,
+                    icon: Icon(Icons.chevron_right, size: t.icon.lg),
+                    tooltip: 'Move page right',
+                    color: t.color.textSecondary,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              );
+            }),
+          ],
           IconButton(
             onPressed: () => onEditPage(selectedPage!),
             icon: Icon(Icons.edit_outlined, size: t.icon.lg),
