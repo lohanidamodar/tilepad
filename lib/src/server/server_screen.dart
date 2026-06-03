@@ -410,15 +410,28 @@ class _ServerScreenState extends State<ServerScreen> {
     if (result.createNew) {
       await _createButtonAndPlace(page.id);
     } else if (result.preset != null) {
-      // Add the preset to the library, then place it. The combined monitor is
-      // placed larger so its multi-metric readout fits.
+      // Place a system preset. Reuse the library button that already represents
+      // this metric (matched by live-state binding) instead of cloning a new
+      // one on every placement — otherwise the library fills with duplicate
+      // "System Monitor"/"CPU"/... entries. Add it only the first time.
       final preset = result.preset!;
       final isMonitor =
           preset.stateBinding?.stateId == systemSummaryStateId;
-      widget.server.addLibraryButton(preset);
+      models.Button? button;
+      for (final b in widget.server.libraryButtons) {
+        if (b.stateBinding?.pluginId == preset.stateBinding?.pluginId &&
+            b.stateBinding?.stateId == preset.stateBinding?.stateId) {
+          button = b;
+          break;
+        }
+      }
+      if (button == null) {
+        widget.server.addLibraryButton(preset);
+        button = preset;
+      }
       widget.server.addTile(
         page.id,
-        preset.id,
+        button.id,
         colSpan: isMonitor ? 2 : 1,
         rowSpan: isMonitor ? 2 : 1,
       );

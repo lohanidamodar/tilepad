@@ -149,22 +149,18 @@ class _ButtonPickerSheetState extends State<_ButtonPickerSheet> {
     final textTheme = Theme.of(context).textTheme;
     final library = widget.server.libraryButtons;
 
-    // De-duplicate: a system preset already represented in the library (matched
-    // by its live-state binding) is offered only via the library section below,
-    // not repeated in the SYSTEM INFO quick-add section.
-    final librarySystemStateIds = {
-      for (final b in library)
-        if (b.stateBinding?.pluginId == systemSourceId)
-          b.stateBinding!.stateId,
-    };
-    final presets = [
-      for (final p in systemPresetButtons())
-        if (!librarySystemStateIds.contains(p.stateBinding?.stateId)) p,
-    ];
+    // System metrics live only in the SYSTEM INFO section, and the LIBRARY
+    // section shows only the user's own buttons. Keeping the two sets disjoint
+    // means a placed metric never appears in both sections, and old duplicate
+    // system buttons (from earlier placements) don't clutter the library list.
+    final presets = systemPresetButtons();
+    final customLibrary = library
+        .where((b) => b.stateBinding?.pluginId != systemSourceId)
+        .toList();
 
     final filteredPresets =
         presets.where((p) => _matches(p.name)).toList();
-    final filteredLibrary = library
+    final filteredLibrary = customLibrary
         .where((b) => _matches(b.name) || _matches(_summary(b)))
         .toList();
     final noResults = _query.isNotEmpty &&
