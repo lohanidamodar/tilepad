@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart'; // Add Flutter foundation import
+import 'package:flutter/services.dart' show rootBundle, AssetManifest;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -86,6 +88,24 @@ class MarcoServer {
 
   /// Whether a plugin is currently connected to the host.
   bool isPluginConnected(String id) => _pluginHost?.isConnected(id) ?? false;
+
+  /// Invokes a plugin action directly — used by UI affordances such as a
+  /// plugin's "Test Connection" button. Returns a failure result if no host is
+  /// running or the plugin isn't connected.
+  Future<PluginActionResult> invokePluginAction(
+    String pluginId,
+    String actionId, [
+    Map<String, dynamic> settings = const {},
+  ]) async {
+    final host = _pluginHost;
+    if (host == null) {
+      return PluginActionResult(
+        success: false,
+        error: 'Plugin host is not running',
+      );
+    }
+    return host.invoke(pluginId, actionId, settings);
+  }
 
   /// Emits a pluginId whenever its connection state changes, so the UI can
   /// refresh enabled/connected status live. Empty if the server isn't started.
@@ -348,6 +368,92 @@ class MarcoServer {
     return Directory(p.join(support.path, 'plugins'));
   }
 
+  /// Copies first-party plugins bundled under `assets/plugins/<folder>/` into
+  /// the on-disk plugins directory so they're discovered like any installed
+  /// plugin. Re-seeds only when the bundled version differs from what's on disk,
+  /// so a user's enabled/settings state (kept separately in registry.json) and
+  /// any local edits survive across launches.
+  Future<void> _seedBundledPlugins(Directory pluginsDir) async {
+    try {
+      const prefix = 'assets/plugins/';
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final byFolder = <String, List<String>>{};
+      for (final asset in manifest.listAssets()) {
+        if (!asset.startsWith(prefix)) continue;
+        final rest = asset.substring(prefix.length);
+        final slash = rest.indexOf('/');
+        if (slash <= 0) continue;
+        byFolder.putIfAbsent(rest.substring(0, slash), () => []).add(asset);
+      }
+      for (final files in byFolder.values) {
+        await _seedPlugin(pluginsDir, files);
+      }
+    } catch (e) {
+      debugPrint('Failed to seed bundled plugins: $e');
+    }
+  }
+
+  Future<void> _seedPlugin(Directory pluginsDir, List<String> assetPaths) async {
+    String? manifestAsset;
+    for (final a in assetPaths) {
+      if (a.endsWith('/manifest.json')) {
+        manifestAsset = a;
+        break;
+      }
+    }
+    if (manifestAsset == null) return;
+
+    final bundled =
+        jsonDecode(await rootBundle.loadString(manifestAsset)) as Map<String, dynamic>;
+    final id = bundled['id'] as String?;
+    final version = bundled['version'] as String? ?? '';
+    if (id == null || id.isEmpty) return;
+
+    final target = Directory(p.join(pluginsDir.path, id));
+    final installedManifest = File(p.join(target.path, 'manifest.json'));
+    if (await installedManifest.exists()) {
+      try {
+        final cur =
+            jsonDecode(await installedManifest.readAsString()) as Map<String, dynamic>;
+        if ((cur['version'] as String? ?? '') == version) return; // up to date
+      } catch (_) {/* malformed → re-seed */}
+    }
+
+    await target.create(recursive: true);
+    final runCommand = (bundled['run'] as Map<String, dynamic>?) ?? const {};
+    final runTarget = _runTargetBasename(runCommand);
+    for (final a in assetPaths) {
+      final name = a.substring(a.lastIndexOf('/') + 1);
+      final data = await rootBundle.load(a);
+      final file = File(p.join(target.path, name));
+      await file.writeAsBytes(
+          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      // Make a bundled native binary executable on POSIX systems.
+      if (!Platform.isWindows && name == runTarget) {
+        try {
+          await Process.run('chmod', ['+x', file.path]);
+        } catch (_) {}
+      }
+    }
+    debugPrint('Seeded bundled plugin $id ($version)');
+  }
+
+  /// The plugin-folder-relative file the current platform's run command
+  /// launches (e.g. `obs-plugin` / `obs-plugin.exe`), or null when the command
+  /// is an interpreter like `dart plugin.dart`.
+  String? _runTargetBasename(Map<String, dynamic> run) {
+    final key = Platform.isWindows
+        ? 'windows'
+        : (Platform.isMacOS ? 'macos' : 'linux');
+    final cmd = (run[key] as String?)?.trim() ?? '';
+    if (cmd.isEmpty) return null;
+    final first = cmd.split(RegExp(r'\s+')).first;
+    // Only treat it as a bundled binary if it has no path separators and isn't
+    // an interpreter invocation (which has a second token).
+    if (cmd.contains(' ')) return null;
+    return first.replaceFirst('./', '');
+  }
+
   /// Starts the plugin host, discovers plugins, launches enabled ones, and wires
   /// action invocation + live-state forwarding. Best-effort: never throws.
   /// Starts the live-state sources: forwards the shared [StateStore] to clients
@@ -371,6 +477,9 @@ class MarcoServer {
       await host.start(port: _pluginPort);
       final dir = await _pluginsDirectory();
       _pluginsDir = dir;
+      // Seed first-party plugins bundled with the app so they appear in the
+      // list out of the box (both debug and release), then scan.
+      await _seedBundledPlugins(dir);
       final registry = PluginRegistry(dir);
       await registry.load();
       final manager = PluginManager(registry: registry, host: host);

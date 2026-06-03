@@ -86,8 +86,52 @@ void main() {
   group('systemStates', () {
     test('exposes the expected states', () {
       final ids = systemStates.map((s) => s.id).toSet();
-      expect(ids, containsAll(['cpu', 'ram', 'disk', 'uptime', 'host']));
+      expect(
+          ids,
+          containsAll(
+              ['cpu', 'ram', 'disk', 'uptime', 'host', 'clock', 'battery', 'net']));
       expect(systemSourceId, 'system');
+    });
+  });
+
+  group('clock', () {
+    test('formats 12-hour time with AM/PM', () {
+      expect(SystemMetrics.formatClock(DateTime(2026, 6, 3, 9, 5)), '9:05 AM');
+      expect(SystemMetrics.formatClock(DateTime(2026, 6, 3, 13, 0)), '1:00 PM');
+      expect(SystemMetrics.formatClock(DateTime(2026, 6, 3, 0, 30)), '12:30 AM');
+    });
+  });
+
+  group('battery (/sys + pmset)', () {
+    test('parses a capacity file', () {
+      expect(SystemMetrics.parseBatteryCapacity('87\n'), 87);
+      expect(SystemMetrics.parseBatteryCapacity('garbage'), isNull);
+    });
+
+    test('parses pmset battery output', () {
+      const out =
+          "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=123)\t72%; discharging; 3:21 remaining present: true";
+      expect(SystemMetrics.parsePmsetBattery(out), '72%');
+    });
+  });
+
+  group('network (/proc/net/dev)', () {
+    const sample = 'Inter-|   Receive                                                |  Transmit\n'
+        ' face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets\n'
+        '    lo: 12345 100 0 0 0 0 0 0 12345 100\n'
+        '  eth0: 1000 10 0 0 0 0 0 0 2000 20\n';
+
+    test('sums rx/tx bytes across non-loopback interfaces', () {
+      final t = SystemMetrics.parseProcNetDev(sample);
+      expect(t, isNotNull);
+      expect(t!.rx, 1000);
+      expect(t.tx, 2000);
+    });
+
+    test('formats a byte rate', () {
+      expect(SystemMetrics.formatRate(512), '512 B/s');
+      expect(SystemMetrics.formatRate(2048), '2.0 KB/s');
+      expect(SystemMetrics.formatRate(5 * 1024 * 1024), '5.0 MB/s');
     });
   });
 }

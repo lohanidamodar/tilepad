@@ -10,6 +10,29 @@ import '../utils/macro_icons.dart';
 import '../widgets/key_combo_picker.dart';
 import 'client_providers.dart';
 
+/// Computes the page index a navigation [target] should switch to, given the
+/// [current] index and total page [count]. `next`/`prev` wrap around; an
+/// `index:N` or bare integer target jumps to a clamped absolute page.
+int resolveNavigationIndex(String target, int current, int count) {
+  if (count <= 0) return current;
+  final last = count - 1;
+  switch (target) {
+    case 'next':
+      return current >= last ? 0 : current + 1;
+    case 'prev':
+    case 'previous':
+      return current <= 0 ? last : current - 1;
+    case 'first':
+      return 0;
+    case 'last':
+      return last;
+    default:
+      final parsed = int.tryParse(target.replaceFirst('index:', ''));
+      if (parsed == null) return current;
+      return parsed.clamp(0, last);
+  }
+}
+
 /// Widget that displays a spanning grid of macro button tiles with enhanced
 /// visual feedback.
 class ButtonGrid extends ConsumerWidget {
@@ -204,6 +227,14 @@ class ButtonGrid extends ConsumerWidget {
         // tiles) do nothing on tap instead of pressing and erroring.
         if (button.actions.isEmpty && !button.isPrompt) return;
 
+        // Page-navigation buttons act entirely on the client — no server round
+        // trip, and they work even while reconnecting.
+        if (button.navigationTarget != null) {
+          AccessibilityUtils.announce(context, 'Activated ${button.name}');
+          _navigatePage(ref, button.navigationTarget!);
+          return;
+        }
+
         // Check if connection is active before sending command
         if (!isConnected) {
           // Connection is lost, show dialog to reconnect
@@ -239,6 +270,17 @@ class ButtonGrid extends ConsumerWidget {
   static final Map<String, String> _lastText = {};
   static final Map<String, ({String key, Set<String> modifiers})> _lastCombo =
       {};
+
+  /// Switches the visible page for a [ActionType.navigatePage] button.
+  void _navigatePage(WidgetRef ref, String target) {
+    final pages = ref.read(pagesProvider);
+    if (pages.isEmpty) return;
+    final current = ref.read(selectedPageIndexProvider);
+    final next = resolveNavigationIndex(target, current, pages.length);
+    if (next != current) {
+      ref.read(selectedPageIndexProvider.notifier).set(next);
+    }
+  }
 
   /// Handles pressing a dynamic button by asking the user what to send.
   Future<void> _handleDynamicPress(

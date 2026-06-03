@@ -20,6 +20,17 @@ enum ActionType {
   /// Let the client pick one of the server's open windows to bring to front
   selectWindow,
 
+  /// Open a URL / website in the default browser (target in [ButtonAction.command])
+  openUrl,
+
+  /// Press a media transport / volume key (key name in [ButtonAction.key]:
+  /// playPause, next, previous, stop, mute, volumeUp, volumeDown)
+  mediaKey,
+
+  /// Switch the client's visible page (target in [ButtonAction.command]:
+  /// next, prev, first, last). Handled entirely on the client.
+  navigatePage,
+
   /// Invoke an action provided by an installed plugin
   plugin,
 }
@@ -193,6 +204,15 @@ class Button {
   /// Whether this button prompts the client for input at press time.
   bool get isPrompt => promptActionType != null;
 
+  /// The page-navigation target if this button's first action is
+  /// [ActionType.navigatePage] (e.g. "next", "prev", "first", "last");
+  /// otherwise null. Navigation is performed locally on the client.
+  String? get navigationTarget {
+    if (actions.isEmpty) return null;
+    final action = actions.first;
+    return action.type == ActionType.navigatePage ? action.command : null;
+  }
+
   /// Creates a new button with the given properties
   Button({
     String? id,
@@ -295,6 +315,12 @@ class Button {
         return ButtonType.promptKeystroke;
       case ActionType.selectWindow:
         return ButtonType.selectWindow;
+      // Action types added after the legacy ButtonType enum was frozen map to
+      // the generic `command` slot — `type` exists only for backward compat.
+      case ActionType.openUrl:
+      case ActionType.mediaKey:
+      case ActionType.navigatePage:
+        return ButtonType.command;
       case ActionType.plugin:
         return ButtonType.plugin;
     }

@@ -160,7 +160,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
   Future<void> _editSettings(InstalledPlugin plugin) async {
     final values = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => _PluginSettingsDialog(plugin: plugin),
+      builder: (context) =>
+          _PluginSettingsDialog(plugin: plugin, server: widget.server),
     );
     if (values != null) {
       await _run(
@@ -504,14 +505,24 @@ class _PluginsScreenState extends State<PluginsScreen> {
 /// A dialog that renders a plugin's settings fields natively from its manifest.
 class _PluginSettingsDialog extends StatefulWidget {
   final InstalledPlugin plugin;
-  const _PluginSettingsDialog({required this.plugin});
+  final MarcoServer server;
+  const _PluginSettingsDialog({required this.plugin, required this.server});
 
   @override
   State<_PluginSettingsDialog> createState() => _PluginSettingsDialogState();
 }
 
+/// Action id a plugin can declare to expose a "Test Connection" button here.
+const String _testConnectionActionId = 'test_connection';
+
 class _PluginSettingsDialogState extends State<_PluginSettingsDialog> {
   late final Map<String, dynamic> _values;
+  bool _testing = false;
+  String? _testMessage;
+  bool _testOk = false;
+
+  bool get _hasTest => widget.plugin.manifest.actions
+      .any((a) => a.id == _testConnectionActionId);
 
   @override
   void initState() {
@@ -520,6 +531,29 @@ class _PluginSettingsDialogState extends State<_PluginSettingsDialog> {
       for (final field in widget.plugin.manifest.settings)
         field.key: widget.plugin.settings[field.key] ?? field.defaultValue,
     };
+  }
+
+  /// Applies the entered settings, then invokes the plugin's test action so the
+  /// test runs against the values the user just typed.
+  Future<void> _test() async {
+    setState(() {
+      _testing = true;
+      _testMessage = null;
+    });
+    final id = widget.plugin.manifest.id;
+    await widget.server.updatePluginSettings(id, _values);
+    // Give the plugin a moment to reconnect with the new settings.
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    final result =
+        await widget.server.invokePluginAction(id, _testConnectionActionId);
+    if (!mounted) return;
+    setState(() {
+      _testing = false;
+      _testOk = result.success;
+      _testMessage = result.success
+          ? (result.output.isNotEmpty ? result.output : 'Connected')
+          : (result.error.isNotEmpty ? result.error : 'Connection failed');
+    });
   }
 
   @override
@@ -532,6 +566,7 @@ class _PluginSettingsDialogState extends State<_PluginSettingsDialog> {
         width: 380,
         child: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
               for (final field in fields)
@@ -543,6 +578,56 @@ class _PluginSettingsDialogState extends State<_PluginSettingsDialog> {
                     onChanged: (v) => setState(() => _values[field.key] = v),
                   ),
                 ),
+              if (_hasTest) ...[
+                SizedBox(height: tokens.space.sm),
+                OutlinedButton.icon(
+                  onPressed: (_testing || !widget.plugin.enabled) ? null : _test,
+                  icon: _testing
+                      ? SizedBox(
+                          width: tokens.icon.md,
+                          height: tokens.icon.md,
+                          child: const CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.wifi_tethering),
+                  label: Text(_testing ? 'Testing…' : 'Test Connection'),
+                ),
+                if (!widget.plugin.enabled)
+                  Padding(
+                    padding: EdgeInsets.only(top: tokens.space.xs),
+                    child: Text(
+                      'Enable the plugin first to test it.',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: tokens.color.textMuted),
+                    ),
+                  ),
+                if (_testMessage != null)
+                  Padding(
+                    padding: EdgeInsets.only(top: tokens.space.sm),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          _testOk ? Icons.check_circle : Icons.error_outline,
+                          size: tokens.icon.md,
+                          color: _testOk ? tokens.color.success : tokens.color.danger,
+                        ),
+                        SizedBox(width: tokens.space.xs),
+                        Expanded(
+                          child: Text(
+                            _testMessage!,
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: _testOk
+                                      ? tokens.color.success
+                                      : tokens.color.danger,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ],
           ),
         ),
@@ -632,14 +717,9 @@ class PluginFieldInput extends StatelessWidget {
           onChanged: (v) => onChanged(v.trim().isEmpty ? null : num.tryParse(v)),
         );
       case PluginFieldType.password:
-        return TextFormField(
+        return _PasswordField(
+          label: field.label,
           initialValue: effectiveValue?.toString() ?? '',
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: field.label,
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
           onChanged: onChanged,
         );
       case PluginFieldType.string:
@@ -653,5 +733,47 @@ class PluginFieldInput extends StatelessWidget {
           onChanged: onChanged,
         );
     }
+  }
+}
+
+/// A password field with a show/hide visibility toggle.
+class _PasswordField extends StatefulWidget {
+  final String label;
+  final String initialValue;
+  final ValueChanged<dynamic> onChanged;
+
+  const _PasswordField({
+    required this.label,
+    required this.initialValue,
+    required this.onChanged,
+  });
+
+  @override
+  State<_PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<_PasswordField> {
+  bool _obscured = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: widget.initialValue,
+      obscureText: _obscured,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            size: context.tokens.icon.md,
+          ),
+          tooltip: _obscured ? 'Show' : 'Hide',
+          onPressed: () => setState(() => _obscured = !_obscured),
+        ),
+      ),
+      onChanged: widget.onChanged,
+    );
   }
 }

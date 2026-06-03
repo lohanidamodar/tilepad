@@ -404,25 +404,41 @@ class _ServerScreenState extends State<ServerScreen> {
       return;
     }
 
-    final result = await showButtonPicker(context, server: widget.server);
-    if (result == null || !mounted) return;
+    final results = await showButtonPicker(context, server: widget.server);
+    if (results == null || results.isEmpty || !mounted) return;
 
-    if (result.createNew) {
+    // "New button" is always returned on its own.
+    if (results.first.createNew) {
       await _createButtonAndPlace(page.id);
-    } else if (result.preset != null) {
-      // Place a system preset. Reuse the library button that already represents
-      // this metric (matched by live-state binding) instead of cloning a new
-      // one on every placement — otherwise the library fills with duplicate
-      // "System Monitor"/"CPU"/... entries. Add it only the first time.
+      return;
+    }
+
+    // Multi-select: place each chosen button, then refresh once.
+    for (final result in results) {
+      _placeResult(page.id, result);
+    }
+    _refreshPages();
+  }
+
+  /// Places a single picker [result] (preset or existing) on [pageId].
+  void _placeResult(String pageId, PickerResult result) {
+    if (result.preset != null) {
       final preset = result.preset!;
-      final isMonitor =
-          preset.stateBinding?.stateId == systemSummaryStateId;
+      final binding = preset.stateBinding;
+      final isMonitor = binding?.stateId == systemSummaryStateId;
+
+      // Live-state presets (system metrics) are singletons: reuse the existing
+      // library button that represents the same state instead of cloning a new
+      // one each time. Plain catalog presets (no binding) are always added
+      // fresh so the user can place and customise several independently.
       models.Button? button;
-      for (final b in widget.server.libraryButtons) {
-        if (b.stateBinding?.pluginId == preset.stateBinding?.pluginId &&
-            b.stateBinding?.stateId == preset.stateBinding?.stateId) {
-          button = b;
-          break;
+      if (binding != null) {
+        for (final b in widget.server.libraryButtons) {
+          if (b.stateBinding?.pluginId == binding.pluginId &&
+              b.stateBinding?.stateId == binding.stateId) {
+            button = b;
+            break;
+          }
         }
       }
       if (button == null) {
@@ -430,15 +446,13 @@ class _ServerScreenState extends State<ServerScreen> {
         button = preset;
       }
       widget.server.addTile(
-        page.id,
+        pageId,
         button.id,
         colSpan: isMonitor ? 2 : 1,
         rowSpan: isMonitor ? 2 : 1,
       );
-      _refreshPages();
     } else if (result.existing != null) {
-      widget.server.addTile(page.id, result.existing!.id);
-      _refreshPages();
+      widget.server.addTile(pageId, result.existing!.id);
     }
   }
 
@@ -749,6 +763,58 @@ class _ServerScreenState extends State<ServerScreen> {
       onResizeTile: _resizeTile,
       onReorderTile: _reorderTile,
       onManageButtons: _openButtonLibrary,
+      onRunTile: (tile) => _runButtonOnServer(tile.button),
+      onMovePage: _movePage,
     );
+  }
+
+  /// Reorders pages by moving [page] one slot earlier (-1) or later (+1).
+  void _movePage(models.Page page, int delta) {
+    final list = List<models.Page>.from(widget.server.pages);
+    final i = list.indexWhere((p) => p.id == page.id);
+    final j = i + delta;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    list.insert(j, list.removeAt(i));
+    widget.server.reorderPages(list);
+    _refreshPages();
+  }
+
+  /// Runs a tile/library button's actions on the server (test without a client)
+  /// and reports the outcome.
+  Future<void> _runButtonOnServer(models.Button button) async {
+    final t = context.tokens;
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await widget.server.executeButtonLocally(button);
+    if (!mounted) return;
+    final detail = result.output.isNotEmpty
+        ? result.output
+        : (result.error.isNotEmpty ? result.error : null);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: result.success ? t.color.success : t.color.danger,
+          content: Row(
+            children: [
+              Icon(
+                result.success ? Icons.check_circle : Icons.error,
+                color: t.color.onAccent,
+                size: t.icon.md,
+              ),
+              SizedBox(width: t.space.sm),
+              Expanded(
+                child: Text(
+                  detail == null
+                      ? (result.success ? 'Ran "${button.name}"' : 'Failed')
+                      : '${button.name}: $detail',
+                  style: TextStyle(color: t.color.onAccent),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
   }
 }

@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:picons/picons.dart';
 
 import '../models/button.dart';
+import 'button_presets.dart';
 import 'system_info.dart';
 
 /// Manages the server's button library and the pages that place those buttons
@@ -342,15 +343,59 @@ class ButtonManager {
     // default System page.
     final monitor = systemMonitorPreset();
 
-    _library.addAll([browser, notes, sysInfo, monitor]);
+    // Showcase a few built-in catalog presets out of the box: a Media page and
+    // page-navigation tiles. Resolve them from a single catalog build so each
+    // Button keeps a stable id across the library and its placements.
+    final catalog = buttonPresetCatalog();
+    List<Button> category(String name) =>
+        catalog.firstWhere((c) => c.name == name).buttons;
+    Button media(String name) =>
+        category('Media').firstWhere((b) => b.name == name);
+    Button nav(String name) =>
+        category('Navigation').firstWhere((b) => b.name == name);
+
+    final playPause = media('Play / Pause');
+    final prevTrack = media('Previous');
+    final nextTrack = media('Next');
+    final mute = media('Mute');
+    final volDown = media('Volume Down');
+    final volUp = media('Volume Up');
+    final nextPage = nav('Next Page');
+    final prevPage = nav('Previous Page');
+
+    // Individual live-info tiles (clock, network) for the System page.
+    final presetTiles = systemPresetButtons();
+    Button sysState(String stateId) =>
+        presetTiles.firstWhere((b) => b.stateBinding?.stateId == stateId);
+    final clock = sysState('clock');
+    final network = sysState('net');
+
+    _library.addAll([
+      browser, notes, sysInfo, monitor,
+      playPause, prevTrack, nextTrack, mute, volDown, volUp,
+      nextPage, prevPage, clock, network,
+    ]);
     _pages = [
       Page(name: 'Applications', order: 0, columns: 4, tiles: [
         Tile(button: browser, colSpan: 2),
         Tile(button: notes),
+        Tile(button: nextPage),
       ]),
-      Page(name: 'System', order: 1, columns: 4, tiles: [
+      Page(name: 'Media', order: 1, columns: 4, tiles: [
+        Tile(button: prevTrack),
+        Tile(button: playPause),
+        Tile(button: nextTrack),
+        Tile(button: volDown),
+        Tile(button: mute),
+        Tile(button: volUp),
+        Tile(button: nextPage),
+      ]),
+      Page(name: 'System', order: 2, columns: 4, tiles: [
         Tile(button: monitor, colSpan: 2, rowSpan: 2),
+        Tile(button: clock),
+        Tile(button: network, colSpan: 2),
         Tile(button: sysInfo),
+        Tile(button: prevPage),
       ]),
     ];
   }

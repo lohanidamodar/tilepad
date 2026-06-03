@@ -46,3 +46,6 @@ app.*.map.json
 cli*.png
 srv*.png
 client_run.log
+client_run.log
+p*.png
+srv*.png

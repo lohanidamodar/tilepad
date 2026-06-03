@@ -1,0 +1,51 @@
+{
+  "id": "com.marcodeck.obs",
+  "name": "OBS Studio",
+  "version": "1.0.2",
+  "author": "MarcoDeck",
+  "apiVersion": 1,
+  "run": {
+    "windows": "./obs-plugin.exe",
+    "macos": "dart plugin.dart",
+    "linux": "dart plugin.dart"
+  },
+  "settings": [
+    { "key": "host", "type": "string", "label": "OBS Host", "default": "127.0.0.1" },
+    { "key": "port", "type": "number", "label": "OBS WebSocket Port", "default": 4455 },
+    { "key": "password", "type": "password", "label": "OBS WebSocket Password" }
+  ],
+  "actions": [
+    { "id": "test_connection", "name": "Test OBS Connection" },
+    {
+      "id": "set_scene",
+      "name": "Switch Scene",
+      "fields": [
+        { "key": "scene", "type": "select", "label": "Scene", "optionsFrom": "scenes" }
+      ]
+    },
+    { "id": "toggle_record", "name": "Toggle Recording" },
+    { "id": "start_record", "name": "Start Recording" },
+    { "id": "stop_record", "name": "Stop Recording" },
+    { "id": "toggle_stream", "name": "Toggle Streaming" },
+    { "id": "start_stream", "name": "Start Streaming" },
+    { "id": "stop_stream", "name": "Stop Streaming" }
+  ],
+  "states": [
+    { "id": "scene", "label": "Current Scene", "type": "string" },
+    { "id": "recording", "label": "Recording Status", "type": "string" },
+    { "id": "streaming", "label": "Streaming Status", "type": "string" },
+    { "id": "obs", "label": "OBS Connection", "type": "string" }
+  ],
+  "lists": [
+    { "id": "scenes", "label": "Scenes" }
+  ],
+  "presets": [
+    { "name": "Toggle Recording", "color": "#DC2626", "actionId": "toggle_record" },
+    { "name": "Toggle Streaming", "color": "#7C3AED", "actionId": "toggle_stream" },
+    { "name": "Switch Scene", "color": "#2563EB", "actionId": "set_scene" },
+    { "name": "Scene", "color": "#334155", "stateId": "scene" },
+    { "name": "Recording", "color": "#334155", "stateId": "recording" },
+    { "name": "Streaming", "color": "#334155", "stateId": "streaming" },
+    { "name": "OBS Status", "color": "#334155", "stateId": "obs" }
+  ]
+}
