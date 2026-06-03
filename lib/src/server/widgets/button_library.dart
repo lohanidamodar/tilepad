@@ -5,6 +5,7 @@ import '../../models/button.dart' as models;
 import '../../utils/macro_icons.dart';
 import '../button_editor_page.dart';
 import '../server.dart';
+import '../system_info.dart';
 
 /// Converts a hex string to a Color, falling back to the default color when the
 /// stored value is malformed.
@@ -93,13 +94,24 @@ class PickerResult {
   /// The user asked to author a brand new button.
   final bool createNew;
 
+  /// A ready-made preset (e.g. a system-info tile) to add to the library and
+  /// place. Not yet in the library.
+  final models.Button? preset;
+
   const PickerResult.existing(models.Button button)
       : existing = button,
-        createNew = false;
+        createNew = false,
+        preset = null;
 
   const PickerResult.create()
       : existing = null,
-        createNew = true;
+        createNew = true,
+        preset = null;
+
+  const PickerResult.preset(models.Button button)
+      : existing = null,
+        createNew = false,
+        preset = button;
 }
 
 class _ButtonPickerSheet extends StatelessWidget {
@@ -165,6 +177,30 @@ class _ButtonPickerSheet extends StatelessWidget {
                       onTap: () =>
                           Navigator.of(context).pop(const PickerResult.create()),
                     ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          0, t.space.md, 0, t.space.xs),
+                      child: Text(
+                        'SYSTEM INFO',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: t.color.textMuted,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                    for (final preset in systemPresetButtons())
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: _ButtonBadge(button: preset),
+                        title: Text(preset.name),
+                        subtitle: Text(
+                          'Live system metric',
+                          style: textTheme.labelMedium
+                              ?.copyWith(color: t.color.textMuted),
+                        ),
+                        onTap: () => Navigator.of(context)
+                            .pop(PickerResult.preset(preset)),
+                      ),
                     if (library.isNotEmpty)
                       Padding(
                         padding: EdgeInsets.symmetric(vertical: t.space.sm),

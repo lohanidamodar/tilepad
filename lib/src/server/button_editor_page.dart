@@ -7,6 +7,7 @@ import '../models/button.dart';
 import '../utils/icon_picker_dialog.dart';
 import 'action_editor_page.dart';
 import 'server.dart';
+import 'system_info.dart';
 
 /// Page for editing a macro button's properties
 class ButtonEditorPage extends StatefulWidget {
@@ -281,8 +282,15 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
   /// Builds the optional "Live Tile" section that binds the button to a plugin
   /// state so the client shows live text/icon.
   Widget _buildLiveTileSection() {
-    // Gather all states exposed by installed plugins.
-    final states = <_StateOption>[];
+    // Built-in system metrics + states exposed by installed plugins.
+    final states = <_StateOption>[
+      for (final s in systemStates)
+        _StateOption(
+          pluginId: systemSourceId,
+          stateId: s.id,
+          label: 'System: ${s.label}',
+        ),
+    ];
     for (final plugin in widget.server.plugins) {
       for (final state in plugin.manifest.states) {
         states.add(_StateOption(

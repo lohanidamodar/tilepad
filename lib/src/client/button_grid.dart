@@ -170,9 +170,11 @@ class ButtonGrid extends ConsumerWidget {
     final isConnected =
         ref.read(connectionStateProvider).status == ConnectionStatus.connected;
 
-    // Resolve a live-tile binding: a plugin state can drive the title or icon.
-    var label = button.name;
+    // Resolve a live-tile binding: a bound state can drive the live value
+    // (shown under the name) or swap the icon.
+    final label = button.name;
     var icon = _getIconData(button.iconName);
+    String? liveValue;
     final binding = button.stateBinding;
     if (binding != null) {
       // Watch only this binding's key so unrelated state changes don't rebuild
@@ -184,7 +186,7 @@ class ButtonGrid extends ConsumerWidget {
       if (value != null) {
         if (binding.mode == StateBindingMode.title &&
             value.displayText.isNotEmpty) {
-          label = value.displayText;
+          liveValue = value.displayText;
         } else if (binding.mode == StateBindingMode.icon &&
             value.image != null &&
             value.image!.isNotEmpty) {
@@ -194,7 +196,7 @@ class ButtonGrid extends ConsumerWidget {
     }
 
     return AccessibleButton(
-      label: label,
+      label: liveValue == null ? label : '$label $liveValue',
       hint: AccessibilityUtils.getButtonStateLabel(isConnected, false),
       enabled: isConnected,
       onPressed: () {
@@ -220,6 +222,7 @@ class ButtonGrid extends ConsumerWidget {
         color: buttonColor,
         icon: icon,
         label: label,
+        liveValue: liveValue,
         isEnabled: isConnected,
         onPressed: () {
           // This will be handled by AccessibleButton
@@ -412,6 +415,10 @@ class AnimatedButton extends StatelessWidget {
   final Color color;
   final IconData icon;
   final String label;
+
+  /// Live value from a bound state (e.g. "42%"); shown prominently under the
+  /// name when present.
+  final String? liveValue;
   final VoidCallback onPressed;
   final bool isEnabled;
 
@@ -420,6 +427,7 @@ class AnimatedButton extends StatelessWidget {
     required this.color,
     required this.icon,
     required this.label,
+    this.liveValue,
     required this.onPressed,
     this.isEnabled = true,
   });
@@ -441,7 +449,9 @@ class AnimatedButton extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tile = constraints.biggest.shortestSide;
-          final iconSize = (tile * 0.42).clamp(28.0, 56.0);
+          final hasLive = liveValue != null && liveValue!.isNotEmpty;
+          final iconSize =
+              (tile * (hasLive ? 0.30 : 0.42)).clamp(22.0, 56.0);
           final fontSize = (tile * 0.115).clamp(10.0, 14.0);
 
           return Material(
@@ -454,21 +464,38 @@ class AnimatedButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(icon, size: iconSize, color: onColor),
-                  SizedBox(height: tile * 0.05),
+                  SizedBox(height: tile * 0.04),
                   Flexible(
                     child: Text(
                       label,
                       textAlign: TextAlign.center,
-                      maxLines: 2,
+                      maxLines: hasLive ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: onColor,
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.w700,
+                        color: hasLive ? onColor.withValues(alpha: 0.8) : onColor,
+                        fontSize: hasLive ? fontSize * 0.85 : fontSize,
+                        fontWeight: hasLive ? FontWeight.w600 : FontWeight.w700,
                         height: 1.05,
                       ),
                     ),
                   ),
+                  if (hasLive) ...[
+                    SizedBox(height: tile * 0.02),
+                    Flexible(
+                      child: Text(
+                        liveValue!,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: onColor,
+                          fontSize: (tile * 0.16).clamp(13.0, 22.0),
+                          fontWeight: FontWeight.w700,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

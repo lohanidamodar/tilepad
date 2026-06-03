@@ -378,6 +378,11 @@ class _ServerScreenState extends State<ServerScreen> {
 
     if (result.createNew) {
       await _createButtonAndPlace(page.id);
+    } else if (result.preset != null) {
+      // Add the preset to the library, then place it.
+      widget.server.addLibraryButton(result.preset!);
+      widget.server.addTile(page.id, result.preset!.id);
+      _refreshPages();
     } else if (result.existing != null) {
       widget.server.addTile(page.id, result.existing!.id);
       _refreshPages();

@@ -19,6 +19,7 @@ import 'plugins/plugin_manager.dart';
 import 'plugins/plugin_manifest.dart';
 import 'plugins/plugin_registry.dart';
 import 'plugins/state_store.dart';
+import 'system_info.dart';
 
 /// Server class that handles client connections and executes commands
 class MarcoServer {
@@ -37,10 +38,14 @@ class MarcoServer {
   /// Loopback port the plugin host listens on for plugin processes.
   final int _pluginPort;
 
+  /// Shared live-state store fed by both plugins and the system-info sampler.
+  final StateStore _stateStore = StateStore();
+
   /// Plugin subsystem (null until the server is started).
   PluginHost? _pluginHost;
   PluginRegistry? _pluginRegistry;
   PluginManager? _pluginManager;
+  SystemInfoService? _systemInfo;
   StreamSubscription<StateEntry>? _stateSub;
   Directory? _pluginsDir;
 
@@ -204,6 +209,7 @@ class MarcoServer {
 
       // Bring up the plugin subsystem (best-effort; failures here must not stop
       // the core server).
+      _startStateSources();
       await _startPlugins();
 
       return true;
@@ -267,6 +273,10 @@ class MarcoServer {
       await _discoveryService.stopBroadcasting();
       debugPrint('UDP discovery broadcasting stopped');
 
+      _systemInfo?.stop();
+      _systemInfo = null;
+      await _stateSub?.cancel();
+      _stateSub = null;
       await _stopPlugins();
 
       await _webSocketService.close();
@@ -289,9 +299,24 @@ class MarcoServer {
 
   /// Starts the plugin host, discovers plugins, launches enabled ones, and wires
   /// action invocation + live-state forwarding. Best-effort: never throws.
+  /// Starts the live-state sources: forwards the shared [StateStore] to clients
+  /// and starts the built-in system-info sampler. These work even if the plugin
+  /// subsystem fails.
+  void _startStateSources() {
+    _stateSub = _stateStore.changes.listen((entry) {
+      if (!_isRunning) return;
+      _webSocketService.broadcast(
+        Message(type: MessageType.stateUpdate, payload: entry.toJson()),
+      );
+    });
+    _systemInfo = SystemInfoService(_stateStore)..start();
+  }
+
   Future<void> _startPlugins() async {
     try {
-      final host = PluginHost();
+      // Plugins publish into the shared store so plugin + system live tiles
+      // flow through one pipeline.
+      final host = PluginHost(stateStore: _stateStore);
       await host.start(port: _pluginPort);
       final dir = await _pluginsDirectory();
       _pluginsDir = dir;
@@ -306,14 +331,6 @@ class MarcoServer {
       // Route plugin actions through the host.
       _commandExecutor.pluginInvoker = host.invoke;
 
-      // Forward every live-state change to all connected clients.
-      _stateSub = host.stateStore.changes.listen((entry) {
-        if (!_isRunning) return;
-        _webSocketService.broadcast(
-          Message(type: MessageType.stateUpdate, payload: entry.toJson()),
-        );
-      });
-
       await manager.startAll();
       debugPrint('Plugin subsystem started (${registry.plugins.length} found)');
     } catch (e) {
@@ -322,8 +339,6 @@ class MarcoServer {
   }
 
   Future<void> _stopPlugins() async {
-    await _stateSub?.cancel();
-    _stateSub = null;
     await _pluginManager?.stopAll();
     await _pluginHost?.stop();
     _commandExecutor.pluginInvoker = null;
@@ -334,9 +349,7 @@ class MarcoServer {
 
   /// Replays the current live-state snapshot to a single client (on connect).
   void _sendStateSnapshot(String clientId) {
-    final host = _pluginHost;
-    if (host == null) return;
-    for (final entry in host.stateStore.snapshot()) {
+    for (final entry in _stateStore.snapshot()) {
       _webSocketService.sendMessageToClient(
         clientId,
         Message(type: MessageType.stateUpdate, payload: entry.toJson()),
