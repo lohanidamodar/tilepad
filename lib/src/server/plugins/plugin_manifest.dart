@@ -163,6 +163,50 @@ class PluginListDef {
   }
 }
 
+/// A ready-made button the plugin suggests. Surfaced in the add-button picker
+/// while the plugin is enabled (and hidden when it's disabled), so users can
+/// drop in working plugin buttons without configuring them by hand.
+///
+/// A preset is one of:
+///   - an *action* button when [actionId] is set (invokes that plugin action),
+///   - a *live tile* when [stateId] is set (binds the button to that state).
+class PluginPresetDef {
+  final String name;
+  final String? icon; // icon code point string; falls back to a default
+  final String? color; // hex; falls back to a default
+  final String? actionId;
+  final String? stateId;
+
+  PluginPresetDef({
+    required this.name,
+    this.icon,
+    this.color,
+    this.actionId,
+    this.stateId,
+  });
+
+  factory PluginPresetDef.fromJson(Map<String, dynamic> json) {
+    final name = json['name'] as String?;
+    if (name == null || name.isEmpty) {
+      throw PluginManifestException('Preset is missing "name"');
+    }
+    final actionId = json['actionId'] as String?;
+    final stateId = json['stateId'] as String?;
+    if ((actionId == null || actionId.isEmpty) &&
+        (stateId == null || stateId.isEmpty)) {
+      throw PluginManifestException(
+          'Preset "$name" needs either "actionId" or "stateId"');
+    }
+    return PluginPresetDef(
+      name: name,
+      icon: json['icon'] as String?,
+      color: json['color'] as String?,
+      actionId: actionId,
+      stateId: stateId,
+    );
+  }
+}
+
 /// The fully parsed and validated plugin manifest.
 class PluginManifest {
   /// Highest plugin protocol/manifest version this host understands. A plugin
@@ -179,6 +223,7 @@ class PluginManifest {
   final List<PluginActionDef> actions;
   final List<PluginStateDef> states;
   final List<PluginListDef> lists;
+  final List<PluginPresetDef> presets;
 
   PluginManifest({
     required this.id,
@@ -191,6 +236,7 @@ class PluginManifest {
     this.actions = const [],
     this.states = const [],
     this.lists = const [],
+    this.presets = const [],
   });
 
   /// The launch command for [platform] (e.g. `'windows'`), or null if the plugin
@@ -253,6 +299,7 @@ class PluginManifest {
       actions: parseList('actions', PluginActionDef.fromJson),
       states: parseList('states', PluginStateDef.fromJson),
       lists: parseList('lists', PluginListDef.fromJson),
+      presets: parseList('presets', PluginPresetDef.fromJson),
     );
   }
 }

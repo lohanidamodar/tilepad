@@ -1,7 +1,7 @@
 {
   "id": "com.marcodeck.obs",
   "name": "OBS Studio",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "MarcoDeck",
   "apiVersion": 1,
   "run": {
@@ -38,5 +38,14 @@
   ],
   "lists": [
     { "id": "scenes", "label": "Scenes" }
+  ],
+  "presets": [
+    { "name": "Toggle Recording", "color": "#DC2626", "actionId": "toggle_record" },
+    { "name": "Toggle Streaming", "color": "#7C3AED", "actionId": "toggle_stream" },
+    { "name": "Switch Scene", "color": "#2563EB", "actionId": "set_scene" },
+    { "name": "Scene", "color": "#334155", "stateId": "scene" },
+    { "name": "Recording", "color": "#334155", "stateId": "recording" },
+    { "name": "Streaming", "color": "#334155", "stateId": "streaming" },
+    { "name": "OBS Status", "color": "#334155", "stateId": "obs" }
   ]
 }

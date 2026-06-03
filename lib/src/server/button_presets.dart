@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart' show IconData;
 import 'package:picons/picons.dart';
 
 import '../models/button.dart';
+import 'plugins/plugin_manifest.dart';
 
 /// A named group of ready-made [Button]s shown in the add-button picker.
 ///
@@ -196,3 +197,47 @@ List<PresetCategory> buttonPresetCatalog() => [
 /// Flattened list of every preset button (used by tests / search).
 List<Button> allPresetButtons() =>
     [for (final c in buttonPresetCatalog()) ...c.buttons];
+
+// --- Plugin-contributed presets ------------------------------------------
+
+/// Builds a ready-to-place [Button] from a plugin's [PluginPresetDef].
+///
+/// A preset bound to a state becomes a live tile; one bound to an action
+/// becomes a button that invokes that plugin action.
+Button pluginPresetButton(String pluginId, PluginPresetDef preset) {
+  final isState = preset.stateId != null;
+  final iconName = preset.icon ??
+      (isState
+          ? PiconsRegular.gauge.codePoint.toString()
+          : PiconsRegular.broadcast.codePoint.toString());
+  final color = preset.color ?? (isState ? '#334155' : '#6D28D9');
+  if (isState) {
+    return Button(
+      name: preset.name,
+      iconName: iconName,
+      color: color,
+      actions: const [],
+      stateBinding: StateBinding(
+        pluginId: pluginId,
+        stateId: preset.stateId!,
+        mode: StateBindingMode.title,
+      ),
+    );
+  }
+  return Button(
+    name: preset.name,
+    iconName: iconName,
+    color: color,
+    actions: [
+      ButtonAction(
+        type: ActionType.plugin,
+        pluginId: pluginId,
+        pluginActionId: preset.actionId!,
+      ),
+    ],
+  );
+}
+
+/// The preset buttons a plugin contributes (empty if it declares none).
+List<Button> pluginPresetButtons(String pluginId, List<PluginPresetDef> presets) =>
+    [for (final p in presets) pluginPresetButton(pluginId, p)];

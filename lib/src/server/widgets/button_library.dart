@@ -201,10 +201,24 @@ class _ButtonPickerSheetState extends State<_ButtonPickerSheet> {
         ),
     ].where((c) => c.buttons.isNotEmpty).toList();
 
+    // Presets contributed by ENABLED plugins (hidden when a plugin is disabled).
+    final pluginCategories = [
+      for (final plugin in widget.server.plugins)
+        if (plugin.enabled && plugin.manifest.presets.isNotEmpty)
+          (
+            name: plugin.manifest.name,
+            buttons: pluginPresetButtons(
+              plugin.manifest.id,
+              plugin.manifest.presets,
+            ).where((b) => _matches(b.name)).toList(),
+          ),
+    ].where((c) => c.buttons.isNotEmpty).toList();
+
     final noResults = _query.isNotEmpty &&
         filteredPresets.isEmpty &&
         filteredLibrary.isEmpty &&
-        catalog.isEmpty;
+        catalog.isEmpty &&
+        pluginCategories.isEmpty;
 
     return SafeArea(
       child: Padding(
@@ -292,6 +306,16 @@ class _ButtonPickerSheetState extends State<_ButtonPickerSheet> {
                         _sectionHeader(category.name.toUpperCase()),
                         for (final preset in category.buttons)
                           _presetRow(preset, _summary(preset)),
+                      ],
+                      for (final category in pluginCategories) ...[
+                        _sectionHeader(category.name.toUpperCase()),
+                        for (final preset in category.buttons)
+                          _presetRow(
+                            preset,
+                            preset.stateBinding != null
+                                ? 'Live tile'
+                                : 'Plugin action',
+                          ),
                       ],
                       if (filteredLibrary.isNotEmpty) ...[
                         _sectionHeader('LIBRARY'),
