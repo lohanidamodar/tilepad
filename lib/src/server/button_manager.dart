@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:picons/picons.dart';
 
 import '../models/button.dart';
+import 'system_info.dart';
 
 /// Manages the server's button library and the pages that place those buttons
 /// on a spanning grid.
@@ -30,7 +31,53 @@ class ButtonManager {
     if (_library.isEmpty && _pages.isEmpty) {
       _createDefaults();
       await saveConfig();
+    } else if (dedupeSystemButtons()) {
+      await saveConfig();
     }
+  }
+
+  /// Collapses duplicate system-metric library buttons that share the same
+  /// live-state binding into a single canonical button, re-pointing any tiles
+  /// that placed a duplicate. Earlier builds added a fresh library button on
+  /// every system-preset placement, so saved configs can accumulate several
+  /// identical "System Monitor"/"CPU"/... entries. Returns whether anything
+  /// changed.
+  bool dedupeSystemButtons() {
+    final canonicalByState = <String, Button>{};
+    final remap = <String, String>{}; // duplicate id -> canonical id
+    for (final b in _library) {
+      final binding = b.stateBinding;
+      if (binding == null || binding.pluginId != systemSourceId) continue;
+      final canonical = canonicalByState[binding.stateId];
+      if (canonical == null) {
+        canonicalByState[binding.stateId] = b;
+      } else {
+        remap[b.id] = canonical.id;
+      }
+    }
+    if (remap.isEmpty) return false;
+
+    // Re-point tiles that referenced a duplicate to the canonical button
+    // (before removing the duplicates so the canonical is still resolvable).
+    for (final page in _pages) {
+      for (var i = 0; i < page.tiles.length; i++) {
+        final tile = page.tiles[i];
+        final canonicalId = remap[tile.buttonId];
+        if (canonicalId == null) continue;
+        final canonical = getButton(canonicalId);
+        if (canonical != null) {
+          page.tiles[i] = Tile(
+            id: tile.id,
+            button: canonical,
+            colSpan: tile.colSpan,
+            rowSpan: tile.rowSpan,
+          );
+        }
+      }
+    }
+
+    _library.removeWhere((b) => remap.containsKey(b.id));
+    return true;
   }
 
   // --- Persistence -----------------------------------------------------------
@@ -291,13 +338,18 @@ class ButtonManager {
       '#F59E0B',
     );
 
-    _library.addAll([browser, notes, sysInfo]);
+    // A single combined "System Monitor" tile (CPU/RAM/Disk/Uptime) on the
+    // default System page.
+    final monitor = systemMonitorPreset();
+
+    _library.addAll([browser, notes, sysInfo, monitor]);
     _pages = [
       Page(name: 'Applications', order: 0, columns: 4, tiles: [
         Tile(button: browser, colSpan: 2),
         Tile(button: notes),
       ]),
       Page(name: 'System', order: 1, columns: 4, tiles: [
+        Tile(button: monitor, colSpan: 2, rowSpan: 2),
         Tile(button: sysInfo),
       ]),
     ];

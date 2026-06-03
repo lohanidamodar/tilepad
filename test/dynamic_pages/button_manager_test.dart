@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marco_deck/src/models/button.dart';
 import 'package:marco_deck/src/server/button_manager.dart';
+import 'package:marco_deck/src/server/system_info.dart';
 
 void main() {
   late ButtonManager mgr;
@@ -96,5 +97,52 @@ void main() {
     expect(mgr.removeTile(page.id, t.id), isTrue);
     expect(mgr.getPage(page.id)!.tiles, isEmpty);
     expect(mgr.getButton(b.id), isNotNull);
+  });
+
+  group('dedupeSystemButtons', () {
+    Button sys(String stateId) => Button(
+          name: 'System $stateId',
+          iconName: 'gauge',
+          stateBinding: StateBinding(
+            pluginId: systemSourceId,
+            stateId: stateId,
+            mode: StateBindingMode.title,
+          ),
+        );
+
+    test('merges duplicate system buttons and re-points their tiles', () {
+      final a = sys('summary');
+      final dup = sys('summary'); // same binding as a
+      final cpu = sys('cpu');
+      mgr.addLibraryButton(a);
+      mgr.addLibraryButton(dup);
+      mgr.addLibraryButton(cpu);
+      final page = Page(name: 'P');
+      mgr.addPage(page);
+      mgr.addTile(page.id, dup.id); // tile placed on the duplicate
+      mgr.addTile(page.id, cpu.id);
+
+      expect(mgr.dedupeSystemButtons(), isTrue);
+
+      // Only the first 'summary' button survives, plus cpu.
+      final summaries =
+          mgr.buttons.where((b) => b.stateBinding?.stateId == 'summary');
+      expect(summaries, hasLength(1));
+      expect(summaries.first.id, a.id);
+      expect(mgr.getButton(dup.id), isNull);
+
+      // The tile that placed the duplicate now resolves to the canonical one.
+      final tiles = mgr.getPage(page.id)!.tiles;
+      expect(tiles.any((t) => t.buttonId == a.id), isTrue);
+      expect(tiles.any((t) => t.buttonId == dup.id), isFalse);
+    });
+
+    test('is a no-op when there are no duplicates', () {
+      mgr.addLibraryButton(sys('cpu'));
+      mgr.addLibraryButton(sys('ram'));
+      mgr.addLibraryButton(btn('Custom'));
+      expect(mgr.dedupeSystemButtons(), isFalse);
+      expect(mgr.buttons, hasLength(3));
+    });
   });
 }

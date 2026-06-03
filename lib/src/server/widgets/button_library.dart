@@ -5,6 +5,7 @@ import '../../models/button.dart' as models;
 import '../../utils/macro_icons.dart';
 import '../button_editor_page.dart';
 import '../server.dart';
+import '../system_info.dart';
 
 /// Converts a hex string to a Color, falling back to the default color when the
 /// stored value is malformed.
@@ -93,104 +94,205 @@ class PickerResult {
   /// The user asked to author a brand new button.
   final bool createNew;
 
+  /// A ready-made preset (e.g. a system-info tile) to add to the library and
+  /// place. Not yet in the library.
+  final models.Button? preset;
+
   const PickerResult.existing(models.Button button)
       : existing = button,
-        createNew = false;
+        createNew = false,
+        preset = null;
 
   const PickerResult.create()
       : existing = null,
-        createNew = true;
+        createNew = true,
+        preset = null;
+
+  const PickerResult.preset(models.Button button)
+      : existing = null,
+        createNew = false,
+        preset = button;
 }
 
-class _ButtonPickerSheet extends StatelessWidget {
+class _ButtonPickerSheet extends StatefulWidget {
   final MarcoServer server;
   const _ButtonPickerSheet({required this.server});
+
+  @override
+  State<_ButtonPickerSheet> createState() => _ButtonPickerSheetState();
+}
+
+class _ButtonPickerSheetState extends State<_ButtonPickerSheet> {
+  String _query = '';
+
+  bool _matches(String text) =>
+      _query.isEmpty || text.toLowerCase().contains(_query.toLowerCase());
+
+  /// Header row for a section of the picker list.
+  Widget _sectionHeader(String label) {
+    final t = context.tokens;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(0, t.space.md, 0, t.space.xs),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: t.color.textMuted,
+              letterSpacing: 0.8,
+            ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final textTheme = Theme.of(context).textTheme;
-    final library = server.libraryButtons;
+    final library = widget.server.libraryButtons;
+
+    // System metrics live only in the SYSTEM INFO section, and the LIBRARY
+    // section shows only the user's own buttons. Keeping the two sets disjoint
+    // means a placed metric never appears in both sections, and old duplicate
+    // system buttons (from earlier placements) don't clutter the library list.
+    final presets = systemPresetButtons();
+    final customLibrary = library
+        .where((b) => b.stateBinding?.pluginId != systemSourceId)
+        .toList();
+
+    final filteredPresets =
+        presets.where((p) => _matches(p.name)).toList();
+    final filteredLibrary = customLibrary
+        .where((b) => _matches(b.name) || _matches(_summary(b)))
+        .toList();
+    final noResults = _query.isNotEmpty &&
+        filteredPresets.isEmpty &&
+        filteredLibrary.isEmpty;
 
     return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
+      child: Padding(
+        // Keep the sheet above the keyboard when the search field is focused.
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            t.space.xl,
-            t.space.xs,
-            t.space.xl,
-            t.space.lg,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Add button', style: textTheme.titleLarge),
-              SizedBox(height: t.space.xs),
-              Text(
-                'Place a button from your library, or create a new one.',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: t.color.textMuted,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              t.space.xl,
+              t.space.xs,
+              t.space.xl,
+              t.space.lg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Add button', style: textTheme.titleLarge),
+                SizedBox(height: t.space.xs),
+                Text(
+                  'Place a button from your library, or create a new one.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: t.color.textMuted,
+                  ),
                 ),
-              ),
-              SizedBox(height: t.space.lg),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        width: t.icon.xl + t.space.sm,
-                        height: t.icon.xl + t.space.sm,
-                        decoration: BoxDecoration(
-                          color: t.color.accentSubtle,
-                          borderRadius: t.radius.brSm,
-                        ),
-                        child: Icon(
-                          Icons.add,
-                          size: t.icon.lg,
-                          color: t.color.accent,
-                        ),
-                      ),
-                      title: const Text('New button'),
-                      subtitle: Text(
-                        'Author a new button and place it',
-                        style: textTheme.labelMedium
-                            ?.copyWith(color: t.color.textMuted),
-                      ),
-                      onTap: () =>
-                          Navigator.of(context).pop(const PickerResult.create()),
+                SizedBox(height: t.space.md),
+                TextField(
+                  autofocus: false,
+                  onChanged: (value) => setState(() => _query = value),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Search buttons',
+                    prefixIcon: Icon(Icons.search, size: t.icon.md),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: Icon(Icons.close, size: t.icon.md),
+                            onPressed: () => setState(() => _query = ''),
+                            tooltip: 'Clear',
+                          ),
+                    border: OutlineInputBorder(
+                      borderRadius: t.radius.brSm,
                     ),
-                    if (library.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: t.space.sm),
-                        child: Divider(
-                          height: t.border.hairline,
-                          color: t.color.border,
-                        ),
-                      ),
-                    for (final button in library)
+                  ),
+                ),
+                SizedBox(height: t.space.sm),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: _ButtonBadge(button: button),
-                        title: Text(button.name),
+                        leading: Container(
+                          width: t.icon.xl + t.space.sm,
+                          height: t.icon.xl + t.space.sm,
+                          decoration: BoxDecoration(
+                            color: t.color.accentSubtle,
+                            borderRadius: t.radius.brSm,
+                          ),
+                          child: Icon(
+                            Icons.add,
+                            size: t.icon.lg,
+                            color: t.color.accent,
+                          ),
+                        ),
+                        title: const Text('New button'),
                         subtitle: Text(
-                          _summary(button),
-                          overflow: TextOverflow.ellipsis,
+                          'Author a new button and place it',
                           style: textTheme.labelMedium
                               ?.copyWith(color: t.color.textMuted),
                         ),
                         onTap: () => Navigator.of(context)
-                            .pop(PickerResult.existing(button)),
+                            .pop(const PickerResult.create()),
                       ),
-                  ],
+                      if (filteredPresets.isNotEmpty)
+                        _sectionHeader('SYSTEM INFO'),
+                      for (final preset in filteredPresets)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: _ButtonBadge(button: preset),
+                          title: Text(preset.name),
+                          subtitle: Text(
+                            'Live system metric',
+                            style: textTheme.labelMedium
+                                ?.copyWith(color: t.color.textMuted),
+                          ),
+                          onTap: () => Navigator.of(context)
+                              .pop(PickerResult.preset(preset)),
+                        ),
+                      if (filteredLibrary.isNotEmpty) ...[
+                        _sectionHeader('LIBRARY'),
+                        for (final button in filteredLibrary)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: _ButtonBadge(button: button),
+                            title: Text(button.name),
+                            subtitle: Text(
+                              _summary(button),
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.labelMedium
+                                  ?.copyWith(color: t.color.textMuted),
+                            ),
+                            onTap: () => Navigator.of(context)
+                                .pop(PickerResult.existing(button)),
+                          ),
+                      ],
+                      if (noResults)
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: t.space.lg),
+                          child: Center(
+                            child: Text(
+                              'No buttons match "$_query"',
+                              style: textTheme.bodyMedium
+                                  ?.copyWith(color: t.color.textMuted),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

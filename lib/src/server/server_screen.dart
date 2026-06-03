@@ -8,6 +8,7 @@ import '../design/design.dart';
 import 'button_editor_page.dart';
 import 'plugins_screen.dart';
 import 'server.dart';
+import 'system_info.dart';
 import 'page_editor_dialog.dart';
 import 'widgets/server_status_card.dart';
 import 'widgets/connected_clients_card.dart';
@@ -361,6 +362,36 @@ class _ServerScreenState extends State<ServerScreen> {
 
   /// Opens the add-button picker for the selected page, then places the chosen
   /// (or newly authored) library button as a tile.
+  /// Builds the connected-clients card wired to disconnect/block actions.
+  Widget _buildClientsCard() {
+    return ConnectedClientsCard(
+      connectedClients: _connectedClients,
+      blockedIps: widget.server.blockedIps,
+      onDisconnect: (client) {
+        widget.server.disconnectClient(client.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Disconnected ${client.deviceName ?? client.ipAddress}',
+            ),
+          ),
+        );
+      },
+      onBlock: (client) async {
+        await widget.server.blockIp(client.ipAddress);
+        if (!mounted) return;
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Blocked ${client.ipAddress}')),
+        );
+      },
+      onUnblock: (ip) async {
+        await widget.server.unblockIp(ip);
+        if (mounted) setState(() {});
+      },
+    );
+  }
+
   Future<void> _addTile() async {
     final page = _selectedPage;
     if (page == null) {
@@ -378,6 +409,33 @@ class _ServerScreenState extends State<ServerScreen> {
 
     if (result.createNew) {
       await _createButtonAndPlace(page.id);
+    } else if (result.preset != null) {
+      // Place a system preset. Reuse the library button that already represents
+      // this metric (matched by live-state binding) instead of cloning a new
+      // one on every placement — otherwise the library fills with duplicate
+      // "System Monitor"/"CPU"/... entries. Add it only the first time.
+      final preset = result.preset!;
+      final isMonitor =
+          preset.stateBinding?.stateId == systemSummaryStateId;
+      models.Button? button;
+      for (final b in widget.server.libraryButtons) {
+        if (b.stateBinding?.pluginId == preset.stateBinding?.pluginId &&
+            b.stateBinding?.stateId == preset.stateBinding?.stateId) {
+          button = b;
+          break;
+        }
+      }
+      if (button == null) {
+        widget.server.addLibraryButton(preset);
+        button = preset;
+      }
+      widget.server.addTile(
+        page.id,
+        button.id,
+        colSpan: isMonitor ? 2 : 1,
+        rowSpan: isMonitor ? 2 : 1,
+      );
+      _refreshPages();
     } else if (result.existing != null) {
       widget.server.addTile(page.id, result.existing!.id);
       _refreshPages();
@@ -624,8 +682,7 @@ class _ServerScreenState extends State<ServerScreen> {
                   onToggleServer: _toggleServer,
                   onChangePort: _showChangePortDialog,
                 ),
-                if (_isRunning)
-                  ConnectedClientsCard(connectedClients: _connectedClients),
+                if (_isRunning) _buildClientsCard(),
                 _buildPagesSection(),
               ],
             );
@@ -653,10 +710,7 @@ class _ServerScreenState extends State<ServerScreen> {
                       onToggleServer: _toggleServer,
                       onChangePort: _showChangePortDialog,
                     ),
-                    if (_isRunning)
-                      ConnectedClientsCard(
-                        connectedClients: _connectedClients,
-                      ),
+                    if (_isRunning) _buildClientsCard(),
                   ],
                 ),
               ),

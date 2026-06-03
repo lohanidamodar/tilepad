@@ -19,6 +19,7 @@ import 'plugins/plugin_manager.dart';
 import 'plugins/plugin_manifest.dart';
 import 'plugins/plugin_registry.dart';
 import 'plugins/state_store.dart';
+import 'system_info.dart';
 
 /// Server class that handles client connections and executes commands
 class MarcoServer {
@@ -37,10 +38,14 @@ class MarcoServer {
   /// Loopback port the plugin host listens on for plugin processes.
   final int _pluginPort;
 
+  /// Shared live-state store fed by both plugins and the system-info sampler.
+  final StateStore _stateStore = StateStore();
+
   /// Plugin subsystem (null until the server is started).
   PluginHost? _pluginHost;
   PluginRegistry? _pluginRegistry;
   PluginManager? _pluginManager;
+  SystemInfoService? _systemInfo;
   StreamSubscription<StateEntry>? _stateSub;
   Directory? _pluginsDir;
 
@@ -61,6 +66,9 @@ class MarcoServer {
 
   /// List of connected clients
   List<ClientInfo> _connectedClients = [];
+
+  /// IP addresses blocked from connecting. Persisted across restarts.
+  final Set<String> _blockedIps = {};
 
   /// Creates a new server
   // A named parameter can't be a private initializing formal (`this._port`),
@@ -126,6 +134,51 @@ class MarcoServer {
     }
   }
 
+  /// The IP addresses currently blocked from connecting.
+  Set<String> get blockedIps => Set.unmodifiable(_blockedIps);
+
+  /// Loads the persisted IP blocklist and applies it to the running service.
+  Future<void> _loadBlockedIps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _blockedIps
+        ..clear()
+        ..addAll(prefs.getStringList('blocked_ips') ?? const []);
+      _webSocketService.updateBlockedIps(_blockedIps);
+    } catch (e) {
+      debugPrint('Error loading blocked IPs: $e');
+    }
+  }
+
+  Future<void> _saveBlockedIps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('blocked_ips', _blockedIps.toList());
+    } catch (e) {
+      debugPrint('Error saving blocked IPs: $e');
+    }
+  }
+
+  /// Forcibly disconnects a connected client by its [ClientInfo.id].
+  void disconnectClient(String clientId) {
+    _webSocketService.disconnectClient(clientId);
+  }
+
+  /// Blocks [ip] from connecting, disconnecting any current client from it.
+  Future<void> blockIp(String ip) async {
+    if (ip.isEmpty || ip == 'Unknown') return;
+    _blockedIps.add(ip);
+    _webSocketService.updateBlockedIps(_blockedIps);
+    await _saveBlockedIps();
+  }
+
+  /// Removes [ip] from the blocklist so it may connect again.
+  Future<void> unblockIp(String ip) async {
+    _blockedIps.remove(ip);
+    _webSocketService.updateBlockedIps(_blockedIps);
+    await _saveBlockedIps();
+  }
+
   /// Sets the server port
   Future<void> setPort(int port) async {
     if (_isRunning) {
@@ -182,6 +235,9 @@ class MarcoServer {
         'Server started on port $_port',
       );
 
+      // Apply the persisted IP blocklist to the freshly-started service.
+      await _loadBlockedIps();
+
       // Start UDP broadcasting for auto-discovery
       final serverIp = await getServerIp();
       await _discoveryService.startBroadcasting(
@@ -204,6 +260,7 @@ class MarcoServer {
 
       // Bring up the plugin subsystem (best-effort; failures here must not stop
       // the core server).
+      _startStateSources();
       await _startPlugins();
 
       return true;
@@ -267,6 +324,10 @@ class MarcoServer {
       await _discoveryService.stopBroadcasting();
       debugPrint('UDP discovery broadcasting stopped');
 
+      _systemInfo?.stop();
+      _systemInfo = null;
+      await _stateSub?.cancel();
+      _stateSub = null;
       await _stopPlugins();
 
       await _webSocketService.close();
@@ -289,9 +350,24 @@ class MarcoServer {
 
   /// Starts the plugin host, discovers plugins, launches enabled ones, and wires
   /// action invocation + live-state forwarding. Best-effort: never throws.
+  /// Starts the live-state sources: forwards the shared [StateStore] to clients
+  /// and starts the built-in system-info sampler. These work even if the plugin
+  /// subsystem fails.
+  void _startStateSources() {
+    _stateSub = _stateStore.changes.listen((entry) {
+      if (!_isRunning) return;
+      _webSocketService.broadcast(
+        Message(type: MessageType.stateUpdate, payload: entry.toJson()),
+      );
+    });
+    _systemInfo = SystemInfoService(_stateStore)..start();
+  }
+
   Future<void> _startPlugins() async {
     try {
-      final host = PluginHost();
+      // Plugins publish into the shared store so plugin + system live tiles
+      // flow through one pipeline.
+      final host = PluginHost(stateStore: _stateStore);
       await host.start(port: _pluginPort);
       final dir = await _pluginsDirectory();
       _pluginsDir = dir;
@@ -306,14 +382,6 @@ class MarcoServer {
       // Route plugin actions through the host.
       _commandExecutor.pluginInvoker = host.invoke;
 
-      // Forward every live-state change to all connected clients.
-      _stateSub = host.stateStore.changes.listen((entry) {
-        if (!_isRunning) return;
-        _webSocketService.broadcast(
-          Message(type: MessageType.stateUpdate, payload: entry.toJson()),
-        );
-      });
-
       await manager.startAll();
       debugPrint('Plugin subsystem started (${registry.plugins.length} found)');
     } catch (e) {
@@ -322,8 +390,6 @@ class MarcoServer {
   }
 
   Future<void> _stopPlugins() async {
-    await _stateSub?.cancel();
-    _stateSub = null;
     await _pluginManager?.stopAll();
     await _pluginHost?.stop();
     _commandExecutor.pluginInvoker = null;
@@ -334,9 +400,7 @@ class MarcoServer {
 
   /// Replays the current live-state snapshot to a single client (on connect).
   void _sendStateSnapshot(String clientId) {
-    final host = _pluginHost;
-    if (host == null) return;
-    for (final entry in host.stateStore.snapshot()) {
+    for (final entry in _stateStore.snapshot()) {
       _webSocketService.sendMessageToClient(
         clientId,
         Message(type: MessageType.stateUpdate, payload: entry.toJson()),

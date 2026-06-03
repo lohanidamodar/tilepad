@@ -79,6 +79,15 @@ abstract class ServerWebSocketService implements WebSocketService {
 
   /// Stream of client connection events (connect/disconnect)
   Stream<ClientConnectionEvent> get clientConnectionStream;
+
+  /// Forcibly closes the socket of the client with [clientId]. No-op if the
+  /// client is not connected.
+  void disconnectClient(String clientId);
+
+  /// Replaces the set of blocked IP addresses. Upgrade requests from a blocked
+  /// IP are rejected, and any currently-connected client from a blocked IP is
+  /// disconnected immediately.
+  void updateBlockedIps(Set<String> ips);
 }
 
 /// Event for client connections and disconnections
