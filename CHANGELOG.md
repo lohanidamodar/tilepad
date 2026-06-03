@@ -5,6 +5,34 @@ All notable changes to the MarcoDeck project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### 🎛️ Buttons, tiles & presets
+- **Preset catalog**: Drop-in, cross-platform buttons grouped into Media, System, Apps, Web, Window, Clipboard and Navigation
+- **New action types**: open URL, media/transport keys, and client-side page navigation
+- **Live tiles**: Built-in system metrics (CPU, RAM, disk, uptime, clock, battery, network) plus any plugin-streamed state
+- **Full-page add-button picker**: Searchable, category-filtered grid with a "Live tiles" filter and **multi-select**
+- **Run on server**: Test a button's actions on the desktop with no client connected
+- **Reorderable pages** and a redesigned, searchable **Manage Buttons** grid
+
+#### 🧩 Plugins
+- **Bundled OBS Studio plugin** (obs-websocket v5): scene switching, recording/streaming toggles, live status tiles, and a Test Connection button
+- **First-party plugins are bundled and shipped as native binaries**, seeded into the plugins folder on first run (no Dart SDK required on the target)
+- **Plugin presets**: plugins can contribute ready-made buttons that appear in the picker while enabled
+
+#### 🖥️ Server
+- **Client management**: disconnect a connected client and block/unblock its IP (persisted)
+
+#### 📦 Release & packaging
+- **Tag-triggered releases**: pushing a `vX.Y.Z` tag builds and publishes the Android client, Windows and Linux servers
+- **Windows installer** built with Inno Setup, attached to each release
+
+### Fixed
+- **Reconnection reliability**: real socket verification, handshake re-send on recovery, and bounded close so a dropped server reconnects cleanly without wedging the client
+- Dark-mode contrast for tooltips/snackbars and deck-tile readability
+
 ## [1.1.0] - 2024-09-01
 
 ### Added

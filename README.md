@@ -9,16 +9,30 @@
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#usage">Usage</a> •
-  <a href="#plugins">Plugins</a> •
-  <a href="#accessibility">Accessibility</a> •
-  <a href="#contributing">Contributing</a>
+  <a href="#-download">Download</a> •
+  <a href="#-features">Features</a> •
+  <a href="#️-getting-started">Getting Started</a> •
+  <a href="#-usage">Usage</a> •
+  <a href="#-plugins">Plugins</a> •
+  <a href="#-contributing">Contributing</a>
 </p>
 
 ---
+
+## 📥 Download
+
+Grab the latest build from the [**Releases**](https://github.com/lohanidamodar/macro-deck-updated/releases) page:
+
+| Platform | Download |
+|----------|----------|
+| **Windows** (server) | `MarcoDeck-Setup-x.y.z.exe` (installer) or `MarcoDeck-windows-portable.zip` |
+| **Linux** (server) | `MarcoDeck-linux.tar.gz` |
+| **Android** (client) | `MarcoDeck-client.apk` |
+| **macOS / iOS / Web** | [build from source](#-installation) |
+
+> The desktop **server** runs your macros; the mobile/web **client** is the remote control. You need both.
+
+Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 
 ## 🚀 Features
 
@@ -26,9 +40,16 @@
 - **Dual Architecture**: Server runs on desktop (Windows, macOS, Linux), client on mobile (Android, iOS) and web
 - **WebSocket Communication**: Real-time, reliable communication between server and client
 - **UDP Auto-discovery**: Phones find servers on the LAN automatically (manual entry still available)
-- **Custom Macro Buttons**: Create buttons with commands, keystrokes, and preset actions
-- **Multi-Page Support**: Organize buttons across multiple pages for better workflow management
+- **Custom Macro Buttons**: Commands, keystrokes, media keys, open URL, type/prompt text, focus a window, switch page, and plugin actions
+- **Multi-Page Support**: Organize buttons across reorderable pages with variable tile sizes
 - **Cross-Platform**: Works seamlessly across all major platforms
+
+### 🎛️ Buttons, Tiles & Presets
+- **Built-in catalog**: Drop-in, cross-platform buttons grouped into Media, System, Apps, Web, Window, Clipboard and Navigation — no setup needed
+- **Live tiles**: Show live system info on a tile (CPU, RAM, disk, uptime, clock, battery, network) and any plugin-streamed state
+- **Full-page picker**: Searchable, category-filtered grid; multi-select to add several buttons at once
+- **Test on the desktop**: Run a button on the server (no client needed) to verify it
+- **Client controls a real device**: Adjustable tile sizes, drag-to-reorder, dynamic "prompt" buttons
 
 ### 🎨 Enhanced UI/UX
 - **Material Design 3**: Modern, consistent design language across all platforms
@@ -63,7 +84,7 @@
 ## 🛠️ Getting Started
 
 ### Prerequisites
-- **Flutter SDK** (>=3.7.2) - [Installation Guide](https://flutter.dev/docs/get-started/install)
+- **Flutter SDK** (>=3.44.0) - [Installation Guide](https://flutter.dev/docs/get-started/install)
 - **Dart SDK** (included with Flutter)
 - **Platform-specific tools**:
   - Android: Android Studio & SDK
@@ -116,13 +137,20 @@
 #### Desktop Server
 ```bash
 # Windows
-flutter build windows
+flutter build windows --release -t lib/src/server/main.dart
 
 # macOS
-flutter build macos
+flutter build macos --release -t lib/src/server/main.dart
 
 # Linux
-flutter build linux
+flutter build linux --release -t lib/src/server/main.dart
+```
+
+**Windows installer** (optional): with [Inno Setup](https://jrsoftware.org/isinfo.php)
+installed, package the Windows build into a Setup `.exe`:
+```bash
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.0.0 windows\installer\marcodeck.iss
+# -> windows/installer/output/MarcoDeck-Setup-1.0.0.exe
 ```
 
 #### Mobile Client
@@ -185,8 +213,14 @@ small JSON protocol. Plugins can:
 Install a plugin by dropping its folder into the plugins directory (server →
 **Plugins → Open plugins folder**), pressing **Rescan**, and enabling it.
 
+An **OBS Studio** plugin ships built-in (switch scenes, toggle recording/streaming,
+live status tiles) — just enable it in **Plugins** and point it at your OBS
+WebSocket server. Enabled plugins can also contribute ready-made buttons that
+show up in the add-button picker.
+
 - Protocol & manifest reference: [`docs/plugins/protocol.md`](docs/plugins/protocol.md)
-- Working example: [`examples/plugins/hello_dart/`](examples/plugins/hello_dart/)
+- Bundled OBS plugin: [`assets/plugins/obs/`](assets/plugins/obs/)
+- Minimal example: [`examples/plugins/hello_dart/`](examples/plugins/hello_dart/)
 
 ## ♿ Accessibility
 

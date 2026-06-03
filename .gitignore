@@ -49,3 +49,6 @@ client_run.log
 client_run.log
 p*.png
 srv*.png
+
+# Inno Setup installer output
+windows/installer/output/
