@@ -51,6 +51,14 @@ class ObsPlugin {
   int _obsPort = 4455;
   String _obsPassword = '';
 
+  // True only after the OBS WebSocket handshake (Identify) succeeds — i.e. the
+  // connection is authenticated and usable. A connected-but-not-identified
+  // socket can't serve requests, so we gate on this rather than `_obs != null`.
+  bool _identified = false;
+
+  // Human-readable reason the connection isn't usable, for diagnostics.
+  String _lastError = 'Not connected yet';
+
   // Correlates OBS requestIds with the callback that handles their response.
   final Map<String, void Function(bool ok, Map<String, dynamic> data)>
       _pending = {};
@@ -88,6 +96,8 @@ class ObsPlugin {
       case 'settingsUpdated':
         _applySettings(msg['settings'] as Map<String, dynamic>? ?? {});
         // Reconnect with the new connection details.
+        _identified = false;
+        _lastError = 'reconnecting with new settings';
         _obs?.close();
         _connectObs();
         break;
@@ -117,13 +127,25 @@ class ObsPlugin {
     final actionId = msg['actionId'] as String?;
     final fields = msg['fields'] as Map<String, dynamic>? ?? {};
 
-    if (_obs == null) {
-      _sendHost({
-        'type': 'actionResult',
-        'requestId': requestId,
-        'success': false,
-        'error': 'OBS is not connected',
-      });
+    // Test Connection reports status whether or not OBS is reachable.
+    if (actionId == 'test_connection') {
+      if (_identified) {
+        _obsRequest('GetSceneList', null, (ok, data) {
+          final count = (data['scenes'] as List<dynamic>? ?? []).length;
+          _replyInvoke(requestId, true,
+              'Connected to OBS at $_obsHost:$_obsPort — $count scene(s).');
+        });
+      } else {
+        _replyInvoke(requestId, false,
+            'Not connected to $_obsHost:$_obsPort — $_lastError');
+      }
+      return;
+    }
+
+    if (!_identified) {
+      _replyInvoke(requestId, false,
+          'OBS is not connected ($_lastError). Check OBS is running with its '
+          'WebSocket server enabled, and the host/port/password are correct.');
       return;
     }
 
@@ -167,7 +189,10 @@ class ObsPlugin {
   void _handleRequestList(Map<String, dynamic> msg) {
     final requestId = msg['requestId'];
     final listId = msg['listId'] as String?;
-    if (listId != 'scenes' || _obs == null) {
+    if (listId != 'scenes' || !_identified) {
+      if (listId == 'scenes' && !_identified) {
+        _log('scene list requested but OBS not connected ($_lastError)');
+      }
       _sendHost({'type': 'listResult', 'requestId': requestId, 'options': []});
       return;
     }
@@ -197,24 +222,47 @@ class ObsPlugin {
 
   void _connectObs() {
     _obsReconnect?.cancel();
+    _log('connecting to OBS at $_obsHost:$_obsPort');
     WebSocket.connect('ws://$_obsHost:$_obsPort')
         .timeout(const Duration(seconds: 4))
         .then((socket) {
       _obs = socket;
       socket.listen(
         (data) => _onObsMessage(data as String),
-        onDone: _onObsClosed,
-        onError: (_) => _onObsClosed(),
+        onDone: () => _onObsClosed(socket),
+        onError: (e) {
+          _lastError = 'socket error: $e';
+          _onObsClosed(socket);
+        },
       );
-    }).catchError((_) {
+    }).catchError((Object e) {
+      // Couldn't even open the socket — OBS not running, WebSocket server off,
+      // or wrong host/port.
+      _identified = false;
+      _lastError =
+          'cannot reach OBS (is the WebSocket server enabled? wrong host/port?) — $e';
+      _log(_lastError);
       _setState('obs', 'Disconnected');
       _scheduleObsReconnect();
     });
   }
 
-  void _onObsClosed() {
+  void _onObsClosed(WebSocket socket) {
     _obs = null;
+    _identified = false;
     _pending.clear();
+    // OBS signals a bad password with close code 4009 (AuthenticationFailed).
+    final code = socket.closeCode;
+    if (code == 4009) {
+      _lastError = 'authentication failed — wrong OBS WebSocket password';
+    } else if (code != null && code != 1000 && code != 1001) {
+      _lastError =
+          'OBS closed the connection (code $code ${socket.closeReason ?? ''})'
+              .trim();
+    } else if (_lastError == 'Not connected yet') {
+      _lastError = 'disconnected from OBS';
+    }
+    _log('disconnected: $_lastError');
     _setState('obs', 'Disconnected');
     _setState('recording', '—');
     _setState('streaming', '—');
@@ -236,16 +284,24 @@ class ObsPlugin {
         final authInfo = d['authentication'] as Map<String, dynamic>?;
         String? auth;
         if (authInfo != null) {
+          if (_obsPassword.isEmpty) {
+            _lastError =
+                'OBS requires a password but none is set in the plugin settings';
+            _log(_lastError);
+          }
           auth = obsAuthString(
             _obsPassword,
             authInfo['salt'] as String? ?? '',
             authInfo['challenge'] as String? ?? '',
           );
         }
+        _log('OBS handshake (auth ${authInfo != null ? 'required' : 'not required'})');
         _sendObsRaw(buildIdentify(auth));
         break;
 
       case ObsOp.identified:
+        _identified = true;
+        _lastError = '';
         _setState('obs', 'Connected');
         _log('connected to OBS');
         _pollInitialStatus();

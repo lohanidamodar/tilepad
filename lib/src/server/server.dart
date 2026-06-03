@@ -89,6 +89,24 @@ class MarcoServer {
   /// Whether a plugin is currently connected to the host.
   bool isPluginConnected(String id) => _pluginHost?.isConnected(id) ?? false;
 
+  /// Invokes a plugin action directly — used by UI affordances such as a
+  /// plugin's "Test Connection" button. Returns a failure result if no host is
+  /// running or the plugin isn't connected.
+  Future<PluginActionResult> invokePluginAction(
+    String pluginId,
+    String actionId, [
+    Map<String, dynamic> settings = const {},
+  ]) async {
+    final host = _pluginHost;
+    if (host == null) {
+      return PluginActionResult(
+        success: false,
+        error: 'Plugin host is not running',
+      );
+    }
+    return host.invoke(pluginId, actionId, settings);
+  }
+
   /// Emits a pluginId whenever its connection state changes, so the UI can
   /// refresh enabled/connected status live. Empty if the server isn't started.
   Stream<String> get pluginConnectionChanges =>
