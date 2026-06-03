@@ -409,6 +409,46 @@ class _ButtonLibraryScreenState extends State<ButtonLibraryScreen> {
     }
   }
 
+  /// Runs a button's actions on the server (no client needed) and reports the
+  /// result — handy for testing commands/keystrokes from the desktop.
+  Future<void> _runButton(models.Button button) async {
+    final t = context.tokens;
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await widget.server.executeButtonLocally(button);
+    if (!mounted) return;
+    final detail = result.output.isNotEmpty
+        ? result.output
+        : (result.error.isNotEmpty ? result.error : null);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor:
+              result.success ? t.color.success : t.color.danger,
+          content: Row(
+            children: [
+              Icon(
+                result.success ? Icons.check_circle : Icons.error,
+                color: t.color.onAccent,
+                size: t.icon.md,
+              ),
+              SizedBox(width: t.space.sm),
+              Expanded(
+                child: Text(
+                  detail == null
+                      ? (result.success ? 'Ran "${button.name}"' : 'Failed')
+                      : '${button.name}: $detail',
+                  style: TextStyle(color: t.color.onAccent),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -472,6 +512,19 @@ class _ButtonLibraryScreenState extends State<ButtonLibraryScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Run on the server (test without a connected client).
+                      // Client-only buttons (page navigation, prompts) have
+                      // nothing to run here, so the action is hidden for them.
+                      if (button.actions.isNotEmpty &&
+                          button.navigationTarget == null &&
+                          !button.isPrompt)
+                        IconButton(
+                          onPressed: () => _runButton(button),
+                          icon: Icon(Icons.play_arrow_rounded, size: t.icon.md),
+                          tooltip: 'Run on server',
+                          color: t.color.success,
+                          visualDensity: VisualDensity.compact,
+                        ),
                       IconButton(
                         onPressed: () => _editButton(button),
                         icon: Icon(Icons.edit_outlined, size: t.icon.md),
