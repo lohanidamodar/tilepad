@@ -45,3 +45,4 @@ app.*.map.json
 /android/app/release
 cli*.png
 srv*.png
+client_run.log
