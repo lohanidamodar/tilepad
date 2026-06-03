@@ -363,10 +363,17 @@ class ButtonManager {
     final nextPage = nav('Next Page');
     final prevPage = nav('Previous Page');
 
+    // Individual live-info tiles (clock, network) for the System page.
+    final presetTiles = systemPresetButtons();
+    Button sysState(String stateId) =>
+        presetTiles.firstWhere((b) => b.stateBinding?.stateId == stateId);
+    final clock = sysState('clock');
+    final network = sysState('net');
+
     _library.addAll([
       browser, notes, sysInfo, monitor,
       playPause, prevTrack, nextTrack, mute, volDown, volUp,
-      nextPage, prevPage,
+      nextPage, prevPage, clock, network,
     ]);
     _pages = [
       Page(name: 'Applications', order: 0, columns: 4, tiles: [
@@ -385,6 +392,8 @@ class ButtonManager {
       ]),
       Page(name: 'System', order: 2, columns: 4, tiles: [
         Tile(button: monitor, colSpan: 2, rowSpan: 2),
+        Tile(button: clock),
+        Tile(button: network, colSpan: 2),
         Tile(button: sysInfo),
         Tile(button: prevPage),
       ]),

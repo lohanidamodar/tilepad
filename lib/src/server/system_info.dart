@@ -27,6 +27,9 @@ final List<SystemState> systemStates = [
   SystemState('ram', 'RAM', PiconsRegular.memory.codePoint.toString()),
   SystemState('disk', 'Disk', PiconsRegular.hardDrives.codePoint.toString()),
   SystemState('uptime', 'Uptime', PiconsRegular.clock.codePoint.toString()),
+  SystemState('clock', 'Clock', PiconsRegular.clockCountdown.codePoint.toString()),
+  SystemState('battery', 'Battery', PiconsRegular.batteryHigh.codePoint.toString()),
+  SystemState('net', 'Network', PiconsRegular.wifiHigh.codePoint.toString()),
   SystemState('host', 'Host', PiconsRegular.desktopTower.codePoint.toString()),
 ];
 
@@ -157,6 +160,58 @@ class SystemMetrics {
     if (hours > 0) return '${hours}h ${minutes}m';
     return '${minutes}m';
   }
+
+  /// Formats a wall-clock time as 12-hour "h:mm AM/PM".
+  static String formatClock(DateTime dt) {
+    final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour < 12 ? 'AM' : 'PM';
+    return '$hour12:$minute $period';
+  }
+
+  /// Parses a Linux `/sys/class/power_supply/BAT*/capacity` file (a bare int).
+  static int? parseBatteryCapacity(String content) =>
+      int.tryParse(content.trim());
+
+  /// Extracts the charge percentage from macOS `pmset -g batt` output.
+  static String? parsePmsetBattery(String out) {
+    final m = RegExp(r'(\d+)%').firstMatch(out);
+    return m == null ? null : '${m.group(1)}%';
+  }
+
+  /// Sums received/transmitted bytes across non-loopback interfaces in the
+  /// contents of Linux `/proc/net/dev`.
+  static ({int rx, int tx})? parseProcNetDev(String content) {
+    var rx = 0, tx = 0;
+    var matched = false;
+    for (final line in content.split('\n')) {
+      final idx = line.indexOf(':');
+      if (idx < 0) continue;
+      final iface = line.substring(0, idx).trim();
+      if (iface.isEmpty || iface == 'lo') continue;
+      final nums = line
+          .substring(idx + 1)
+          .trim()
+          .split(RegExp(r'\s+'))
+          .map(int.tryParse)
+          .toList();
+      // Columns: rx bytes is [0]; tx bytes is [8].
+      if (nums.length < 9 || nums[0] == null || nums[8] == null) continue;
+      rx += nums[0]!;
+      tx += nums[8]!;
+      matched = true;
+    }
+    return matched ? (rx: rx, tx: tx) : null;
+  }
+
+  /// Formats a per-second byte rate as B/s, KB/s or MB/s.
+  static String formatRate(int bytesPerSecond) {
+    if (bytesPerSecond < 1024) return '$bytesPerSecond B/s';
+    if (bytesPerSecond < 1024 * 1024) {
+      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
+    }
+    return '${(bytesPerSecond / 1024 / 1024).toStringAsFixed(1)} MB/s';
+  }
 }
 
 /// Samples system metrics on a timer and publishes them to the shared
@@ -168,6 +223,7 @@ class SystemInfoService {
 
   Timer? _timer;
   CpuSample? _prevCpu; // Linux delta sampling
+  ({int rx, int tx})? _prevNet; // Linux/macOS cumulative byte counters
 
   SystemInfoService(this.store, {this.interval = const Duration(seconds: 2)});
 
@@ -192,6 +248,8 @@ class SystemInfoService {
       } else if (Platform.isMacOS) {
         await _sampleMacOS();
       }
+      // Wall-clock time is platform-independent and cheap.
+      _put('clock', SystemMetrics.formatClock(DateTime.now()));
       _publishSummary();
     } catch (e) {
       debugPrint('SystemInfoService sample error: $e');
@@ -202,6 +260,26 @@ class SystemInfoService {
     if (value != null && value.isNotEmpty) {
       store.set(systemSourceId, id, value: value);
     }
+  }
+
+  /// Publishes the network tile from cumulative byte counters, deriving the
+  /// per-second rate against the previous sample. [rx]/[tx] are total bytes.
+  void _putNetDelta(int rx, int tx) {
+    final prev = _prevNet;
+    _prevNet = (rx: rx, tx: tx);
+    if (prev == null) return; // need two samples for a rate
+    final secs = interval.inSeconds == 0 ? 1 : interval.inSeconds;
+    final down = ((rx - prev.rx) / secs).round().clamp(0, 1 << 62);
+    final up = ((tx - prev.tx) / secs).round().clamp(0, 1 << 62);
+    _put('net',
+        '↓ ${SystemMetrics.formatRate(down)}  ↑ ${SystemMetrics.formatRate(up)}');
+  }
+
+  /// Publishes the network tile from already-per-second rates (Windows perf
+  /// counters expose these directly).
+  void _putNetRate(int down, int up) {
+    _put('net',
+        '↓ ${SystemMetrics.formatRate(down)}  ↑ ${SystemMetrics.formatRate(up)}');
   }
 
   /// Composes the combined multi-metric `summary` state (one metric per line)
@@ -249,6 +327,26 @@ class SystemInfoService {
       }
     } catch (_) {}
 
+    try {
+      final net = SystemMetrics.parseProcNetDev(
+          await File('/proc/net/dev').readAsString());
+      if (net != null) _putNetDelta(net.rx, net.tx);
+    } catch (_) {}
+
+    try {
+      // First battery that reports a capacity (laptops only).
+      for (final dir in Directory('/sys/class/power_supply').listSync()) {
+        final cap = File('${dir.path}/capacity');
+        if (cap.existsSync()) {
+          final pct = SystemMetrics.parseBatteryCapacity(cap.readAsStringSync());
+          if (pct != null) {
+            _put('battery', '$pct%');
+            break;
+          }
+        }
+      }
+    } catch (_) {}
+
     await _putDf();
   }
 
@@ -290,6 +388,29 @@ class SystemInfoService {
       }
     } catch (_) {}
 
+    try {
+      final batt = await Process.run('pmset', ['-g', 'batt']);
+      _put('battery', SystemMetrics.parsePmsetBattery(batt.stdout.toString()));
+    } catch (_) {}
+
+    try {
+      // `netstat -ib` reports cumulative bytes; sum the non-loopback rows.
+      final out = await Process.run('netstat', ['-ib']);
+      var rx = 0, tx = 0;
+      final seen = <String>{};
+      for (final line in out.stdout.toString().split('\n').skip(1)) {
+        final cols = line.trim().split(RegExp(r'\s+'));
+        if (cols.length < 10 || cols[0] == 'lo0' || !seen.add(cols[0])) continue;
+        final ibytes = int.tryParse(cols[6]);
+        final obytes = int.tryParse(cols[9]);
+        if (ibytes != null && obytes != null) {
+          rx += ibytes;
+          tx += obytes;
+        }
+      }
+      if (rx > 0 || tx > 0) _putNetDelta(rx, tx);
+    } catch (_) {}
+
     await _putDf();
   }
 
@@ -300,12 +421,19 @@ $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentag
 $os = Get-CimInstance Win32_OperatingSystem
 $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$($env:SystemDrive)'"
 $up = [int]((Get-Date) - $os.LastBootUpTime).TotalSeconds
+$ni = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface
+$rx = [int64](($ni | Measure-Object -Property BytesReceivedPersec -Sum).Sum)
+$tx = [int64](($ni | Measure-Object -Property BytesSentPersec -Sum).Sum)
+$bat = (Get-CimInstance Win32_Battery | Measure-Object -Property EstimatedChargeRemaining -Average).Average
 Write-Output "cpu=$cpu"
 Write-Output "memFree=$($os.FreePhysicalMemory)"
 Write-Output "memTotal=$($os.TotalVisibleMemorySize)"
 Write-Output "diskSize=$($disk.Size)"
 Write-Output "diskFree=$($disk.FreeSpace)"
 Write-Output "uptime=$up"
+Write-Output "netRx=$rx"
+Write-Output "netTx=$tx"
+Write-Output "battery=$bat"
 ''';
     final result = await Process.run(
       'powershell',
@@ -332,6 +460,16 @@ Write-Output "uptime=$up"
     final up = int.tryParse(m['uptime'] ?? '');
     if (up != null) {
       _put('uptime', SystemMetrics.formatUptime(Duration(seconds: up)));
+    }
+
+    // Perf counters are already per-second rates.
+    final rx = int.tryParse(m['netRx'] ?? '');
+    final tx = int.tryParse(m['netTx'] ?? '');
+    if (rx != null && tx != null) _putNetRate(rx, tx);
+
+    final bat = m['battery'];
+    if (bat != null && bat.isNotEmpty) {
+      _put('battery', '${double.tryParse(bat)?.round() ?? bat}%');
     }
   }
 }
