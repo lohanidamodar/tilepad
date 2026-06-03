@@ -471,8 +471,12 @@ class AnimatedButton extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, size: iconSize, color: onColor),
-                  SizedBox(height: tile * 0.04),
+                  // The multi-metric tile drops the big icon to make room for
+                  // all the metric lines.
+                  if (!isMulti) ...[
+                    Icon(icon, size: iconSize, color: onColor),
+                    SizedBox(height: tile * 0.04),
+                  ],
                   Flexible(
                     child: Text(
                       label,
