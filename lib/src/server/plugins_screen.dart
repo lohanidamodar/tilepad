@@ -717,14 +717,9 @@ class PluginFieldInput extends StatelessWidget {
           onChanged: (v) => onChanged(v.trim().isEmpty ? null : num.tryParse(v)),
         );
       case PluginFieldType.password:
-        return TextFormField(
+        return _PasswordField(
+          label: field.label,
           initialValue: effectiveValue?.toString() ?? '',
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: field.label,
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
           onChanged: onChanged,
         );
       case PluginFieldType.string:
@@ -738,5 +733,47 @@ class PluginFieldInput extends StatelessWidget {
           onChanged: onChanged,
         );
     }
+  }
+}
+
+/// A password field with a show/hide visibility toggle.
+class _PasswordField extends StatefulWidget {
+  final String label;
+  final String initialValue;
+  final ValueChanged<dynamic> onChanged;
+
+  const _PasswordField({
+    required this.label,
+    required this.initialValue,
+    required this.onChanged,
+  });
+
+  @override
+  State<_PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<_PasswordField> {
+  bool _obscured = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: widget.initialValue,
+      obscureText: _obscured,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            size: context.tokens.icon.md,
+          ),
+          tooltip: _obscured ? 'Show' : 'Hide',
+          onPressed: () => setState(() => _obscured = !_obscured),
+        ),
+      ),
+      onChanged: widget.onChanged,
+    );
   }
 }
