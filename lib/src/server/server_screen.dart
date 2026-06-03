@@ -404,12 +404,25 @@ class _ServerScreenState extends State<ServerScreen> {
       return;
     }
 
-    final result = await showButtonPicker(context, server: widget.server);
-    if (result == null || !mounted) return;
+    final results = await showButtonPicker(context, server: widget.server);
+    if (results == null || results.isEmpty || !mounted) return;
 
-    if (result.createNew) {
+    // "New button" is always returned on its own.
+    if (results.first.createNew) {
       await _createButtonAndPlace(page.id);
-    } else if (result.preset != null) {
+      return;
+    }
+
+    // Multi-select: place each chosen button, then refresh once.
+    for (final result in results) {
+      _placeResult(page.id, result);
+    }
+    _refreshPages();
+  }
+
+  /// Places a single picker [result] (preset or existing) on [pageId].
+  void _placeResult(String pageId, PickerResult result) {
+    if (result.preset != null) {
       final preset = result.preset!;
       final binding = preset.stateBinding;
       final isMonitor = binding?.stateId == systemSummaryStateId;
@@ -433,15 +446,13 @@ class _ServerScreenState extends State<ServerScreen> {
         button = preset;
       }
       widget.server.addTile(
-        page.id,
+        pageId,
         button.id,
         colSpan: isMonitor ? 2 : 1,
         rowSpan: isMonitor ? 2 : 1,
       );
-      _refreshPages();
     } else if (result.existing != null) {
-      widget.server.addTile(page.id, result.existing!.id);
-      _refreshPages();
+      widget.server.addTile(pageId, result.existing!.id);
     }
   }
 

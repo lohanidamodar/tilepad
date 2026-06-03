@@ -362,15 +362,19 @@ class _ServerScreenState extends State<ServerScreen> {
       return;
     }
 
-    final result = await showButtonPicker(context, server: widget.server);
-    if (result == null || !mounted) return;
+    final results = await showButtonPicker(context, server: widget.server);
+    if (results == null || results.isEmpty || !mounted) return;
 
-    if (result.createNew) {
+    if (results.first.createNew) {
       await _createButtonAndPlace(page.id);
-    } else if (result.existing != null) {
-      widget.server.addTile(page.id, result.existing!.id);
-      _refreshPages();
+      return;
     }
+    for (final result in results) {
+      if (result.existing != null) {
+        widget.server.addTile(page.id, result.existing!.id);
+      }
+    }
+    _refreshPages();
   }
 
   /// Authors a new library button, adds it to the library, and places it.

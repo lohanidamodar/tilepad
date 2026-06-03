@@ -81,12 +81,14 @@ class _ButtonBadge extends StatelessWidget {
 /// grid of system presets, the built-in catalog, enabled plugins' presets and
 /// the user's library, plus a "New button" entry.
 ///
-/// Returns a [PickerResult] describing the user's choice, or null if dismissed.
-Future<PickerResult?> showButtonPicker(
+/// Supports multi-select — returns every chosen [PickerResult] (in selection
+/// order), or null if dismissed. Choosing "New button" returns a single
+/// [PickerResult.create].
+Future<List<PickerResult>?> showButtonPicker(
   BuildContext context, {
   required MarcoServer server,
 }) {
-  return Navigator.of(context).push<PickerResult>(
+  return Navigator.of(context).push<List<PickerResult>>(
     MaterialPageRoute(
       fullscreenDialog: true,
       builder: (context) => _ButtonPickerPage(server: server),
@@ -169,6 +171,16 @@ class _ButtonPickerPageState extends State<_ButtonPickerPage> {
   String _query = '';
   String _category = _kAll;
 
+  /// Selected button ids (multi-select). Ids are stable because [_groups] is
+  /// built once — preset buttons would otherwise get fresh ids each rebuild.
+  final Set<String> _selected = {};
+
+  late final List<_PickerGroup> _groups = _allGroups();
+
+  void _toggle(String id) => setState(() {
+        _selected.contains(id) ? _selected.remove(id) : _selected.add(id);
+      });
+
   /// Builds every category group: system presets, the built-in catalog,
   /// enabled plugins' presets, then the user's own library.
   List<_PickerGroup> _allGroups() {
@@ -210,7 +222,13 @@ class _ButtonPickerPageState extends State<_ButtonPickerPage> {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final groups = _allGroups();
+    final groups = _groups;
+
+    final selectedResults = [
+      for (final g in groups)
+        for (final i in g.items)
+          if (_selected.contains(i.button.id)) i.result,
+    ];
 
     final liveCount = groups.fold<int>(
         0, (a, g) => a + g.items.where((i) => i.isLive).length);
@@ -244,7 +262,35 @@ class _ButtonPickerPageState extends State<_ButtonPickerPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add button')),
+      appBar: AppBar(
+        title: const Text('Add button'),
+        actions: [
+          if (_selected.isNotEmpty)
+            TextButton(
+              onPressed: () => setState(_selected.clear),
+              child: const Text('Clear'),
+            ),
+        ],
+      ),
+      bottomNavigationBar: selectedResults.isEmpty
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: EdgeInsets.all(t.space.lg),
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context).pop(selectedResults),
+                  icon: const Icon(Icons.add),
+                  label: Text(
+                    'Add ${selectedResults.length} '
+                    'button${selectedResults.length == 1 ? '' : 's'}',
+                  ),
+                  style: FilledButton.styleFrom(
+                    minimumSize: Size.fromHeight(t.space.huge),
+                  ),
+                ),
+              ),
+            ),
       body: Column(
         children: [
           Padding(
@@ -318,7 +364,7 @@ class _ButtonPickerPageState extends State<_ButtonPickerPage> {
           _grid([
             _NewButtonCard(
               onTap: () =>
-                  Navigator.of(context).pop(const PickerResult.create()),
+                  Navigator.of(context).pop([const PickerResult.create()]),
             ),
           ], t),
         ],
@@ -329,7 +375,8 @@ class _ButtonPickerPageState extends State<_ButtonPickerPage> {
               _ButtonCard(
                 button: item.button,
                 subtitle: item.subtitle,
-                onTap: () => Navigator.of(context).pop(item.result),
+                selected: _selected.contains(item.button.id),
+                onTap: () => _toggle(item.button.id),
               ),
           ], t),
         ],
@@ -418,11 +465,13 @@ class _CategoryTile extends StatelessWidget {
 class _ButtonCard extends StatelessWidget {
   final models.Button button;
   final String subtitle;
+  final bool selected;
   final VoidCallback onTap;
 
   const _ButtonCard({
     required this.button,
     required this.subtitle,
+    required this.selected,
     required this.onTap,
   });
 
@@ -445,13 +494,33 @@ class _ButtonCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: t.radius.brMd,
+                border: selected
+                    ? Border.all(color: t.color.accent, width: 3)
+                    : null,
               ),
-              child: Center(
-                child: Icon(
-                  MacroIcons.resolve(button.iconName),
-                  color: onColor,
-                  size: t.icon.xl,
-                ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Icon(
+                      MacroIcons.resolve(button.iconName),
+                      color: onColor,
+                      size: t.icon.xl,
+                    ),
+                  ),
+                  if (selected)
+                    Positioned(
+                      top: t.space.xxs,
+                      right: t.space.xxs,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: t.color.accent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.check,
+                            size: t.icon.sm, color: t.color.onAccent),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
