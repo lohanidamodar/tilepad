@@ -204,6 +204,24 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
   String _selectedKey = 'a';
   final Set<String> _selectedModifiers = <String>{};
 
+  // Media key (for ActionType.mediaKey)
+  String _selectedMediaKey = 'playPause';
+
+  // Page-navigation target (for ActionType.navigatePage): next, prev, first,
+  // last, or `page:<pageId>` to jump to a specific page.
+  String _navigationTarget = 'next';
+
+  /// Media keys the server can press, with display labels.
+  static const List<({String value, String label})> _mediaKeys = [
+    (value: 'playPause', label: 'Play / Pause'),
+    (value: 'next', label: 'Next Track'),
+    (value: 'previous', label: 'Previous Track'),
+    (value: 'stop', label: 'Stop'),
+    (value: 'mute', label: 'Mute'),
+    (value: 'volumeUp', label: 'Volume Up'),
+    (value: 'volumeDown', label: 'Volume Down'),
+  ];
+
   // Plugin action properties
   String? _pluginId;
   String? _pluginActionId;
@@ -312,8 +330,16 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
       _selectedType = widget.action!.type;
       _commandController.text = widget.action!.command;
 
-      if (widget.action!.key.isNotEmpty) {
+      if (widget.action!.type == ActionType.mediaKey &&
+          widget.action!.key.isNotEmpty) {
+        _selectedMediaKey = widget.action!.key;
+      } else if (widget.action!.key.isNotEmpty) {
         _selectedKey = widget.action!.key;
+      }
+
+      if (widget.action!.type == ActionType.navigatePage &&
+          widget.action!.command.isNotEmpty) {
+        _navigationTarget = widget.action!.command;
       }
 
       if (widget.action!.modifiers.isNotEmpty) {
@@ -379,15 +405,25 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
     super.dispose();
   }
 
+  /// Whether the current type stores its payload in the command field.
+  bool get _usesCommandField =>
+      _selectedType == ActionType.command ||
+      _selectedType == ActionType.commandPreset ||
+      _selectedType == ActionType.openUrl ||
+      _selectedType == ActionType.delay;
+
   /// Saves the action and returns it
   void _saveAction() {
     if (_formKey.currentState!.validate()) {
-      if ((_selectedType == ActionType.command ||
-              _selectedType == ActionType.commandPreset) &&
-          _commandController.text.isEmpty) {
+      if (_usesCommandField && _commandController.text.trim().isEmpty) {
+        final what = switch (_selectedType) {
+          ActionType.openUrl => 'a URL to open',
+          ActionType.delay => 'a delay in milliseconds',
+          _ => 'a command',
+        };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Please enter a command'),
+            content: Text('Please enter $what'),
             backgroundColor: context.tokens.color.danger,
           ),
         );
@@ -408,12 +444,14 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
       final action = ButtonAction(
         id: widget.action?.id,
         type: _selectedType,
-        command:
-            _selectedType == ActionType.command ||
-                    _selectedType == ActionType.commandPreset
-                ? _commandController.text
-                : '',
-        key: _selectedType == ActionType.keystroke ? _selectedKey : '',
+        command: _usesCommandField
+            ? _commandController.text
+            : (_selectedType == ActionType.navigatePage
+                ? _navigationTarget
+                : ''),
+        key: _selectedType == ActionType.keystroke
+            ? _selectedKey
+            : (_selectedType == ActionType.mediaKey ? _selectedMediaKey : ''),
         modifiers:
             _selectedType == ActionType.keystroke
                 ? List<String>.from(_selectedModifiers)
@@ -453,6 +491,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return 'Navigate';
       case ActionType.plugin:
         return 'Plugin';
+      case ActionType.delay:
+        return 'Delay';
     }
   }
 
@@ -479,6 +519,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         return Icons.swap_horiz;
       case ActionType.plugin:
         return Icons.extension;
+      case ActionType.delay:
+        return Icons.timer_outlined;
     }
   }
 
@@ -981,7 +1023,174 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                     'server\'s open windows and brings the chosen one to front.',
               ),
 
+            // Open URL section
+            if (_selectedType == ActionType.openUrl)
+              _buildFieldCard(
+                title: 'Open URL',
+                description:
+                    'Opens a website, file or folder with the system default '
+                    'handler (e.g. https://example.com or C:\\Reports).',
+                child: TextFormField(
+                  controller: _commandController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL or path',
+                    hintText: 'https://example.com',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.link),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a URL or path';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
+            // Media key section
+            if (_selectedType == ActionType.mediaKey)
+              _buildFieldCard(
+                title: 'Media Key',
+                description:
+                    'Presses a media transport or volume key on the server.',
+                child: DropdownButtonFormField<String>(
+                  initialValue: _mediaKeys
+                          .any((k) => k.value == _selectedMediaKey)
+                      ? _selectedMediaKey
+                      : 'playPause',
+                  decoration: const InputDecoration(
+                    labelText: 'Key',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.play_circle_outline),
+                  ),
+                  items: [
+                    for (final key in _mediaKeys)
+                      DropdownMenuItem(
+                        value: key.value,
+                        child: Text(key.label),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedMediaKey = value);
+                    }
+                  },
+                ),
+              ),
+
+            // Navigate-page section
+            if (_selectedType == ActionType.navigatePage)
+              _buildFieldCard(
+                title: 'Navigate Page',
+                description:
+                    'Switches the page shown on the device. Works even while '
+                    'the device is reconnecting.',
+                child: DropdownButtonFormField<String>(
+                  initialValue: _navigationTargets()
+                          .any((t) => t.value == _navigationTarget)
+                      ? _navigationTarget
+                      : 'next',
+                  decoration: const InputDecoration(
+                    labelText: 'Go to',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.swap_horiz),
+                  ),
+                  items: [
+                    for (final target in _navigationTargets())
+                      DropdownMenuItem(
+                        value: target.value,
+                        child: Text(target.label),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _navigationTarget = value);
+                    }
+                  },
+                ),
+              ),
+
+            // Delay section
+            if (_selectedType == ActionType.delay)
+              _buildFieldCard(
+                title: 'Delay',
+                description:
+                    'Pauses before the next action in this button\'s sequence '
+                    'runs. Useful between launching an app and sending it '
+                    'keystrokes. Maximum 60,000 ms.',
+                child: TextFormField(
+                  controller: _commandController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Milliseconds',
+                    hintText: 'e.g. 500',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.timer_outlined),
+                    suffixText: 'ms',
+                  ),
+                  validator: (value) {
+                    final ms = int.tryParse((value ?? '').trim());
+                    if (ms == null || ms < 0) {
+                      return 'Enter a number of milliseconds';
+                    }
+                    if (ms > 60000) {
+                      return 'Maximum delay is 60,000 ms';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
             if (_selectedType == ActionType.plugin) _buildPluginSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Navigation targets: the relative moves plus every configured page.
+  List<({String value, String label})> _navigationTargets() {
+    return [
+      (value: 'next', label: 'Next page'),
+      (value: 'prev', label: 'Previous page'),
+      (value: 'first', label: 'First page'),
+      (value: 'last', label: 'Last page'),
+      for (final page in widget.server.pages)
+        (value: 'page:${page.id}', label: 'Page: ${page.name}'),
+    ];
+  }
+
+  /// A simple titled card wrapping a single form field.
+  Widget _buildFieldCard({
+    required String title,
+    required String description,
+    required Widget child,
+  }) {
+    final tokens = context.tokens;
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: tokens.radius.brMd),
+      child: Padding(
+        padding: EdgeInsets.all(tokens.space.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: tokens.space.sm),
+            Text(
+              description,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.tokens.color.textSecondary,
+                  ),
+            ),
+            SizedBox(height: tokens.space.lg),
+            child,
           ],
         ),
       ),

@@ -46,16 +46,21 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 
 ### 🎛️ Buttons, Tiles & Presets
 - **Built-in catalog**: Drop-in, cross-platform buttons grouped into Media, System, Apps, Web, Window, Clipboard and Navigation — no setup needed
+- **Toggle buttons**: Two-state buttons (e.g. Mute/Unmute) with a separate name, icon, color and action set per face — the active face is persisted and synced live to every device
+- **Hold actions**: A button can run a different action set when long-pressed on the device
+- **Multi-action sequences with delays**: Chain several actions on one button and insert pauses (up to 60 s) between steps
 - **Live tiles**: Show live system info on a tile (CPU, RAM, disk, uptime, clock, battery, network) and any plugin-streamed state
 - **Full-page picker**: Searchable, category-filtered grid; multi-select to add several buttons at once
 - **Test on the desktop**: Run a button on the server (no client needed) to verify it
-- **Client controls a real device**: Adjustable tile sizes, drag-to-reorder, dynamic "prompt" buttons
+- **Client controls a real device**: Adjustable tile sizes, drag-to-reorder, dynamic "prompt" buttons, jump-to-page navigation tiles
+- **Profile backup**: Export/import the entire button & page configuration as a JSON file
 
 ### 🎨 Enhanced UI/UX
 - **Material Design 3**: Modern, consistent design language across all platforms
 - **Smooth Animations**: Fluid transitions and responsive animations
 - **Dark/Light Themes**: Automatic system theme detection with manual override
 - **Responsive Design**: Optimized for different screen sizes and orientations
+- **Fullscreen & Orientation**: Immersive fullscreen mode plus portrait/landscape/auto orientation on the client
 - **Haptic Feedback**: Tactile feedback for better user interaction on mobile devices
 
 ### ♿ Accessibility Features

@@ -189,14 +189,15 @@ class ButtonGrid extends ConsumerWidget {
 
   /// Builds a single button widget with enhanced animations and accessibility
   Widget _buildButton(BuildContext context, Button button, WidgetRef ref) {
-    final buttonColor = _hexToColor(button.color);
+    // Toggle buttons render the face that's currently active on the server.
+    final buttonColor = _hexToColor(button.effectiveColor);
     final isConnected =
         ref.read(connectionStateProvider).status == ConnectionStatus.connected;
 
     // Resolve a live-tile binding: a bound state can drive the live value
     // (shown under the name) or swap the icon.
-    final label = button.name;
-    var icon = _getIconData(button.iconName);
+    final label = button.effectiveName;
+    var icon = _getIconData(button.effectiveIconName);
     String? liveValue;
     final binding = button.stateBinding;
     if (binding != null) {
@@ -253,6 +254,20 @@ class ButtonGrid extends ConsumerWidget {
           onButtonPressed!(button.id);
         }
       },
+      // Buttons with a hold action set get a distinct long-press gesture;
+      // others keep plain taps so holding doesn't change their behaviour.
+      onLongPress: button.longPressActions.isEmpty
+          ? null
+          : () {
+              if (!isConnected) {
+                _handleConnectionLoss(context, ref);
+                return;
+              }
+              AccessibilityUtils.announce(context, 'Held ${button.name}');
+              ref
+                  .read(connectionStateProvider.notifier)
+                  .pressButton(button.id, longPress: true);
+            },
       child: AnimatedButton(
         color: buttonColor,
         icon: icon,
@@ -272,11 +287,19 @@ class ButtonGrid extends ConsumerWidget {
       {};
 
   /// Switches the visible page for a [ActionType.navigatePage] button.
+  /// `page:<pageId>` jumps to a specific page; other targets are relative.
   void _navigatePage(WidgetRef ref, String target) {
     final pages = ref.read(pagesProvider);
     if (pages.isEmpty) return;
     final current = ref.read(selectedPageIndexProvider);
-    final next = resolveNavigationIndex(target, current, pages.length);
+    int next;
+    if (target.startsWith('page:')) {
+      final pageId = target.substring('page:'.length);
+      next = pages.indexWhere((p) => p.id == pageId);
+      if (next == -1) return; // Target page no longer exists.
+    } else {
+      next = resolveNavigationIndex(target, current, pages.length);
+    }
     if (next != current) {
       ref.read(selectedPageIndexProvider.notifier).set(next);
     }

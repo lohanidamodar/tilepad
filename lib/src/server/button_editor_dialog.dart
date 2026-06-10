@@ -543,6 +543,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         return 'Go to ${action.command} page';
       case ActionType.plugin:
         return 'Plugin: ${action.pluginActionId}';
+      case ActionType.delay:
+        return 'Wait ${action.command} ms';
     }
   }
 
@@ -673,6 +675,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         return 'Navigate Page';
       case ActionType.plugin:
         return 'Plugin Action';
+      case ActionType.delay:
+        return 'Delay';
     }
   }
 
@@ -699,6 +703,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         return Icons.swap_horiz;
       case ActionType.plugin:
         return Icons.extension;
+      case ActionType.delay:
+        return Icons.timer_outlined;
     }
   }
 

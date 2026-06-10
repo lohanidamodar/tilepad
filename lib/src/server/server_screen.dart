@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -620,6 +622,88 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
+  /// Saves the whole configuration (buttons + pages) to a JSON file the user
+  /// picks, for backup or moving to another machine.
+  Future<void> _exportProfile() async {
+    final location = await getSaveLocation(
+      suggestedName:
+          'marcodeck-profile-${DateTime.now().toIso8601String().split('T').first}.json',
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'MarcoDeck profile', extensions: ['json']),
+      ],
+    );
+    if (location == null || !mounted) return;
+    try {
+      await File(location.path).writeAsString(widget.server.exportProfile());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Profile exported to ${location.path}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: context.tokens.color.danger,
+        ),
+      );
+    }
+  }
+
+  /// Replaces the current configuration with a previously exported profile,
+  /// after an explicit confirmation.
+  Future<void> _importProfile() async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'MarcoDeck profile', extensions: ['json']),
+      ],
+    );
+    if (file == null || !mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Profile'),
+        content: const Text(
+          'Importing replaces ALL current buttons and pages with the '
+          'profile\'s contents. This cannot be undone. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Replace & Import'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    String? error;
+    try {
+      error = await widget.server.importProfile(await file.readAsString());
+    } catch (e) {
+      error = 'Could not read file: $e';
+    }
+    if (!mounted) return;
+    if (error == null) {
+      _refreshPages();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile imported')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Import failed: $error'),
+          backgroundColor: context.tokens.color.danger,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -674,6 +758,33 @@ class _ServerScreenState extends State<ServerScreen> {
             style: IconButton.styleFrom(
               backgroundColor: t.color.surfaceSubtle,
             ),
+          ),
+          SizedBox(width: t.space.sm),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: 'More',
+            onSelected: (value) {
+              if (value == 'export') _exportProfile();
+              if (value == 'import') _importProfile();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'export',
+                child: ListTile(
+                  leading: Icon(Icons.upload_file_outlined),
+                  title: Text('Export profile…'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'import',
+                child: ListTile(
+                  leading: Icon(Icons.download_outlined),
+                  title: Text('Import profile…'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
           SizedBox(width: t.space.sm),
         ],

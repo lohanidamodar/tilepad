@@ -50,6 +50,8 @@ String _summary(models.Button button) {
       return 'Go to ${action.command} page';
     case models.ActionType.plugin:
       return 'Plugin: ${action.pluginActionId}';
+    case models.ActionType.delay:
+      return 'Wait ${action.command} ms';
   }
 }
 

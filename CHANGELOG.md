@@ -5,6 +5,28 @@ All notable changes to the MarcoDeck project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### 🎛️ Buttons & actions
+- **Toggle (two-state) buttons**: a button can carry a second face (name, icon, color and its own action set) and alternates faces on each press — e.g. Mute/Unmute, Start/Stop recording. The active face is tracked on the server, persisted across restarts, and synced live to every connected device
+- **Hold (long-press) actions**: a button can run a different action set when held on the device instead of tapped, with distinct haptic feedback
+- **Delay action**: pause a multi-action sequence for up to 60 s (e.g. launch an app, wait, then send it keystrokes)
+- **Navigate to a specific page**: page-navigation buttons can now jump straight to a named page, not just next/prev/first/last
+
+#### 🖥️ Server
+- **Profile export/import**: back up the whole button/page configuration to a JSON file and restore or move it to another machine (⋮ menu on the dashboard)
+
+#### 📱 Client
+- **Fullscreen mode**: hide the status/navigation bars so the deck uses the whole screen (Settings → Display)
+- **Screen orientation setting**: portrait, landscape or auto-rotate — landscape suits tablets mounted sideways
+
+### Fixed
+- The action editor now has proper forms for **Open URL**, **Media Key** and **Navigate Page** actions; previously selecting these types saved an action with an empty target that did nothing
+- Unknown message types received from a newer peer no longer crash the message decode loop
+- Removed the unused `server_screen_new.dart` dead code
+
 ## [1.2.0] - 2026-06-03
 
 ### Added

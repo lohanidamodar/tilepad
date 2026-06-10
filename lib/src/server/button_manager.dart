@@ -161,6 +161,74 @@ class ButtonManager {
     );
   }
 
+  // --- Profile import / export ------------------------------------------------
+
+  /// Serialises the whole configuration (library + pages) as a portable,
+  /// pretty-printed JSON profile for backup or sharing.
+  String exportProfile() {
+    return const JsonEncoder.withIndent('  ').convert({
+      'marcoDeckProfile': 1,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'buttons': _library.map((b) => b.toJson()).toList(),
+      'pages': _pages.map(_pageToStorage).toList(),
+    });
+  }
+
+  /// Replaces the library and pages with the contents of an exported profile.
+  /// Returns an error message, or null on success. The previous configuration
+  /// is kept untouched if the profile fails to parse.
+  Future<String?> importProfile(String json) async {
+    final List<Button> buttons;
+    final List<Page> pages;
+    try {
+      final data = jsonDecode(json);
+      if (data is! Map<String, dynamic>) {
+        return 'Not a MarcoDeck profile (expected a JSON object)';
+      }
+      buttons = [
+        for (final b in (data['buttons'] as List<dynamic>? ?? const []))
+          Button.fromJson(b as Map<String, dynamic>),
+      ];
+      if (buttons.isEmpty) {
+        return 'Profile contains no buttons';
+      }
+      // Resolve pages against the imported library (same shape as storage).
+      final library = {for (final b in buttons) b.id: b};
+      pages = [];
+      for (final p in (data['pages'] as List<dynamic>? ?? const [])) {
+        final map = p as Map<String, dynamic>;
+        final tiles = <Tile>[];
+        for (final t in (map['tiles'] as List<dynamic>? ?? const [])) {
+          final tileMap = t as Map<String, dynamic>;
+          final button = library[tileMap['buttonId'] as String? ?? ''];
+          if (button == null) continue;
+          tiles.add(Tile(
+            id: tileMap['id'] as String?,
+            button: button,
+            colSpan: tileMap['colSpan'] as int? ?? 1,
+            rowSpan: tileMap['rowSpan'] as int? ?? 1,
+          ));
+        }
+        pages.add(Page(
+          id: map['id'] as String?,
+          name: map['name'] as String? ?? 'Untitled',
+          order: map['order'] as int? ?? pages.length,
+          columns: map['columns'] as int? ?? 4,
+          tiles: tiles,
+        ));
+      }
+    } catch (e) {
+      return 'Could not read profile: $e';
+    }
+
+    _library
+      ..clear()
+      ..addAll(buttons);
+    _pages = pages;
+    await saveConfig();
+    return null;
+  }
+
   Future<Directory> _getConfigDirectory() async {
     final base = (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
         ? await getApplicationSupportDirectory()

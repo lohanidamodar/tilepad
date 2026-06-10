@@ -29,6 +29,10 @@ enum MessageType {
   /// Live plugin state update forwarded to clients (for live tiles)
   stateUpdate,
 
+  /// A toggle button flipped faces; payload is `{buttonId, toggled}` so
+  /// clients re-render that button without a full pages refresh
+  buttonStateUpdate,
+
   /// Command execution result
   commandResult,
 
@@ -59,10 +63,14 @@ class Message {
   /// Creates a new message with the given type and payload
   Message({required this.type, this.payload});
 
-  /// Creates a message from a JSON map
+  /// Creates a message from a JSON map.
+  ///
+  /// Unknown type names (e.g. from a newer peer) map to [MessageType.error]
+  /// instead of throwing, so a version skew can't kill the connection loop.
   factory Message.fromJson(Map<String, dynamic> json) {
     return Message(
-      type: MessageType.values.byName(json['type']),
+      type: MessageType.values.asNameMap()[json['type'] as String?] ??
+          MessageType.error,
       payload: json['payload'],
     );
   }

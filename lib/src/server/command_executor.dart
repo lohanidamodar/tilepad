@@ -24,10 +24,15 @@ class CommandExecutor {
   /// Optional bridge to the plugin host for [ActionType.plugin] actions.
   PluginActionInvoker? pluginInvoker;
 
-  /// Executes a button with all of its actions in sequence
-  Future<CommandResult> execute(Button button) async {
+  /// Executes a button with all of its actions in sequence. Toggle buttons
+  /// run the actions of their currently active face.
+  Future<CommandResult> execute(Button button) =>
+      executeActions(button.effectiveActions);
+
+  /// Executes a list of actions in sequence and combines their results.
+  Future<CommandResult> executeActions(List<ButtonAction> actions) async {
     // If there are no actions, return an error
-    if (button.actions.isEmpty) {
+    if (actions.isEmpty) {
       return CommandResult(
         success: false,
         output: '',
@@ -35,14 +40,14 @@ class CommandExecutor {
       );
     }
 
-    // For a single action button, use simple execution
-    if (button.actions.length == 1) {
-      return await executeAction(button.actions.first);
+    // For a single action, use simple execution
+    if (actions.length == 1) {
+      return await executeAction(actions.first);
     }
 
     // For multiple actions, execute them in sequence and combine results
     final results = <CommandResult>[];
-    for (final action in button.actions) {
+    for (final action in actions) {
       final result = await executeAction(action);
       results.add(result);
 
@@ -105,7 +110,27 @@ class CommandExecutor {
 
       case ActionType.plugin:
         return await executePluginAction(action);
+
+      case ActionType.delay:
+        return await executeDelay(action.command);
     }
+  }
+
+  /// Waits for the given number of milliseconds (stored as the action's
+  /// command). Used to pace multi-action sequences; capped at 60 seconds so a
+  /// typo can't hang the press pipeline.
+  Future<CommandResult> executeDelay(String milliseconds) async {
+    final ms = int.tryParse(milliseconds.trim());
+    if (ms == null || ms < 0) {
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'Invalid delay: "$milliseconds" is not a number of milliseconds',
+      );
+    }
+    final clamped = ms.clamp(0, 60000);
+    await Future.delayed(Duration(milliseconds: clamped));
+    return CommandResult(success: true, output: '', error: '');
   }
 
   /// Opens a URL (or file/folder path) with the OS default handler.

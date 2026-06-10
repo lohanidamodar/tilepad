@@ -686,8 +686,12 @@ class MarcoServer {
 
     try {
       final CommandResult result;
+      final isLongPress = payload['longPress'] == true;
       final promptType = button.promptActionType;
-      if (promptType == ActionType.promptText) {
+      if (isLongPress && button.longPressActions.isNotEmpty) {
+        // Held on the device: run the alternate (long-press) action set.
+        result = await _commandExecutor.executeActions(button.longPressActions);
+      } else if (promptType == ActionType.promptText) {
         // Type the text the client supplied at press time.
         final text = (payload['text'] as String?) ?? '';
         result = await _commandExecutor.executeTypeText(text);
@@ -706,6 +710,13 @@ class MarcoServer {
         result = await _commandExecutor.activateWindow(windowId);
       } else {
         result = await _commandExecutor.execute(button);
+        // A successful tap on a toggle button flips its face; persist the new
+        // state and tell every client so all devices render the same face.
+        if (!isLongPress && button.toggleState != null && result.success) {
+          button.toggled = !button.toggled;
+          _buttonManager.saveConfig();
+          _broadcastButtonState(button);
+        }
       }
       _webSocketService.sendMessageToClient(
         clientId,
@@ -740,6 +751,12 @@ class MarcoServer {
     try {
       // Use the command executor to execute the button's actions
       final result = await _commandExecutor.execute(button);
+      // Keep toggle faces in sync when run from the desktop too.
+      if (button.toggleState != null && result.success) {
+        button.toggled = !button.toggled;
+        _buttonManager.saveConfig();
+        _broadcastButtonState(button);
+      }
       return result;
     } catch (e) {
       // If an exception occurs, return a failed result
@@ -833,6 +850,29 @@ class MarcoServer {
     final result = _buttonManager.reorderTiles(pageId, oldIndex, newIndex);
     if (result) _broadcastPages();
     return result;
+  }
+
+  /// Broadcasts a toggle button's new face to all connected clients.
+  void _broadcastButtonState(Button button) {
+    if (_isRunning) {
+      _webSocketService.broadcast(
+        Message(
+          type: MessageType.buttonStateUpdate,
+          payload: {'buttonId': button.id, 'toggled': button.toggled},
+        ),
+      );
+    }
+  }
+
+  /// Exports the button library and pages as a JSON profile string.
+  String exportProfile() => _buttonManager.exportProfile();
+
+  /// Replaces the button library and pages with an imported JSON profile.
+  /// Returns an error message, or null on success.
+  Future<String?> importProfile(String json) async {
+    final error = await _buttonManager.importProfile(json);
+    if (error == null) _broadcastPages();
+    return error;
   }
 
   /// Broadcasts the pages and buttons to all connected clients

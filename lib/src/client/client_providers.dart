@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -106,6 +107,21 @@ class PagesNotifier extends Notifier<List<Page>> {
   List<Page> build() => [];
 
   void set(List<Page> value) => state = value;
+
+  /// Flips a toggle button's face everywhere it's placed (server sent a
+  /// [MessageType.buttonStateUpdate]). Re-emits the list so tiles rebuild.
+  void setButtonToggled(String buttonId, bool toggled) {
+    var changed = false;
+    for (final page in state) {
+      for (final tile in page.tiles) {
+        if (tile.buttonId == buttonId) {
+          tile.button.toggled = toggled;
+          changed = true;
+        }
+      }
+    }
+    if (changed) state = List.of(state);
+  }
 }
 
 /// The latest live value of a plugin state, used to drive live tiles.
@@ -297,6 +313,117 @@ class KeepAwakeNotifier extends Notifier<bool> {
     }
   }
 }
+
+/// Notifier for the fullscreen (immersive) display setting. When enabled the
+/// system status and navigation bars are hidden so the deck uses the whole
+/// screen, like a hardware Stream Deck.
+class FullscreenNotifier extends Notifier<bool> {
+  static const _prefKey = 'fullscreen_mode';
+
+  @override
+  bool build() {
+    _loadPreference();
+    return false;
+  }
+
+  Future<void> _loadPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fullscreen = prefs.getBool(_prefKey) ?? false;
+      state = fullscreen;
+      _apply(fullscreen);
+    } catch (e) {
+      debugPrint('Error loading fullscreen preference: $e');
+    }
+  }
+
+  Future<void> setFullscreen(bool value) async {
+    state = value;
+    _apply(value);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKey, value);
+    } catch (e) {
+      debugPrint('Error saving fullscreen preference: $e');
+    }
+  }
+
+  void _apply(bool fullscreen) {
+    SystemChrome.setEnabledSystemUIMode(
+      fullscreen ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+    );
+  }
+}
+
+/// How the client app should orient itself.
+enum DeckOrientation { auto, portrait, landscape }
+
+/// Notifier for the screen orientation setting. Defaults to portrait (the
+/// historical behaviour); landscape suits tablets mounted sideways.
+class DeckOrientationNotifier extends Notifier<DeckOrientation> {
+  static const _prefKey = 'deck_orientation';
+
+  @override
+  DeckOrientation build() {
+    _loadPreference();
+    return DeckOrientation.portrait;
+  }
+
+  Future<void> _loadPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(_prefKey);
+      final orientation = DeckOrientation.values.asNameMap()[stored] ??
+          DeckOrientation.portrait;
+      state = orientation;
+      _apply(orientation);
+    } catch (e) {
+      debugPrint('Error loading orientation preference: $e');
+    }
+  }
+
+  Future<void> setOrientation(DeckOrientation value) async {
+    state = value;
+    _apply(value);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefKey, value.name);
+    } catch (e) {
+      debugPrint('Error saving orientation preference: $e');
+    }
+  }
+
+  void _apply(DeckOrientation orientation) {
+    switch (orientation) {
+      case DeckOrientation.auto:
+        SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+        break;
+      case DeckOrientation.portrait:
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+        ]);
+        break;
+      case DeckOrientation.landscape:
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+        break;
+    }
+  }
+}
+
+/// Provider for the fullscreen display setting
+final fullscreenProvider = NotifierProvider<FullscreenNotifier, bool>(
+  FullscreenNotifier.new,
+);
+
+/// Provider for the screen orientation setting
+final deckOrientationProvider =
+    NotifierProvider<DeckOrientationNotifier, DeckOrientation>(
+      DeckOrientationNotifier.new,
+    );
 
 /// Notifier for server connections
 class ServerConnectionsNotifier extends Notifier<List<ServerConnection>> {
@@ -910,6 +1037,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     String? key,
     List<String>? modifiers,
     String? windowId,
+    bool longPress = false,
   }) {
     if (state.status == ConnectionStatus.connected) {
       final payload = <String, dynamic>{'buttonId': buttonId};
@@ -917,6 +1045,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
       if (key != null) payload['key'] = key;
       if (modifiers != null) payload['modifiers'] = modifiers;
       if (windowId != null) payload['windowId'] = windowId;
+      if (longPress) payload['longPress'] = true;
       _webSocketService.sendMessage(
         Message(type: MessageType.buttonPress, payload: payload),
       );
@@ -1004,8 +1133,14 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
         _handleStateUpdate(message.payload);
         break;
 
+      case MessageType.buttonStateUpdate:
+        _handleButtonStateUpdate(message.payload);
+        break;
+
       case MessageType.error:
-        debugPrint('Error from server: ${message.payload['error']}');
+        final payload = message.payload;
+        final error = payload is Map ? payload['error'] : payload;
+        debugPrint('Error from server: $error');
         break;
 
       default:
@@ -1050,6 +1185,19 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
       }
     } catch (e) {
       debugPrint('Error handling pages response: $e');
+    }
+  }
+
+  /// Handles a toggle button flipping faces on the server.
+  void _handleButtonStateUpdate(dynamic payload) {
+    try {
+      final buttonId = payload['buttonId'] as String?;
+      if (buttonId == null) return;
+      ref
+          .read(pagesProvider.notifier)
+          .setButtonToggled(buttonId, payload['toggled'] == true);
+    } catch (e) {
+      debugPrint('Error handling button state update: $e');
     }
   }
 

@@ -13,7 +13,9 @@ import '../design/design.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Force portrait orientation for the client app
+  // Start in portrait; the orientation/fullscreen settings providers re-apply
+  // the user's saved preference as soon as the app boots (see
+  // _EagerInitialization).
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -85,6 +87,10 @@ class _EagerInitialization extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(providers.serverConnectionsProvider.notifier);
+    // Activate display preferences early so the saved fullscreen/orientation
+    // choices apply from the first frame, not the first Settings visit.
+    ref.watch(providers.fullscreenProvider.notifier);
+    ref.watch(providers.deckOrientationProvider.notifier);
     return child;
   }
 }
