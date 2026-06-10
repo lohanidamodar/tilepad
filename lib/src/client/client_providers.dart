@@ -331,7 +331,9 @@ class FullscreenNotifier extends Notifier<bool> {
       final prefs = await SharedPreferences.getInstance();
       final fullscreen = prefs.getBool(_prefKey) ?? false;
       state = fullscreen;
-      _apply(fullscreen);
+      // Only take over the UI mode when fullscreen is actually on; users who
+      // never touched the setting keep the platform's default chrome.
+      if (fullscreen) _apply(true);
     } catch (e) {
       debugPrint('Error loading fullscreen preference: $e');
     }
@@ -349,9 +351,15 @@ class FullscreenNotifier extends Notifier<bool> {
   }
 
   void _apply(bool fullscreen) {
-    SystemChrome.setEnabledSystemUIMode(
-      fullscreen ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
-    );
+    if (fullscreen) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      // Restore all system overlays (the pre-fullscreen default).
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.manual,
+        overlays: SystemUiOverlay.values,
+      );
+    }
   }
 }
 
@@ -376,7 +384,9 @@ class DeckOrientationNotifier extends Notifier<DeckOrientation> {
       final orientation = DeckOrientation.values.asNameMap()[stored] ??
           DeckOrientation.portrait;
       state = orientation;
-      _apply(orientation);
+      // Portrait is already applied by main() at launch; skip the redundant
+      // platform-channel call on the startup path.
+      if (orientation != DeckOrientation.portrait) _apply(orientation);
     } catch (e) {
       debugPrint('Error loading orientation preference: $e');
     }
@@ -1226,6 +1236,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
           .set(
             CommandResultEvent(
               buttonId: payload['buttonId'],
+              buttonName: payload['buttonName'] as String?,
               success: payload['success'],
               output: payload['output'],
               error: payload['error'],
@@ -1314,6 +1325,11 @@ class CommandResultEvent {
   /// The ID of the button that was pressed
   final String buttonId;
 
+  /// The name of the button face that ran, as reported by the server. For
+  /// toggle buttons this names the face active at press time (the local
+  /// button may have flipped by the time the result arrives).
+  final String? buttonName;
+
   /// Whether the command was successful
   final bool success;
 
@@ -1326,6 +1342,7 @@ class CommandResultEvent {
   /// Creates a new command result event
   CommandResultEvent({
     required this.buttonId,
+    this.buttonName,
     required this.success,
     required this.output,
     required this.error,

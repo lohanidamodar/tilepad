@@ -103,6 +103,26 @@ void main() {
     });
   });
 
+  group('legacy button JSON', () {
+    test('keeps toggle and long-press fields in the single-action format', () {
+      final button = Button.fromJson({
+        'id': 'b1',
+        'name': 'Mute',
+        'iconName': '1',
+        'type': 'command',
+        'command': 'mute',
+        'toggleState': {'name': 'Unmute'},
+        'toggled': true,
+        'longPressActions': [
+          {'type': 'command', 'command': 'hold'},
+        ],
+      });
+      expect(button.toggleState?.name, 'Unmute');
+      expect(button.toggled, isTrue);
+      expect(button.longPressActions.single.command, 'hold');
+    });
+  });
+
   group('delay actions', () {
     test('round-trips with milliseconds in command', () {
       final action = ButtonAction(type: ActionType.delay, command: '1500');

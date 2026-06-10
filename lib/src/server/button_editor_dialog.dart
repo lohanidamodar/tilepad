@@ -306,19 +306,8 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
       _selectedIcon = widget.button!.iconName;
       _selectedColor = widget.button!.color;
 
-      // Copy actions
-      _actions =
-          widget.button!.actions
-              .map(
-                (action) => ButtonAction(
-                  id: action.id,
-                  type: action.type,
-                  command: action.command,
-                  key: action.key,
-                  modifiers: List<String>.from(action.modifiers),
-                ),
-              )
-              .toList();
+      // Copy actions (deep copy keeps plugin fields and settings intact)
+      _actions = widget.button!.actions.map((a) => a.copy()).toList();
     }
   }
 
@@ -351,6 +340,12 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
         iconName: _selectedIcon,
         actions: _actions,
         color: _selectedColor,
+        // This dialog doesn't edit these, so carry them through unchanged
+        // instead of silently stripping them from the button.
+        stateBinding: widget.button?.stateBinding,
+        toggleState: widget.button?.toggleState,
+        toggled: widget.button?.toggled ?? false,
+        longPressActions: widget.button?.longPressActions,
       );
 
       Navigator.of(context).pop(button);
@@ -540,7 +535,9 @@ class _ButtonEditorDialogState extends State<ButtonEditorDialog> {
       case ActionType.mediaKey:
         return 'Media key: ${action.key}';
       case ActionType.navigatePage:
-        return 'Go to ${action.command} page';
+        return action.command.startsWith('page:')
+            ? 'Go to a specific page'
+            : 'Go to ${action.command} page';
       case ActionType.plugin:
         return 'Plugin: ${action.pluginActionId}';
       case ActionType.delay:

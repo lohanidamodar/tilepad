@@ -103,6 +103,21 @@ class ButtonAction {
     );
   }
 
+  /// Deep-copies this action (same id) so editors can mutate a working copy
+  /// without touching the stored button until save.
+  ButtonAction copy() {
+    return ButtonAction(
+      id: id,
+      type: type,
+      command: command,
+      key: key,
+      modifiers: List<String>.from(modifiers),
+      pluginId: pluginId,
+      pluginActionId: pluginActionId,
+      settings: Map<String, dynamic>.from(settings),
+    );
+  }
+
   /// Converts this action to a JSON map
   Map<String, dynamic> toJson() {
     return {
@@ -386,6 +401,9 @@ class Button {
             const [],
         color: json['color'] as String? ?? '#4285F4',
         stateBinding: stateBinding,
+        toggleState: toggleState,
+        toggled: toggled,
+        longPressActions: longPressActions,
       );
     }
   }

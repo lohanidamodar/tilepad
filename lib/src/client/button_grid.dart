@@ -12,10 +12,21 @@ import 'client_providers.dart';
 
 /// Computes the page index a navigation [target] should switch to, given the
 /// [current] index and total page [count]. `next`/`prev` wrap around; an
-/// `index:N` or bare integer target jumps to a clamped absolute page.
-int resolveNavigationIndex(String target, int current, int count) {
+/// `index:N` or bare integer target jumps to a clamped absolute page; a
+/// `page:<pageId>` target jumps to that page's position in [pageIds] (staying
+/// put if the page no longer exists).
+int resolveNavigationIndex(
+  String target,
+  int current,
+  int count, {
+  List<String> pageIds = const [],
+}) {
   if (count <= 0) return current;
   final last = count - 1;
+  if (target.startsWith('page:')) {
+    final index = pageIds.indexOf(target.substring('page:'.length));
+    return index == -1 ? current : index.clamp(0, last);
+  }
   switch (target) {
     case 'next':
       return current >= last ? 0 : current + 1;
@@ -231,7 +242,7 @@ class ButtonGrid extends ConsumerWidget {
         // Page-navigation buttons act entirely on the client — no server round
         // trip, and they work even while reconnecting.
         if (button.navigationTarget != null) {
-          AccessibilityUtils.announce(context, 'Activated ${button.name}');
+          AccessibilityUtils.announce(context, 'Activated ${button.effectiveName}');
           _navigatePage(ref, button.navigationTarget!);
           return;
         }
@@ -245,7 +256,7 @@ class ButtonGrid extends ConsumerWidget {
 
         // Note: AccessibleButton already provides light haptic feedback on
         // tap-down, so we avoid a duplicate buzz here.
-        AccessibilityUtils.announce(context, 'Activated ${button.name}');
+        AccessibilityUtils.announce(context, 'Activated ${button.effectiveName}');
 
         if (button.isPrompt) {
           // Dynamic button: ask the user what to send, then send it.
@@ -263,7 +274,7 @@ class ButtonGrid extends ConsumerWidget {
                 _handleConnectionLoss(context, ref);
                 return;
               }
-              AccessibilityUtils.announce(context, 'Held ${button.name}');
+              AccessibilityUtils.announce(context, 'Held ${button.effectiveName}');
               ref
                   .read(connectionStateProvider.notifier)
                   .pressButton(button.id, longPress: true);
@@ -292,14 +303,12 @@ class ButtonGrid extends ConsumerWidget {
     final pages = ref.read(pagesProvider);
     if (pages.isEmpty) return;
     final current = ref.read(selectedPageIndexProvider);
-    int next;
-    if (target.startsWith('page:')) {
-      final pageId = target.substring('page:'.length);
-      next = pages.indexWhere((p) => p.id == pageId);
-      if (next == -1) return; // Target page no longer exists.
-    } else {
-      next = resolveNavigationIndex(target, current, pages.length);
-    }
+    final next = resolveNavigationIndex(
+      target,
+      current,
+      pages.length,
+      pageIds: [for (final p in pages) p.id],
+    );
     if (next != current) {
       ref.read(selectedPageIndexProvider.notifier).set(next);
     }

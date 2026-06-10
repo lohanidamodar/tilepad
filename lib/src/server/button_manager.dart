@@ -109,14 +109,26 @@ class ButtonManager {
     }
   }
 
-  Future<void> saveConfig() async {
+  /// Chains config writes so concurrent fire-and-forget saves (e.g. two
+  /// toggle presses arriving together) can never interleave writes to
+  /// pages.json and corrupt it.
+  Future<void> _saveQueue = Future.value();
+
+  Future<void> saveConfig() {
+    // Serialise the snapshot now, write in turn: a save always persists the
+    // state at the time it was requested, in request order.
+    final data = jsonEncode({
+      'buttons': _library.map((b) => b.toJson()).toList(),
+      'pages': _pages.map(_pageToStorage).toList(),
+    });
+    _saveQueue = _saveQueue.then((_) => _writeConfig(data));
+    return _saveQueue;
+  }
+
+  Future<void> _writeConfig(String data) async {
     try {
       _configPath ??= '${(await _getConfigDirectory()).path}/pages.json';
-      final data = {
-        'buttons': _library.map((b) => b.toJson()).toList(),
-        'pages': _pages.map(_pageToStorage).toList(),
-      };
-      await File(_configPath!).writeAsString(jsonEncode(data));
+      await File(_configPath!).writeAsString(data);
     } catch (e) {
       debugPrint('Error saving configuration: $e');
     }
@@ -137,13 +149,18 @@ class ButtonManager {
             .toList(),
       };
 
-  /// Rebuilds a page from normalised storage, resolving tiles against the
-  /// library and dropping tiles whose button no longer exists.
-  Page? _pageFromStorage(Map<String, dynamic> json) {
+  /// Rebuilds a page from normalised storage, resolving tiles via [resolve]
+  /// (the library by default) and dropping tiles whose button no longer
+  /// exists.
+  Page? _pageFromStorage(
+    Map<String, dynamic> json, {
+    Button? Function(String id)? resolve,
+  }) {
+    resolve ??= getButton;
     final tiles = <Tile>[];
     for (final t in (json['tiles'] as List<dynamic>? ?? const [])) {
       final map = t as Map<String, dynamic>;
-      final button = getButton(map['buttonId'] as String? ?? '');
+      final button = resolve(map['buttonId'] as String? ?? '');
       if (button == null) continue;
       tiles.add(Tile(
         id: map['id'] as String?,
@@ -196,26 +213,16 @@ class ButtonManager {
       final library = {for (final b in buttons) b.id: b};
       pages = [];
       for (final p in (data['pages'] as List<dynamic>? ?? const [])) {
-        final map = p as Map<String, dynamic>;
-        final tiles = <Tile>[];
-        for (final t in (map['tiles'] as List<dynamic>? ?? const [])) {
-          final tileMap = t as Map<String, dynamic>;
-          final button = library[tileMap['buttonId'] as String? ?? ''];
-          if (button == null) continue;
-          tiles.add(Tile(
-            id: tileMap['id'] as String?,
-            button: button,
-            colSpan: tileMap['colSpan'] as int? ?? 1,
-            rowSpan: tileMap['rowSpan'] as int? ?? 1,
-          ));
-        }
-        pages.add(Page(
-          id: map['id'] as String?,
-          name: map['name'] as String? ?? 'Untitled',
-          order: map['order'] as int? ?? pages.length,
-          columns: map['columns'] as int? ?? 4,
-          tiles: tiles,
-        ));
+        final page = _pageFromStorage(
+          p as Map<String, dynamic>,
+          resolve: (id) => library[id],
+        );
+        if (page != null) pages.add(page);
+      }
+      if (pages.isEmpty) {
+        // Refuse rather than silently replacing the deck with zero pages
+        // (e.g. a truncated or hand-edited file).
+        return 'Profile contains no pages';
       }
     } catch (e) {
       return 'Could not read profile: $e';

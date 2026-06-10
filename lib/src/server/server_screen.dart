@@ -282,18 +282,28 @@ class _ServerScreenState extends State<ServerScreen> {
 
   /// Refreshes the list of pages and buttons
   void _refreshPages() {
+    // Before the first start the button manager hasn't loaded anything yet,
+    // so there is nothing to show.
     if (widget.server.isRunning) {
-      setState(() {
-        _pages = widget.server.pages;
-
-        if (_selectedPage == null ||
-            !_pages.any((p) => p.id == _selectedPage!.id)) {
-          _selectedPage = _pages.isNotEmpty ? _pages.first : null;
-        } else {
-          _selectedPage = _pages.firstWhere((p) => p.id == _selectedPage!.id);
-        }
-      });
+      _applyPages();
     }
+  }
+
+  /// Syncs the local page list (and selection) with the server's current
+  /// configuration. Unlike [_refreshPages] this works while the server is
+  /// stopped — needed after a profile import so the dashboard doesn't keep
+  /// showing the replaced configuration.
+  void _applyPages() {
+    setState(() {
+      _pages = widget.server.pages;
+
+      if (_selectedPage == null ||
+          !_pages.any((p) => p.id == _selectedPage!.id)) {
+        _selectedPage = _pages.isNotEmpty ? _pages.first : null;
+      } else {
+        _selectedPage = _pages.firstWhere((p) => p.id == _selectedPage!.id);
+      }
+    });
   }
 
   /// Shows a dialog to add or edit a page
@@ -690,7 +700,9 @@ class _ServerScreenState extends State<ServerScreen> {
     }
     if (!mounted) return;
     if (error == null) {
-      _refreshPages();
+      // Apply directly so the dashboard updates even while the server is
+      // stopped (the import has already replaced the configuration).
+      _applyPages();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile imported')),
       );

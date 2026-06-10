@@ -330,16 +330,24 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
       _selectedType = widget.action!.type;
       _commandController.text = widget.action!.command;
 
+      // Snap unknown stored values (deleted page targets, keys from
+      // hand-edited profiles) to the dropdown defaults so what the form shows
+      // is exactly what Save persists.
       if (widget.action!.type == ActionType.mediaKey &&
           widget.action!.key.isNotEmpty) {
-        _selectedMediaKey = widget.action!.key;
+        _selectedMediaKey = _mediaKeys.any((k) => k.value == widget.action!.key)
+            ? widget.action!.key
+            : 'playPause';
       } else if (widget.action!.key.isNotEmpty) {
         _selectedKey = widget.action!.key;
       }
 
       if (widget.action!.type == ActionType.navigatePage &&
           widget.action!.command.isNotEmpty) {
-        _navigationTarget = widget.action!.command;
+        _navigationTarget = _navigationTargets()
+                .any((t) => t.value == widget.action!.command)
+            ? widget.action!.command
+            : 'next';
       }
 
       if (widget.action!.modifiers.isNotEmpty) {
@@ -1054,10 +1062,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                 description:
                     'Presses a media transport or volume key on the server.',
                 child: DropdownButtonFormField<String>(
-                  initialValue: _mediaKeys
-                          .any((k) => k.value == _selectedMediaKey)
-                      ? _selectedMediaKey
-                      : 'playPause',
+                  initialValue: _selectedMediaKey,
                   decoration: const InputDecoration(
                     labelText: 'Key',
                     border: OutlineInputBorder(),
@@ -1080,35 +1085,39 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
 
             // Navigate-page section
             if (_selectedType == ActionType.navigatePage)
-              _buildFieldCard(
-                title: 'Navigate Page',
-                description:
-                    'Switches the page shown on the device. Works even while '
-                    'the device is reconnecting.',
-                child: DropdownButtonFormField<String>(
-                  initialValue: _navigationTargets()
-                          .any((t) => t.value == _navigationTarget)
-                      ? _navigationTarget
-                      : 'next',
-                  decoration: const InputDecoration(
-                    labelText: 'Go to',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.swap_horiz),
+              Builder(builder: (context) {
+                final targets = _navigationTargets();
+                final value =
+                    targets.any((t) => t.value == _navigationTarget)
+                        ? _navigationTarget
+                        : 'next';
+                return _buildFieldCard(
+                  title: 'Navigate Page',
+                  description:
+                      'Switches the page shown on the device. Works even '
+                      'while the device is reconnecting.',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: value,
+                    decoration: const InputDecoration(
+                      labelText: 'Go to',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.swap_horiz),
+                    ),
+                    items: [
+                      for (final target in targets)
+                        DropdownMenuItem(
+                          value: target.value,
+                          child: Text(target.label),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _navigationTarget = value);
+                      }
+                    },
                   ),
-                  items: [
-                    for (final target in _navigationTargets())
-                      DropdownMenuItem(
-                        value: target.value,
-                        child: Text(target.label),
-                      ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _navigationTarget = value);
-                    }
-                  },
-                ),
-              ),
+                );
+              }),
 
             // Delay section
             if (_selectedType == ActionType.delay)

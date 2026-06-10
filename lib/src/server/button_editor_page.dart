@@ -99,22 +99,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
   /// Deep-copies actions so editing doesn't mutate the stored button until
   /// save.
-  List<ButtonAction> _copyActions(List<ButtonAction> actions) {
-    return actions
-        .map(
-          (action) => ButtonAction(
-            id: action.id,
-            type: action.type,
-            command: action.command,
-            key: action.key,
-            modifiers: List<String>.from(action.modifiers),
-            pluginId: action.pluginId,
-            pluginActionId: action.pluginActionId,
-            settings: Map<String, dynamic>.from(action.settings),
-          ),
-        )
-        .toList();
-  }
+  List<ButtonAction> _copyActions(List<ButtonAction> actions) =>
+      actions.map((a) => a.copy()).toList();
 
   @override
   void dispose() {
@@ -559,8 +545,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                                 builder: (context) => const IconPickerDialog(),
                               );
                               if (result != null) {
-                                setState(() => _toggleIcon =
-                                    result.codePoint.toString());
+                                setState(() =>
+                                    _toggleIcon = MacroIcons.idFor(result));
                               }
                             },
                             icon: const Icon(Icons.search),

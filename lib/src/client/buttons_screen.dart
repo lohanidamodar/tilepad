@@ -212,7 +212,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   /// output to show or an error to inspect.
   void _handleCommandResult(BuildContext context, CommandResultEvent result) {
     final tokens = context.tokens;
-    final name = _buttonName(result.buttonId);
+    // Prefer the server-reported face name: a toggle button may have flipped
+    // locally by the time the result arrives, so a lookup would name the
+    // wrong face.
+    final name = result.buttonName ?? _buttonName(result.buttonId);
     final hasDetail = result.success ? result.output.trim().isNotEmpty : true;
 
     AccessibilityUtils.provideFeedback(

@@ -47,7 +47,9 @@ String _summary(models.Button button) {
     case models.ActionType.mediaKey:
       return 'Media: ${action.key}';
     case models.ActionType.navigatePage:
-      return 'Go to ${action.command} page';
+      return action.command.startsWith('page:')
+          ? 'Go to a specific page'
+          : 'Go to ${action.command} page';
     case models.ActionType.plugin:
       return 'Plugin: ${action.pluginActionId}';
     case models.ActionType.delay:

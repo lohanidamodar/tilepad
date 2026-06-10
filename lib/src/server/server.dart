@@ -684,13 +684,24 @@ class MarcoServer {
       return;
     }
 
+    // Capture the face name before execution: a successful toggle press flips
+    // the face, and the result toast should name the face that actually ran.
+    final pressedName = button.effectiveName;
     try {
       final CommandResult result;
       final isLongPress = payload['longPress'] == true;
       final promptType = button.promptActionType;
-      if (isLongPress && button.longPressActions.isNotEmpty) {
-        // Held on the device: run the alternate (long-press) action set.
-        result = await _commandExecutor.executeActions(button.longPressActions);
+      if (isLongPress) {
+        // Held on the device: run the alternate (long-press) action set. If
+        // the device's config is stale and the hold actions were removed,
+        // refuse rather than surprising the user with the tap actions.
+        result = button.longPressActions.isNotEmpty
+            ? await _commandExecutor.executeActions(button.longPressActions)
+            : CommandResult(
+                success: false,
+                output: '',
+                error: 'This button no longer has hold actions',
+              );
       } else if (promptType == ActionType.promptText) {
         // Type the text the client supplied at press time.
         final text = (payload['text'] as String?) ?? '';
@@ -710,20 +721,17 @@ class MarcoServer {
         result = await _commandExecutor.activateWindow(windowId);
       } else {
         result = await _commandExecutor.execute(button);
-        // A successful tap on a toggle button flips its face; persist the new
-        // state and tell every client so all devices render the same face.
-        if (!isLongPress && button.toggleState != null && result.success) {
-          button.toggled = !button.toggled;
-          _buttonManager.saveConfig();
-          _broadcastButtonState(button);
-        }
       }
+      // Any successful tap (including prompt-style presses) flips a toggle
+      // button's face; holds leave the face alone.
+      if (!isLongPress) _flipToggleIfNeeded(button, result);
       _webSocketService.sendMessageToClient(
         clientId,
         Message(
           type: MessageType.commandResult,
           payload: {
             'buttonId': buttonId,
+            'buttonName': pressedName,
             'success': result.success,
             'output': result.output,
             'error': result.error,
@@ -737,6 +745,7 @@ class MarcoServer {
           type: MessageType.commandResult,
           payload: {
             'buttonId': buttonId,
+            'buttonName': pressedName,
             'success': false,
             'output': '',
             'error': 'Error executing command: $e',
@@ -752,11 +761,7 @@ class MarcoServer {
       // Use the command executor to execute the button's actions
       final result = await _commandExecutor.execute(button);
       // Keep toggle faces in sync when run from the desktop too.
-      if (button.toggleState != null && result.success) {
-        button.toggled = !button.toggled;
-        _buttonManager.saveConfig();
-        _broadcastButtonState(button);
-      }
+      _flipToggleIfNeeded(button, result);
       return result;
     } catch (e) {
       // If an exception occurs, return a failed result
@@ -850,6 +855,17 @@ class MarcoServer {
     final result = _buttonManager.reorderTiles(pageId, oldIndex, newIndex);
     if (result) _broadcastPages();
     return result;
+  }
+
+  /// Flips a toggle button's face after a successful press, persists the new
+  /// state and tells every client so all devices render the same face. Single
+  /// home for the flip policy — used by both the client press path and
+  /// desktop test runs.
+  void _flipToggleIfNeeded(Button button, CommandResult result) {
+    if (button.toggleState == null || !result.success) return;
+    button.toggled = !button.toggled;
+    _buttonManager.saveConfig();
+    _broadcastButtonState(button);
   }
 
   /// Broadcasts a toggle button's new face to all connected clients.
