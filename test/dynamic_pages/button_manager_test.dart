@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/models/button.dart';
-import 'package:marco_deck/src/server/button_manager.dart';
-import 'package:marco_deck/src/server/system_info.dart';
+import 'package:tilepad/src/models/button.dart';
+import 'package:tilepad/src/server/button_manager.dart';
+import 'package:tilepad/src/server/system_info.dart';
 
 void main() {
   late ButtonManager mgr;

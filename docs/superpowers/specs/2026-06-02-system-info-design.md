@@ -10,7 +10,7 @@ pipeline (StateStore → server → client) so there is no new protocol.
 
 ## Architecture
 
-- **Shared `StateStore`** owned by `MarcoServer` (was owned by `PluginHost`).
+- **Shared `StateStore`** owned by `TilepadServer` (was owned by `PluginHost`).
   It is passed to `PluginHost(stateStore: …)` and to a new
   `SystemInfoService`, and the server forwards its `changes` to clients. So
   system tiles work even if the plugin subsystem fails.
@@ -51,7 +51,7 @@ pipeline (StateStore → server → client) so there is no new protocol.
 
 ## Build order
 1. `system_info.dart`: states const + pure parsers + `SystemInfoService`.
-2. Shared StateStore in `MarcoServer`; start the service; forward + snapshot.
+2. Shared StateStore in `TilepadServer`; start the service; forward + snapshot.
 3. Live-Tile picker includes system states; preset buttons in the library.
 4. Client live-tile name+value rendering.
 5. Verify + device test + PR.

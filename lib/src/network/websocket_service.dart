@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:marco_deck/src/client/client_providers.dart';
+import 'package:tilepad/src/client/client_providers.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 // Import platform-specific implementations conditionally

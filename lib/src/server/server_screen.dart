@@ -20,7 +20,7 @@ import 'widgets/button_library.dart';
 /// The main screen for the server application
 class ServerScreen extends StatefulWidget {
   /// The server instance
-  final MarcoServer server;
+  final TilepadServer server;
 
   /// Creates a server screen
   const ServerScreen({
@@ -35,7 +35,7 @@ class ServerScreen extends StatefulWidget {
 class _ServerScreenState extends State<ServerScreen> {
   String _serverIp = 'Loading...';
   int _serverPort = 8080;
-  String _serverName = 'MarcoDeck Server';
+  String _serverName = 'Tilepad Server';
   bool _isRunning = false;
   List<models.Page> _pages = [];
   models.Page? _selectedPage;
@@ -724,9 +724,9 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _exportProfile() async {
     final location = await getSaveLocation(
       suggestedName:
-          'marcodeck-profile-${DateTime.now().toIso8601String().split('T').first}.json',
+          'tilepad-profile-${DateTime.now().toIso8601String().split('T').first}.json',
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'MarcoDeck profile', extensions: ['json']),
+        XTypeGroup(label: 'Tilepad profile', extensions: ['json']),
       ],
     );
     if (location == null || !mounted) return;
@@ -752,7 +752,7 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _importProfile() async {
     final file = await openFile(
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'MarcoDeck profile', extensions: ['json']),
+        XTypeGroup(label: 'Tilepad profile', extensions: ['json']),
       ],
     );
     if (file == null || !mounted) return;

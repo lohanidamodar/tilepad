@@ -12,7 +12,7 @@ import 'server.dart';
 /// Lists installed plugins and lets the user enable/disable, configure and
 /// remove them, plus open the plugins folder to drop new ones in.
 class PluginsScreen extends StatefulWidget {
-  final MarcoServer server;
+  final TilepadServer server;
   const PluginsScreen({super.key, required this.server});
 
   @override
@@ -505,7 +505,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
 /// A dialog that renders a plugin's settings fields natively from its manifest.
 class _PluginSettingsDialog extends StatefulWidget {
   final InstalledPlugin plugin;
-  final MarcoServer server;
+  final TilepadServer server;
   const _PluginSettingsDialog({required this.plugin, required this.server});
 
   @override

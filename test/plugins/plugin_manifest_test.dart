@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/server/plugins/plugin_manifest.dart';
+import 'package:tilepad/src/server/plugins/plugin_manifest.dart';
 
 void main() {
   Map<String, dynamic> validJson() => {

@@ -16,7 +16,7 @@ const String _kMenuKeyExit = 'exit_app';
 
 /// Manager for system tray functionality.
 ///
-/// Once a [MarcoServer] is attached the tray becomes a live mini-dashboard:
+/// Once a [TilepadServer] is attached the tray becomes a live mini-dashboard:
 /// the menu and tooltip show the server state, address and connected device
 /// count, and offer start/stop/restart and copy-address without opening the
 /// window.
@@ -28,7 +28,7 @@ class SystemTrayManager with TrayListener, WindowListener {
 
   bool _isInitialized = false;
 
-  MarcoServer? _server;
+  TilepadServer? _server;
   StreamSubscription<ServerStatus>? _statusSub;
   StreamSubscription<List<dynamic>>? _clientsSub;
 
@@ -53,7 +53,7 @@ class SystemTrayManager with TrayListener, WindowListener {
       size: Size(1120, 740),
       minimumSize: Size(640, 560),
       center: true,
-      title: 'MarcoDeck Server',
+      title: 'Tilepad Server',
       skipTaskbar: false,
     );
 
@@ -75,7 +75,7 @@ class SystemTrayManager with TrayListener, WindowListener {
 
       // Initialize system tray
       await trayManager.setIcon(iconPath);
-      await trayManager.setToolTip('MarcoDeck Server');
+      await trayManager.setToolTip('Tilepad Server');
 
       // Create menu items
       await _refreshMenu();
@@ -88,7 +88,7 @@ class SystemTrayManager with TrayListener, WindowListener {
   }
 
   /// Attaches the server so the tray can show live status and control it.
-  void attachServer(MarcoServer server) {
+  void attachServer(TilepadServer server) {
     _server = server;
     _statusSub?.cancel();
     _clientsSub?.cancel();
@@ -141,7 +141,7 @@ class SystemTrayManager with TrayListener, WindowListener {
     _lastMenuSignature = signature;
 
     final status = server == null
-        ? 'MarcoDeck Server'
+        ? 'Tilepad Server'
         : running
             ? 'Running${address.isEmpty ? '' : ' on $address'}'
             : 'Stopped';
@@ -153,7 +153,7 @@ class SystemTrayManager with TrayListener, WindowListener {
         MenuItem(label: status, disabled: true),
         if (running) MenuItem(label: devices, disabled: true),
         MenuItem.separator(),
-        MenuItem(key: _kMenuKeyShow, label: 'Open MarcoDeck'),
+        MenuItem(key: _kMenuKeyShow, label: 'Open Tilepad'),
         if (running && address.isNotEmpty)
           MenuItem(key: _kMenuKeyCopyAddress, label: 'Copy server address'),
         if (server != null) ...[
@@ -174,10 +174,10 @@ class SystemTrayManager with TrayListener, WindowListener {
       await trayManager.setContextMenu(menu);
       await trayManager.setToolTip(
         server == null
-            ? 'MarcoDeck Server'
+            ? 'Tilepad Server'
             : running
-                ? 'MarcoDeck — $status ($devices)'
-                : 'MarcoDeck — Stopped',
+                ? 'Tilepad — $status ($devices)'
+                : 'Tilepad — Stopped',
       );
     } catch (e) {
       debugPrint('Failed to update tray menu: $e');

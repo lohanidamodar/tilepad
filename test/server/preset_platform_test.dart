@@ -1,9 +1,9 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/models/button.dart';
-import 'package:marco_deck/src/server/button_presets.dart';
-import 'package:marco_deck/src/server/system_info.dart';
+import 'package:tilepad/src/models/button.dart';
+import 'package:tilepad/src/server/button_presets.dart';
+import 'package:tilepad/src/server/system_info.dart';
 
 /// Sanity checks that the preset catalog built for the CURRENT platform only
 /// contains commands that can actually work here (CI runs these on Linux and

@@ -1,4 +1,4 @@
-# Hello (Dart Demo) — MarcoDeck plugin
+# Hello (Dart Demo) — Tilepad plugin
 
 A minimal example plugin that exercises every plugin capability. It uses only the
 Dart SDK, so it runs with `dart plugin.dart` and needs no `pub get`.

@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "dev.appwriters" "\0"
-            VALUE "FileDescription", "marco_deck" "\0"
+            VALUE "FileDescription", "tilepad" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "marco_deck" "\0"
+            VALUE "InternalName", "tilepad" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 dev.appwriters. All rights reserved." "\0"
-            VALUE "OriginalFilename", "marco_deck.exe" "\0"
-            VALUE "ProductName", "marco_deck" "\0"
+            VALUE "OriginalFilename", "tilepad.exe" "\0"
+            VALUE "ProductName", "tilepad" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -186,7 +186,7 @@ class ActionEditorPage extends StatefulWidget {
   final ButtonAction? action;
 
   /// The server, used to list plugin actions and fetch dynamic option lists.
-  final MarcoServer server;
+  final TilepadServer server;
 
   /// Creates a new action editor page
   const ActionEditorPage({super.key, this.action, required this.server});

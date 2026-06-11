@@ -1,8 +1,8 @@
 {
-  "id": "com.marcodeck.hello_dart",
+  "id": "com.tilepad.hello_dart",
   "name": "Hello (Dart Demo)",
   "version": "1.0.0",
-  "author": "MarcoDeck",
+  "author": "Tilepad",
   "apiVersion": 1,
   "run": {
     "windows": "dart plugin.dart",

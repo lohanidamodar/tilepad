@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:marco_deck/src/design/design.dart';
-import 'package:marco_deck/src/models/button.dart';
-import 'package:marco_deck/src/server/action_editor_page.dart';
-import 'package:marco_deck/src/server/button_editor_page.dart';
-import 'package:marco_deck/src/server/server.dart';
+import 'package:tilepad/src/design/design.dart';
+import 'package:tilepad/src/models/button.dart';
+import 'package:tilepad/src/server/action_editor_page.dart';
+import 'package:tilepad/src/server/button_editor_page.dart';
+import 'package:tilepad/src/server/server.dart';
 
 /// Smoke tests that pump the (heavily section-carded) editor pages and make
 /// sure every section renders without layout exceptions.
@@ -40,7 +40,7 @@ void main() {
 
     await tester.pumpWidget(host(ButtonEditorPage(
       button: toggleButton(),
-      server: MarcoServer(),
+      server: TilepadServer(),
       onSave: (_) {},
     )));
     await tester.pumpAndSettle();
@@ -71,7 +71,7 @@ void main() {
     });
 
     await tester
-        .pumpWidget(host(ActionEditorPage(server: MarcoServer())));
+        .pumpWidget(host(ActionEditorPage(server: TilepadServer())));
     await tester.pumpAndSettle();
     expect(find.text('Action Type'), findsOneWidget);
 

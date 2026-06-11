@@ -4,9 +4,9 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/server/plugins/plugin_host.dart';
-import 'package:marco_deck/src/server/plugins/plugin_manager.dart';
-import 'package:marco_deck/src/server/plugins/plugin_registry.dart';
+import 'package:tilepad/src/server/plugins/plugin_host.dart';
+import 'package:tilepad/src/server/plugins/plugin_manager.dart';
+import 'package:tilepad/src/server/plugins/plugin_registry.dart';
 import 'package:path/path.dart' as p;
 
 /// End-to-end test that spawns the real `hello_dart` demo plugin as an actual OS
@@ -53,7 +53,7 @@ void main() {
 
   Future<bool> waitConnected() async {
     for (var i = 0; i < 150; i++) {
-      if (host.isConnected('com.marcodeck.hello_dart')) return true;
+      if (host.isConnected('com.tilepad.hello_dart')) return true;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
     return false;
@@ -61,24 +61,24 @@ void main() {
 
   test('demo plugin connects, invokes, lists, streams state and reconfigures',
       () async {
-    await manager.enable('com.marcodeck.hello_dart');
+    await manager.enable('com.tilepad.hello_dart');
     expect(await waitConnected(), isTrue,
         reason: 'plugin process did not connect (is `dart` on PATH?)');
 
     // Action invocation with a field.
     final hello = await host.invoke(
-        'com.marcodeck.hello_dart', 'say_hello', {'name': 'Damodar'});
+        'com.tilepad.hello_dart', 'say_hello', {'name': 'Damodar'});
     expect(hello.success, isTrue);
     expect(hello.output, 'Hello, Damodar!');
 
     // Dynamic option list.
-    final colors = await host.requestList('com.marcodeck.hello_dart', 'colors');
+    final colors = await host.requestList('com.tilepad.hello_dart', 'colors');
     expect(colors.map((o) => o.value), ['red', 'green', 'blue']);
 
     // Live state streamed by the plugin's clock (every second).
     var clockSeen = false;
     for (var i = 0; i < 30; i++) {
-      if (host.stateStore.get('com.marcodeck.hello_dart', 'clock') != null) {
+      if (host.stateStore.get('com.tilepad.hello_dart', 'clock') != null) {
         clockSeen = true;
         break;
       }
@@ -88,14 +88,14 @@ void main() {
 
     // Settings push changes behaviour.
     await manager.updateSettings(
-        'com.marcodeck.hello_dart', {'greeting': 'Hi'});
+        'com.tilepad.hello_dart', {'greeting': 'Hi'});
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final hi = await host.invoke(
-        'com.marcodeck.hello_dart', 'say_hello', {'name': 'World'});
+        'com.tilepad.hello_dart', 'say_hello', {'name': 'World'});
     expect(hi.output, 'Hi, World!');
 
     // Disable stops the process and disconnects.
-    await manager.disable('com.marcodeck.hello_dart');
-    expect(host.isConnected('com.marcodeck.hello_dart'), isFalse);
+    await manager.disable('com.tilepad.hello_dart');
+    expect(host.isConnected('com.tilepad.hello_dart'), isFalse);
   });
 }

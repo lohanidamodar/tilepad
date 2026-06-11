@@ -1,6 +1,6 @@
-// MarcoDeck ↔ OBS Studio plugin.
+// Tilepad ↔ OBS Studio plugin.
 //
-// Bridges the MarcoDeck plugin host and OBS Studio's built-in WebSocket server
+// Bridges the Tilepad plugin host and OBS Studio's built-in WebSocket server
 // (obs-websocket v5). Lets buttons switch scenes and toggle recording/streaming,
 // and streams the current scene + record/stream status as live tiles.
 //

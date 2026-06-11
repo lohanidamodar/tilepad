@@ -24,13 +24,13 @@ void main() {
   // Keep the screen awake while the app is running
   WakelockPlus.enable();
 
-  runApp(const ProviderScope(child: MarcoDeckClientApp()));
+  runApp(const ProviderScope(child: TilepadClientApp()));
 }
 
-/// The MarcoDeck client application
-class MarcoDeckClientApp extends ConsumerWidget {
-  /// Creates a new MarcoDeck client app
-  const MarcoDeckClientApp({super.key});
+/// The Tilepad client application
+class TilepadClientApp extends ConsumerWidget {
+  /// Creates a new Tilepad client app
+  const TilepadClientApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,7 +54,7 @@ class MarcoDeckClientApp extends ConsumerWidget {
     return _EagerInitialization(
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'MarcoDeck Client',
+        title: 'Tilepad Client',
         theme: effectiveLight,
         darkTheme: effectiveDark,
         themeMode: p.themeMode,

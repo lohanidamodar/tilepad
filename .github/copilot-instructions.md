@@ -8,7 +8,7 @@ Server should be able to configure the button in the client. Each button should 
 The client should be able to display the buttons and connect to the server. When button is pressed, the client should send the command to the server.
 
 - org: dev.appwriters
-- name: MarcoDeck
+- name: Tilepad
 
 Generate project in the current folder
 Both server and client should be in the same Flutter project. but the server and client should have different main.dart files. The server module should be in the server folder and the client module should be in the client folder. The server module should have a main.dart file that starts the server and the client module should have a main.dart file that starts the client. All common items between the server should be in their own folder based on their functionality
@@ -16,7 +16,7 @@ Both server and client should be in the same Flutter project. but the server and
 
 ## folder structure
 ```
-MarcoDeck
+Tilepad
 ├── lib
 │   ├── src
 │   │   ├── client

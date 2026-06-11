@@ -66,7 +66,7 @@ String _summary(models.Button button) {
 /// [PickerResult.create].
 Future<List<PickerResult>?> showButtonPicker(
   BuildContext context, {
-  required MarcoServer server,
+  required TilepadServer server,
 }) {
   return Navigator.of(context).push<List<PickerResult>>(
     MaterialPageRoute(
@@ -140,7 +140,7 @@ const SliverGridDelegateWithMaxCrossAxisExtent _kGrid =
 );
 
 class _ButtonPickerPage extends StatefulWidget {
-  final MarcoServer server;
+  final TilepadServer server;
   const _ButtonPickerPage({required this.server});
 
   @override
@@ -596,11 +596,11 @@ class DottedBorderBox extends StatelessWidget {
 
 /// A screen listing the reusable button library, with edit and delete actions.
 ///
-/// Editing reuses [ButtonEditorPage] (-> [MarcoServer.updateButton]); deleting
+/// Editing reuses [ButtonEditorPage] (-> [TilepadServer.updateButton]); deleting
 /// removes the button from the library and every page that placed it
-/// ([MarcoServer.deleteButton]).
+/// ([TilepadServer.deleteButton]).
 class ButtonLibraryScreen extends StatefulWidget {
-  final MarcoServer server;
+  final TilepadServer server;
   const ButtonLibraryScreen({super.key, required this.server});
 
   @override

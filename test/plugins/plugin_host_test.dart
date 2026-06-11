@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/server/plugins/plugin_host.dart';
-import 'package:marco_deck/src/server/plugins/plugin_protocol.dart';
+import 'package:tilepad/src/server/plugins/plugin_host.dart';
+import 'package:tilepad/src/server/plugins/plugin_protocol.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 

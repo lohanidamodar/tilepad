@@ -25,7 +25,7 @@ import 'plugins/state_store.dart';
 import 'system_info.dart';
 
 /// Server class that handles client connections and executes commands
-class MarcoServer {
+class TilepadServer {
   /// The WebSocket service for client communication
   final ServerWebSocketService _webSocketService = ServerWebSocketService();
 
@@ -69,7 +69,7 @@ class MarcoServer {
   int _port;
 
   /// The server's friendly name (shown to clients during discovery).
-  String _name = 'MarcoDeck Server';
+  String _name = 'Tilepad Server';
 
   /// Whether the server is running
   bool _isRunning = false;
@@ -95,7 +95,7 @@ class MarcoServer {
   // A named parameter can't be a private initializing formal (`this._port`),
   // so assign these in the initializer list instead.
   // ignore_for_file: prefer_initializing_formals
-  MarcoServer({int port = 8080, int pluginPort = 8091})
+  TilepadServer({int port = 8080, int pluginPort = 8091})
       : _port = port,
         _pluginPort = pluginPort;
 

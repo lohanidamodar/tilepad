@@ -55,12 +55,12 @@ jobs:
       - name: Build Android APK (client)
         run: flutter build apk --release --no-tree-shake-icons -t lib/src/client/main.dart
       - name: Rename APK
-        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/MarcoDeck-client.apk
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Tilepad-client.apk
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          files: build/app/outputs/flutter-apk/MarcoDeck-client.apk
+          files: build/app/outputs/flutter-apk/Tilepad-client.apk
 
   build-windows:
     runs-on: windows-latest
@@ -101,19 +101,19 @@ jobs:
         run: |
           choco install innosetup --no-progress -y
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc "/DMyAppVersion=${{ steps.version.outputs.version }}" "windows\installer\marcodeck.iss"
+          & $iscc "/DMyAppVersion=${{ steps.version.outputs.version }}" "windows\installer\tilepad.iss"
       - name: Archive portable Windows build
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path build\artifacts -Force | Out-Null
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "build/artifacts/MarcoDeck-windows-portable.zip"
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "build/artifacts/Tilepad-windows-portable.zip"
       - name: Upload Windows artifacts to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
-            windows/installer/output/MarcoDeck-Setup-${{ steps.version.outputs.version }}.exe
-            build/artifacts/MarcoDeck-windows-portable.zip
+            windows/installer/output/Tilepad-Setup-${{ steps.version.outputs.version }}.exe
+            build/artifacts/Tilepad-windows-portable.zip
 
   build-linux:
     runs-on: ubuntu-latest
@@ -147,9 +147,9 @@ jobs:
       - name: Archive Linux build
         run: |
           mkdir -p build/artifacts
-          tar -czf build/artifacts/MarcoDeck-linux.tar.gz -C build/linux/x64/release/bundle .
+          tar -czf build/artifacts/Tilepad-linux.tar.gz -C build/linux/x64/release/bundle .
       - name: Upload Linux artifact to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          files: build/artifacts/MarcoDeck-linux.tar.gz
+          files: build/artifacts/Tilepad-linux.tar.gz

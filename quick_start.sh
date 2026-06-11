@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# MarcoDeck Quick Start Script
-# This script helps users get started with MarcoDeck quickly
+# Tilepad Quick Start Script
+# This script helps users get started with Tilepad quickly
 
-echo "🚀 MarcoDeck Quick Start"
+echo "🚀 Tilepad Quick Start"
 echo "========================"
 
 # Colors for output
@@ -48,12 +48,12 @@ check_flutter() {
 check_directory() {
     if [ ! -f "pubspec.yaml" ]; then
         print_error "pubspec.yaml not found"
-        echo "Please run this script from the MarcoDeck project root directory."
+        echo "Please run this script from the Tilepad project root directory."
         exit 1
     fi
     
-    if ! grep -q "marco_deck" pubspec.yaml; then
-        print_warning "This doesn't appear to be the MarcoDeck project"
+    if ! grep -q "tilepad" pubspec.yaml; then
+        print_warning "This doesn't appear to be the Tilepad project"
         echo "Are you sure you're in the right directory? (y/N)"
         read -r response
         if [[ ! "$response" =~ ^[Yy]$ ]]; then
@@ -88,7 +88,7 @@ run_flutter_doctor() {
 # Show available platforms
 show_platforms() {
     echo ""
-    print_info "Available platforms for MarcoDeck:"
+    print_info "Available platforms for Tilepad:"
     echo ""
     echo "📱 Mobile Platforms (Client):"
     echo "   • Android - Run: flutter run -d android"
@@ -211,7 +211,7 @@ show_usage() {
 
 # Main script execution
 main() {
-    print_info "Welcome to MarcoDeck - Remote Macro Control"
+    print_info "Welcome to Tilepad - Remote Macro Control"
     echo ""
     
     check_flutter

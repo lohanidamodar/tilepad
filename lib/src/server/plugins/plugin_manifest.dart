@@ -1,6 +1,6 @@
 /// Typed models for a plugin's `manifest.json`, plus parsing/validation.
 ///
-/// A manifest is the contract a plugin author provides so MarcoDeck can present
+/// A manifest is the contract a plugin author provides so Tilepad can present
 /// the plugin's actions, settings, live states and dynamic lists without the
 /// plugin author writing any UI. See `docs/plugins/protocol.md`.
 library;

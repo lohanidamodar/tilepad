@@ -1,16 +1,16 @@
-; Inno Setup script for the MarcoDeck desktop server (Windows installer).
+; Inno Setup script for the Tilepad desktop server (Windows installer).
 ;
 ; Build locally:
 ;   flutter build windows --release -t lib/src/server/main.dart
-;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.0.0 windows\installer\marcodeck.iss
+;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.0.0 windows\installer\tilepad.iss
 ;
 ; The release workflow passes the version from the git tag. Output goes to
-; windows/installer/output/MarcoDeck-Setup-<version>.exe.
+; windows/installer/output/Tilepad-Setup-<version>.exe.
 
-#define MyAppName "MarcoDeck"
-#define MyAppPublisher "MarcoDeck"
+#define MyAppName "Tilepad"
+#define MyAppPublisher "Tilepad"
 #define MyAppURL "https://github.com/lohanidamodar/macro-deck-updated"
-#define MyAppExeName "marco_deck.exe"
+#define MyAppExeName "tilepad.exe"
 
 #ifndef MyAppVersion
   #define MyAppVersion "0.0.0"
@@ -36,7 +36,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir=output
-OutputBaseFilename=MarcoDeck-Setup-{#MyAppVersion}
+OutputBaseFilename=Tilepad-Setup-{#MyAppVersion}
 SetupIconFile=..\..\assets\tray_icon.ico
 Compression=lzma2
 SolidCompression=yes

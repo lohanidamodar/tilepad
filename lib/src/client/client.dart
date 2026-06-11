@@ -7,7 +7,7 @@ import '../models/message.dart';
 import '../network/websocket_service.dart';
 
 /// Client class that handles communication with the server
-class MarcoClient {
+class TilepadClient {
   /// The WebSocket service for server communication
   final ClientWebSocketService _webSocketService = ClientWebSocketService();
 
@@ -48,7 +48,7 @@ class MarcoClient {
   List<Button> get buttons => List.unmodifiable(_buttons);
 
   /// Creates a new client
-  MarcoClient() {
+  TilepadClient() {
     _loadSavedServer();
 
     // Listen for server messages

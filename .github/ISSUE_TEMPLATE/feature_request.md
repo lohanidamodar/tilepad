@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for MarcoDeck
+about: Suggest an idea for Tilepad
 labels: enhancement
 ---
 

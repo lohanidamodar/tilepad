@@ -1,4 +1,4 @@
-name: marco_deck
+name: tilepad
 description: "An open source, Flutter-based alternative to Touch Portal for running a desktop macro server controlled by mobile and web clients."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 

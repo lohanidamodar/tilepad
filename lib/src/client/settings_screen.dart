@@ -167,7 +167,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               _buildInfoCard(
                 context: context,
-                title: 'MarcoDeck',
+                title: 'Tilepad',
                 subtitle: 'Remote Macro Control Application',
                 icon: Icons.devices_rounded,
                 trailing: Text(

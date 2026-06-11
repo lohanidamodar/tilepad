@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/server/command_executor.dart';
+import 'package:tilepad/src/server/command_executor.dart';
 
 void main() {
   final executor = CommandExecutor();

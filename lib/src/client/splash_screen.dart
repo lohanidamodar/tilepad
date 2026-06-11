@@ -265,7 +265,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Text(
-                      'MarcoDeck',
+                      'Tilepad',
                       style: textTheme.headlineMedium?.copyWith(
                         color: tokens.color.textPrimary,
                       ),

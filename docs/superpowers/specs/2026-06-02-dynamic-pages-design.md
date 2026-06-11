@@ -71,7 +71,7 @@ Two surfaces, matching the agreed two-step authoring:
    - **Remove** a tile from the page (button stays in the library).
    - Set the page's **columns**.
 
-`MarcoServer` exposes library + composition operations and broadcasts the
+`TilepadServer` exposes library + composition operations and broadcasts the
 denormalized pages on any change (existing `_broadcastPages`).
 
 ## Testing
@@ -88,7 +88,7 @@ denormalized pages on any change (existing `_broadcastPages`).
 
 1. Model: `Button` (library), `Tile`, `Page` (columns + tiles) — TDD.
 2. `ButtonManager`: library + pages + tile ops + persistence — TDD.
-3. `MarcoServer`: library/composition API + denormalized broadcast — TDD where
+3. `TilepadServer`: library/composition API + denormalized broadcast — TDD where
    pure.
 4. Client: `Page`/`Tile` model + staggered grid rendering.
 5. Server UI: Manage Buttons + Manage Page composer (drag/resize/picker).

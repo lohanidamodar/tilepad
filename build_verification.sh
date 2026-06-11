@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# MarcoDeck Build Verification Script
+# Tilepad Build Verification Script
 # This script attempts to verify the build process for different platforms
 
-echo "🚀 MarcoDeck Build Verification Script"
+echo "🚀 Tilepad Build Verification Script"
 echo "======================================="
 
 # Check if Flutter is available
