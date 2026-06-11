@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Profile export/import**: back up the whole button/page configuration to a JSON file and restore or move it to another machine (⋮ menu on the dashboard). Importing keeps a safety copy of the replaced configuration as `pages.json.bak`
 - **Duplicate button**: copy any library button (including its toggle face and hold actions) from the Manage Buttons grid
 - **15 new catalog presets**: Mute is now a real toggle (flips to a red "Unmute" face), plus Task Manager, Settings, Code Editor, Spotify, Twitch, Reddit, ChatGPT, Switch App, Minimize, Select All, Undo, Redo, and First/Last Page navigation
+- **Live tray menu**: the system tray now shows the server state, address and connected-device count, and offers Start/Stop/Restart, Copy server address and Open MarcoDeck — control the server without opening the window. Exiting from the tray stops the server cleanly first
 
 #### 📱 Client
 - **Fullscreen mode**: hide the status/navigation bars so the deck uses the whole screen (Settings → Display)

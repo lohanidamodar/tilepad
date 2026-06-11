@@ -65,10 +65,15 @@ class _ServerScreenState extends State<ServerScreen> {
     _serverStatusSubscription = widget.server.serverStatusStream.listen((
       status,
     ) {
-      // Showing a snackbar does not change widget state, so don't wrap it in
-      // setState; just guard against the widget being disposed.
-      if (mounted) {
-        _showStatusMessage(status);
+      if (!mounted) return;
+      _showStatusMessage(status);
+      // The server can also be started/stopped from the tray menu; track the
+      // running state from status events so the dashboard never goes stale.
+      if (status.type == ServerStatusType.started && !_isRunning) {
+        setState(() => _isRunning = true);
+        _refreshPages();
+      } else if (status.type == ServerStatusType.stopped && _isRunning) {
+        setState(() => _isRunning = false);
       }
     });
   }
