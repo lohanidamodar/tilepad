@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fullscreen mode**: hide the status/navigation bars so the deck uses the whole screen (Settings → Display)
 - **Screen orientation setting**: portrait, landscape or auto-rotate — landscape suits tablets mounted sideways
 
+### Changed
+
+#### 🎨 UI polish
+- **One quiet section style everywhere**: the button and action editors now use a shared compact `SectionCard` (hairline border, small accent icon, inline header controls) instead of the old solid accent-filled headers — less visual noise, same minimal feel
+- **Compact action lists**: dense rows with a small type icon, one-line summaries, tap-to-edit, and a single delete affordance
+- **Unified color swatches**: the button color and toggled-on color pickers share one swatch row style
+- The toggled-on face's actions and hold actions are flat sibling sections — no more cards nested inside cards
+- Uniform app-bar actions on the server dashboard and `Save` buttons across editors
+
 ### Fixed
 - The action editor now has proper forms for **Open URL**, **Media Key** and **Navigate Page** actions; previously selecting these types saved an action with an empty target that did nothing
 - Unknown message types received from a newer peer no longer crash the message decode loop

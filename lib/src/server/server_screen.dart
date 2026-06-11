@@ -743,6 +743,7 @@ class _ServerScreenState extends State<ServerScreen> {
           ],
         ),
         actions: [
+          // Quiet, uniform app-bar actions: icon-only, no filled chips.
           IconButton(
             icon: const Icon(Icons.tune_rounded),
             tooltip: 'Appearance',
@@ -758,20 +759,12 @@ class _ServerScreenState extends State<ServerScreen> {
                 ),
               );
             },
-            style: IconButton.styleFrom(
-              backgroundColor: t.color.surfaceSubtle,
-            ),
           ),
-          SizedBox(width: t.space.sm),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _refreshPages,
             tooltip: 'Refresh',
-            style: IconButton.styleFrom(
-              backgroundColor: t.color.surfaceSubtle,
-            ),
           ),
-          SizedBox(width: t.space.sm),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded),
             tooltip: 'More',

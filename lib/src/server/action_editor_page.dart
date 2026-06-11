@@ -538,45 +538,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
     required String title,
     required String description,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final tokens = context.tokens;
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: tokens.radius.brMd),
-      child: Padding(
-        padding: EdgeInsets.all(tokens.space.lg),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              backgroundColor: colorScheme.primaryContainer,
-              child: Icon(icon, color: colorScheme.onPrimaryContainer),
-            ),
-            SizedBox(width: tokens.space.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: tokens.space.xs),
-                  Text(
-                    description,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return SectionCard(icon: icon, title: title, subtitle: description);
   }
 
   /// Gets a human-readable description of the keystroke
@@ -601,8 +563,9 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
           TextButton.icon(
             onPressed: _saveAction,
             icon: const Icon(Icons.check),
-            label: const Text('SAVE'),
+            label: const Text('Save'),
           ),
+          SizedBox(width: context.tokens.space.sm),
         ],
       ),
       body: Form(
@@ -611,394 +574,291 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
           padding: EdgeInsets.all(context.tokens.space.lg),
           children: [
             // Action type selection
-            Card(
-              margin: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: context.tokens.radius.brMd,
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(context.tokens.space.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Action Type',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: context.tokens.space.lg),
-                    Wrap(
-                      spacing: context.tokens.space.sm,
-                      runSpacing: context.tokens.space.sm,
-                      children:
-                          ActionType.values.map((type) {
-                            final selected = _selectedType == type;
-                            return ChoiceChip(
-                              avatar: Icon(
-                                _typeIcon(type),
-                                size: context.tokens.icon.md,
-                                color:
-                                    selected
-                                        ? Theme.of(
-                                          context,
-                                        ).colorScheme.onSecondaryContainer
-                                        : null,
-                              ),
-                              label: Text(_typeLabel(type)),
-                              selected: selected,
-                              onSelected:
-                                  (_) =>
-                                      setState(() => _selectedType = type),
-                            );
-                          }).toList(),
-                    ),
-                  ],
+            SectionCard(
+              icon: Icons.category_outlined,
+              title: 'Action Type',
+              children: [
+                Wrap(
+                  spacing: context.tokens.space.sm,
+                  runSpacing: context.tokens.space.sm,
+                  children:
+                      ActionType.values.map((type) {
+                        final selected = _selectedType == type;
+                        return ChoiceChip(
+                          avatar: Icon(
+                            _typeIcon(type),
+                            size: context.tokens.icon.sm,
+                            color:
+                                selected
+                                    ? Theme.of(
+                                      context,
+                                    ).colorScheme.onSecondaryContainer
+                                    : null,
+                          ),
+                          label: Text(_typeLabel(type)),
+                          visualDensity: VisualDensity.compact,
+                          selected: selected,
+                          onSelected:
+                              (_) => setState(() => _selectedType = type),
+                        );
+                      }).toList(),
                 ),
-              ),
+              ],
             ),
             SizedBox(height: context.tokens.space.lg),
 
             // Command section
             if (_selectedType == ActionType.command)
-              Card(
-                margin: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: context.tokens.radius.brMd,
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(context.tokens.space.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Custom Command',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: context.tokens.space.lg),
-                      Text(
-                        'Enter the command to execute when this action is triggered:',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: context.tokens.color.textSecondary,
-                            ),
-                      ),
-                      SizedBox(height: context.tokens.space.sm),
-                      TextFormField(
-                        controller: _commandController,
-                        decoration: const InputDecoration(
-                          labelText: 'Command',
-                          hintText: 'e.g., notepad.exe or python script.py',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.code),
-                        ),
-                        minLines: 1,
-                        maxLines: 5,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a command';
-                          }
-                          return null;
-                        },
-                      ),
-                      SizedBox(height: context.tokens.space.lg),
-                      Text(
-                        'Tips:',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      SizedBox(height: context.tokens.space.xs),
-                      Text(
-                        '• Use full paths for programs not in the system PATH\n'
-                        '• For PowerShell commands, start with "powershell -command"\n'
-                        '• For multiple commands, use && between commands',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: context.tokens.color.textSecondary,
-                            ),
-                      ),
-                    ],
+              SectionCard(
+                icon: Icons.terminal,
+                title: 'Custom Command',
+                subtitle:
+                    'Runs a shell command on the server when this action is '
+                    'triggered.',
+                children: [
+                  TextFormField(
+                    controller: _commandController,
+                    decoration: const InputDecoration(
+                      labelText: 'Command',
+                      hintText: 'e.g., notepad.exe or python script.py',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.code),
+                    ),
+                    minLines: 1,
+                    maxLines: 5,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a command';
+                      }
+                      return null;
+                    },
                   ),
-                ),
+                  SizedBox(height: context.tokens.space.md),
+                  Text(
+                    '• Use full paths for programs not in the system PATH\n'
+                    '• For PowerShell commands, start with "powershell -command"\n'
+                    '• For multiple commands, use && between commands',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.tokens.color.textMuted,
+                        ),
+                  ),
+                ],
               ),
 
             // Preset command section
             if (_selectedType == ActionType.commandPreset)
-              Card(
-                margin: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: context.tokens.radius.brMd,
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(context.tokens.space.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Preset Commands',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+              SectionCard(
+                icon: Icons.list_alt,
+                title: 'Preset Commands',
+                subtitle: 'Select from common predefined commands.',
+                children: [
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate:
+                      SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 3,
+                        crossAxisSpacing: context.tokens.space.sm,
+                        mainAxisSpacing: context.tokens.space.sm,
                       ),
-                      SizedBox(height: context.tokens.space.lg),
-                      Text(
-                        'Select from common predefined commands:',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: context.tokens.color.textSecondary,
-                            ),
-                      ),
-                      SizedBox(height: context.tokens.space.lg),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 3,
-                              crossAxisSpacing: context.tokens.space.sm,
-                              mainAxisSpacing: context.tokens.space.sm,
-                            ),
-                        itemCount: predefinedCommands.length,
-                        itemBuilder: (context, index) {
-                          final command = predefinedCommands[index];
-                          final isSelected =
-                              _commandController.text == command.getCommand();
+                  itemCount: predefinedCommands.length,
+                  itemBuilder: (context, index) {
+                    final command = predefinedCommands[index];
+                    final isSelected =
+                        _commandController.text == command.getCommand();
 
-                          return Material(
-                            color:
-                                isSelected
-                                    ? Theme.of(
-                                      context,
-                                    ).colorScheme.primaryContainer
-                                    : Theme.of(context).colorScheme.surface,
-                            borderRadius: context.tokens.radius.brSm,
-                            elevation: 0,
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _commandController.text =
-                                      command.getCommand();
-                                });
-                              },
-                              borderRadius: context.tokens.radius.brSm,
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: context.tokens.space.sm,
-                                  horizontal: context.tokens.space.md,
-                                ),
-                                child: Row(
+                    return Material(
+                      color:
+                          isSelected
+                              ? Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer
+                              : Theme.of(context).colorScheme.surface,
+                      borderRadius: context.tokens.radius.brSm,
+                      elevation: 0,
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _commandController.text =
+                                command.getCommand();
+                          });
+                        },
+                        borderRadius: context.tokens.radius.brSm,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: context.tokens.space.sm,
+                            horizontal: context.tokens.space.md,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                command.icon,
+                                color:
+                                    isSelected
+                                        ? Theme.of(
+                                          context,
+                                        ).colorScheme.primary
+                                        : context
+                                            .tokens.color.textMuted,
+                              ),
+                              SizedBox(width: context.tokens.space.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      command.icon,
-                                      color:
-                                          isSelected
-                                              ? Theme.of(
-                                                context,
-                                              ).colorScheme.primary
-                                              : context
-                                                  .tokens.color.textMuted,
-                                    ),
-                                    SizedBox(width: context.tokens.space.sm),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            command.name,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.copyWith(
-                                              fontWeight:
-                                                  isSelected
-                                                      ? FontWeight.bold
-                                                      : FontWeight.normal,
-                                              color:
-                                                  isSelected
-                                                      ? Theme.of(
-                                                        context,
-                                                      ).colorScheme.primary
-                                                      : null,
-                                            ),
-                                          ),
-                                          Text(
-                                            command.description,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelMedium
-                                                ?.copyWith(
-                                                  color: context
-                                                      .tokens.color.textMuted,
-                                                ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (isSelected)
-                                      Icon(
-                                        Icons.check_circle,
+                                    Text(
+                                      command.name,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                        fontWeight:
+                                            isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
                                         color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                        size: context.tokens.icon.sm,
+                                            isSelected
+                                                ? Theme.of(
+                                                  context,
+                                                ).colorScheme.primary
+                                                : null,
                                       ),
+                                    ),
+                                    Text(
+                                      command.description,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium
+                                          ?.copyWith(
+                                            color: context
+                                                .tokens.color.textMuted,
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                              if (isSelected)
+                                Icon(
+                                  Icons.check_circle,
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                  size: context.tokens.icon.sm,
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
+                ],
               ),
 
             // Keystroke section
             if (_selectedType == ActionType.keystroke)
-              Card(
-                margin: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: context.tokens.radius.brMd,
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(context.tokens.space.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Keystroke',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: context.tokens.space.lg),
-
-                      // Keystroke preview
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          vertical: context.tokens.space.lg,
-                          horizontal: context.tokens.space.xxl,
+              SectionCard(
+                icon: Icons.keyboard,
+                title: 'Keystroke',
+                children: [
+                  // Keystroke preview
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(
+                      vertical: context.tokens.space.md,
+                      horizontal: context.tokens.space.lg,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.tokens.color.accentSubtle,
+                      borderRadius: context.tokens.radius.brSm,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.keyboard,
+                            size: context.tokens.icon.md,
+                            color: context.tokens.color.accent),
+                        SizedBox(width: context.tokens.space.md),
+                        Text(
+                          _getKeystrokeDescription(),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(
+                                fontWeight: context.tokens.typeScale.wSemibold,
+                              ),
                         ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: context.tokens.radius.brSm,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.keyboard),
-                            SizedBox(width: context.tokens.space.lg),
-                            Text(
-                              _getKeystrokeDescription(),
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: context.tokens.space.xxl),
-
-                      // Modifier keys
-                      Text(
-                        'Modifier Keys',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      SizedBox(height: context.tokens.space.sm),
-                      Wrap(
-                        spacing: context.tokens.space.sm,
-                        runSpacing: context.tokens.space.sm,
-                        children:
-                            _modifierKeys.map((modifier) {
-                              final isSelected = _selectedModifiers.contains(
-                                modifier.value,
-                              );
-                              return FilterChip(
-                                label: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      modifier.icon,
-                                      size: context.tokens.icon.sm,
-                                      color:
-                                          isSelected
-                                              ? Theme.of(
-                                                context,
-                                              ).colorScheme.onPrimary
-                                              : null,
-                                    ),
-                                    SizedBox(width: context.tokens.space.xs),
-                                    Text(modifier.name),
-                                  ],
-                                ),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedModifiers.add(modifier.value);
-                                    } else {
-                                      _selectedModifiers.remove(modifier.value);
-                                    }
-                                  });
-                                },
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.surface,
-                                selectedColor:
-                                    Theme.of(context).colorScheme.primary,
-                                checkmarkColor:
-                                    Theme.of(context).colorScheme.onPrimary,
-                                showCheckmark: true,
-                                labelStyle: TextStyle(
-                                  color:
-                                      isSelected
-                                          ? Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary
-                                          : null,
-                                ),
-                              );
-                            }).toList(),
-                      ),
-                      SizedBox(height: context.tokens.space.xxl),
-
-                      // Key selection
-                      Text(
-                        'Key',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      SizedBox(height: context.tokens.space.sm),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          border: const OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: context.tokens.space.lg,
-                            vertical: context.tokens.space.lg,
-                          ),
-                        ),
-                        initialValue: _selectedKey,
-                        isExpanded: true,
-                        items:
-                            _commonKeys.map((key) {
-                              return DropdownMenuItem<String>(
-                                value: key,
-                                child: Text(key.toUpperCase()),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedKey = value;
-                            });
-                          }
-                        },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  SizedBox(height: context.tokens.space.lg),
+
+                  // Modifier keys
+                  Text(
+                    'Modifier Keys',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  SizedBox(height: context.tokens.space.sm),
+                  Wrap(
+                    spacing: context.tokens.space.sm,
+                    runSpacing: context.tokens.space.sm,
+                    children: _modifierKeys.map((modifier) {
+                      final isSelected =
+                          _selectedModifiers.contains(modifier.value);
+                      return FilterChip(
+                        avatar: isSelected
+                            ? null
+                            : Icon(modifier.icon,
+                                size: context.tokens.icon.sm),
+                        label: Text(modifier.name),
+                        visualDensity: VisualDensity.compact,
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedModifiers.add(modifier.value);
+                            } else {
+                              _selectedModifiers.remove(modifier.value);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  SizedBox(height: context.tokens.space.lg),
+
+                  // Key selection
+                  Text('Key', style: Theme.of(context).textTheme.bodyMedium),
+                  SizedBox(height: context.tokens.space.sm),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    initialValue: _selectedKey,
+                    isExpanded: true,
+                    items: _commonKeys.map((key) {
+                      return DropdownMenuItem<String>(
+                        value: key,
+                        child: Text(key.toUpperCase()),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedKey = value;
+                        });
+                      }
+                    },
+                  ),
+                ],
               ),
 
             // Prompt-for-text info
@@ -1034,6 +894,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
             // Open URL section
             if (_selectedType == ActionType.openUrl)
               _buildFieldCard(
+                icon: Icons.link,
                 title: 'Open URL',
                 description:
                     'Opens a website, file or folder with the system default '
@@ -1058,6 +919,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
             // Media key section
             if (_selectedType == ActionType.mediaKey)
               _buildFieldCard(
+                icon: Icons.play_circle_outline,
                 title: 'Media Key',
                 description:
                     'Presses a media transport or volume key on the server.',
@@ -1092,6 +954,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                         ? _navigationTarget
                         : 'next';
                 return _buildFieldCard(
+                  icon: Icons.swap_horiz,
                   title: 'Navigate Page',
                   description:
                       'Switches the page shown on the device. Works even '
@@ -1122,6 +985,7 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
             // Delay section
             if (_selectedType == ActionType.delay)
               _buildFieldCard(
+                icon: Icons.timer_outlined,
                 title: 'Delay',
                 description:
                     'Pauses before the next action in this button\'s sequence '
@@ -1171,38 +1035,16 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
 
   /// A simple titled card wrapping a single form field.
   Widget _buildFieldCard({
+    IconData? icon,
     required String title,
     required String description,
     required Widget child,
   }) {
-    final tokens = context.tokens;
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: tokens.radius.brMd),
-      child: Padding(
-        padding: EdgeInsets.all(tokens.space.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: tokens.space.sm),
-            Text(
-              description,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.tokens.color.textSecondary,
-                  ),
-            ),
-            SizedBox(height: tokens.space.lg),
-            child,
-          ],
-        ),
-      ),
+    return SectionCard(
+      icon: icon,
+      title: title,
+      subtitle: description,
+      children: [child],
     );
   }
 

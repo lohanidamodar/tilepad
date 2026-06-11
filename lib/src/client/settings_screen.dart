@@ -257,6 +257,8 @@ class SettingsScreen extends ConsumerWidget {
         ),
         SizedBox(height: t.space.sm),
         SegmentedButton<DeckOrientation>(
+          style: const ButtonStyle(visualDensity: VisualDensity.compact),
+          showSelectedIcon: false,
           segments: const [
             ButtonSegment(
               value: DeckOrientation.portrait,
