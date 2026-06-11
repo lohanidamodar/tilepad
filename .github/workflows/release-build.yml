@@ -1,14 +1,18 @@
 name: Release
 
-# Push a tag like `v1.2.3` to cut a release: this creates the GitHub Release
-# and attaches the Android APK (client) plus Windows and Linux server builds —
-# including a Windows installer (Inno Setup). Can also be dispatched manually
-# with a version input, in which case the release step creates the tag itself
-# (useful when no one has a checkout handy to push a tag from).
+# Three ways to cut a release (all publish the same artifacts — Android APK,
+# Windows installer + portable zip, Linux tarball):
+#   1. push a tag like `v1.2.3`,
+#   2. run the workflow from the Actions tab with a version input, or
+#   3. push/create a branch named `release/v1.2.3` (handy for integrations
+#      that can create branches but not tags or dispatch workflows).
+# For 2 and 3 the release step creates the tag itself.
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - "release/v*"
   workflow_dispatch:
     inputs:
       version:
@@ -16,16 +20,15 @@ on:
         required: true
         type: string
 
-# The tag the release is published under: the pushed tag, or v<version> for
-# manual dispatches.
-
 permissions:
   contents: write
 
 env:
   FLUTTER_VERSION: "3.44.0"
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
-  IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+  # The tag the release is published under: v<input> for manual dispatches,
+  # the tag itself for tag pushes, and v<x.y.z> for release/v<x.y.z> branches
+  # (resolved per job below since expressions have no string-strip function).
+  DISPATCH_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
 
 jobs:
   build-apk:
@@ -38,6 +41,17 @@ jobs:
           channel: stable
       - name: Flutter pub get
         run: flutter pub get
+      - name: Resolve release tag
+        shell: bash
+        run: |
+          if [ -n "$DISPATCH_VERSION" ]; then
+            tag="v$DISPATCH_VERSION"
+          else
+            ref="$GITHUB_REF_NAME"
+            tag="${ref#release/}"
+          fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "Releasing as $tag"
       - name: Build Android APK (client)
         run: flutter build apk --release --no-tree-shake-icons -t lib/src/client/main.dart
       - name: Rename APK
@@ -61,6 +75,17 @@ jobs:
         run: flutter config --enable-windows-desktop
       - name: Flutter pub get
         run: flutter pub get
+      - name: Resolve release tag
+        shell: bash
+        run: |
+          if [ -n "$DISPATCH_VERSION" ]; then
+            tag="v$DISPATCH_VERSION"
+          else
+            ref="$GITHUB_REF_NAME"
+            tag="${ref#release/}"
+          fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "Releasing as $tag"
       - name: Compile bundled OBS plugin (refresh the committed binary)
         run: dart compile exe assets/plugins/obs/plugin.dart -o assets/plugins/obs/obs-plugin.exe
       - name: Build Windows release (server)
@@ -106,6 +131,17 @@ jobs:
         run: flutter config --enable-linux-desktop
       - name: Flutter pub get
         run: flutter pub get
+      - name: Resolve release tag
+        shell: bash
+        run: |
+          if [ -n "$DISPATCH_VERSION" ]; then
+            tag="v$DISPATCH_VERSION"
+          else
+            ref="$GITHUB_REF_NAME"
+            tag="${ref#release/}"
+          fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "Releasing as $tag"
       - name: Compile bundled OBS plugin (standalone binary, no Dart SDK needed on target)
         run: dart compile exe assets/plugins/obs/plugin.dart -o assets/plugins/obs/obs-plugin
       - name: Build Linux release (server)
