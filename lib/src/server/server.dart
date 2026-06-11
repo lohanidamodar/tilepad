@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart'; // Add Flutter foundation import
 import 'package:flutter/services.dart' show rootBundle, AssetManifest;
 import 'package:path/path.dart' as p;
@@ -71,6 +72,17 @@ class MarcoServer {
 
   /// IP addresses blocked from connecting. Persisted across restarts.
   final Set<String> _blockedIps = {};
+
+  /// Whether clients must supply the pairing PIN in their connect handshake.
+  bool _requirePin = false;
+
+  /// The pairing PIN shown on the dashboard (6 digits). Kept even while
+  /// [_requirePin] is off so re-enabling doesn't re-pair every device.
+  String _pin = '';
+
+  /// Clients that completed a valid connect handshake. Only these receive
+  /// broadcasts and may invoke actions while PIN pairing is enabled.
+  final Set<String> _authorizedClients = {};
 
   /// Creates a new server
   // A named parameter can't be a private initializing formal (`this._port`),
@@ -170,6 +182,57 @@ class MarcoServer {
     }
   }
 
+  /// Whether PIN pairing is enabled.
+  bool get requirePin => _requirePin;
+
+  /// The current pairing PIN.
+  String get pin => _pin;
+
+  /// Enables/disables PIN pairing, minting a PIN on first enable.
+  Future<void> setRequirePin(bool value) async {
+    _requirePin = value;
+    if (value && _pin.isEmpty) _pin = _generatePin();
+    if (!value) _authorizedClients.clear();
+    await _saveSecurity();
+  }
+
+  /// Replaces the PIN with a fresh one. Already-connected clients stay
+  /// connected; new handshakes need the new PIN.
+  Future<String> regeneratePin() async {
+    _pin = _generatePin();
+    await _saveSecurity();
+    return _pin;
+  }
+
+  static String _generatePin() {
+    final r = Random.secure();
+    return List.generate(6, (_) => r.nextInt(10)).join();
+  }
+
+  Future<void> _loadSecurity() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _requirePin = prefs.getBool('require_pin') ?? false;
+      _pin = prefs.getString('server_pin') ?? '';
+      if (_requirePin && _pin.isEmpty) {
+        _pin = _generatePin();
+        await _saveSecurity();
+      }
+    } catch (e) {
+      debugPrint('Error loading security settings: $e');
+    }
+  }
+
+  Future<void> _saveSecurity() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('require_pin', _requirePin);
+      await prefs.setString('server_pin', _pin);
+    } catch (e) {
+      debugPrint('Error saving security settings: $e');
+    }
+  }
+
   Future<void> _saveBlockedIps() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -257,6 +320,7 @@ class MarcoServer {
 
       // Apply the persisted IP blocklist to the freshly-started service.
       await _loadBlockedIps();
+      await _loadSecurity();
 
       // Start UDP broadcasting for auto-discovery
       final serverIp = await getServerIp();
@@ -332,6 +396,8 @@ class MarcoServer {
     debugPrint(
       'Client ${event.connected ? 'connected' : 'disconnected'}: ${event.clientInfo.ipAddress}',
     );
+
+    if (!event.connected) _authorizedClients.remove(event.clientInfo.id);
 
     // Update the connected clients list
     _updateConnectedClients();
@@ -462,7 +528,7 @@ class MarcoServer {
   void _startStateSources() {
     _stateSub = _stateStore.changes.listen((entry) {
       if (!_isRunning) return;
-      _webSocketService.broadcast(
+      _broadcast(
         Message(type: MessageType.stateUpdate, payload: entry.toJson()),
       );
     });
@@ -611,8 +677,59 @@ class MarcoServer {
   /// Handles a message from a client. [clientId] identifies the sender so
   /// replies (acks, pages, state snapshot, results) go only to that client.
   void _handleClientMessage(Message message, String clientId) async {
+    // While PIN pairing is on, only clients that completed a valid connect
+    // handshake may do anything else. Transport health-checks are exempt:
+    // a pong leaks nothing, and replying keeps an un-paired client's socket
+    // calm instead of making its health check churn reconnects.
+    if (_requirePin &&
+        message.type == MessageType.ping &&
+        !_authorizedClients.contains(clientId)) {
+      _webSocketService.sendMessageToClient(
+        clientId,
+        Message(type: MessageType.pong),
+      );
+      return;
+    }
+    if (_requirePin &&
+        message.type != MessageType.connect &&
+        message.type != MessageType.disconnect &&
+        !_authorizedClients.contains(clientId)) {
+      _webSocketService.sendMessageToClient(
+        clientId,
+        Message(
+          type: MessageType.error,
+          payload: {'code': 'pin-required', 'error': 'Pair with the PIN first'},
+        ),
+      );
+      return;
+    }
+
     switch (message.type) {
       case MessageType.connect:
+        if (_requirePin) {
+          final payload = message.payload;
+          final suppliedPin =
+              payload is Map ? (payload['pin'] as String? ?? '') : '';
+          if (suppliedPin != _pin) {
+            // Tell the device why, then drop the socket so it can't lurk.
+            _webSocketService.sendMessageToClient(
+              clientId,
+              Message(
+                type: MessageType.error,
+                payload: {
+                  'code': suppliedPin.isEmpty ? 'pin-required' : 'pin-invalid',
+                  'error': suppliedPin.isEmpty
+                      ? 'This server requires a PIN'
+                      : 'Incorrect PIN',
+                },
+              ),
+            );
+            _webSocketService.disconnectClient(clientId);
+            return;
+          }
+        }
+        _authorizedClients.add(clientId);
+
         // Send connect acknowledgment
         _webSocketService.sendMessageToClient(
           clientId,
@@ -684,10 +801,25 @@ class MarcoServer {
       return;
     }
 
+    // Capture the face name before execution: a successful toggle press flips
+    // the face, and the result toast should name the face that actually ran.
+    final pressedName = button.effectiveName;
     try {
       final CommandResult result;
+      final isLongPress = payload['longPress'] == true;
       final promptType = button.promptActionType;
-      if (promptType == ActionType.promptText) {
+      if (isLongPress) {
+        // Held on the device: run the alternate (long-press) action set. If
+        // the device's config is stale and the hold actions were removed,
+        // refuse rather than surprising the user with the tap actions.
+        result = button.longPressActions.isNotEmpty
+            ? await _commandExecutor.executeActions(button.longPressActions)
+            : CommandResult(
+                success: false,
+                output: '',
+                error: 'This button no longer has hold actions',
+              );
+      } else if (promptType == ActionType.promptText) {
         // Type the text the client supplied at press time.
         final text = (payload['text'] as String?) ?? '';
         result = await _commandExecutor.executeTypeText(text);
@@ -707,12 +839,16 @@ class MarcoServer {
       } else {
         result = await _commandExecutor.execute(button);
       }
+      // Any successful tap (including prompt-style presses) flips a toggle
+      // button's face; holds leave the face alone.
+      if (!isLongPress) _flipToggleIfNeeded(button, result);
       _webSocketService.sendMessageToClient(
         clientId,
         Message(
           type: MessageType.commandResult,
           payload: {
             'buttonId': buttonId,
+            'buttonName': pressedName,
             'success': result.success,
             'output': result.output,
             'error': result.error,
@@ -726,6 +862,7 @@ class MarcoServer {
           type: MessageType.commandResult,
           payload: {
             'buttonId': buttonId,
+            'buttonName': pressedName,
             'success': false,
             'output': '',
             'error': 'Error executing command: $e',
@@ -740,6 +877,8 @@ class MarcoServer {
     try {
       // Use the command executor to execute the button's actions
       final result = await _commandExecutor.execute(button);
+      // Keep toggle faces in sync when run from the desktop too.
+      _flipToggleIfNeeded(button, result);
       return result;
     } catch (e) {
       // If an exception occurs, return a failed result
@@ -835,10 +974,57 @@ class MarcoServer {
     return result;
   }
 
+  /// Flips a toggle button's face after a successful press, persists the new
+  /// state and tells every client so all devices render the same face. Single
+  /// home for the flip policy — used by both the client press path and
+  /// desktop test runs.
+  void _flipToggleIfNeeded(Button button, CommandResult result) {
+    if (button.toggleState == null || !result.success) return;
+    button.toggled = !button.toggled;
+    _buttonManager.saveConfig();
+    _broadcastButtonState(button);
+  }
+
+  /// Broadcasts [message] to every client — or, while PIN pairing is on, to
+  /// just the clients that completed a valid handshake (an unauthenticated
+  /// socket must not see page config or live system state).
+  void _broadcast(Message message) {
+    if (!_requirePin) {
+      _webSocketService.broadcast(message);
+      return;
+    }
+    for (final clientId in _authorizedClients) {
+      _webSocketService.sendMessageToClient(clientId, message);
+    }
+  }
+
+  /// Broadcasts a toggle button's new face to all connected clients.
+  void _broadcastButtonState(Button button) {
+    if (_isRunning) {
+      _broadcast(
+        Message(
+          type: MessageType.buttonStateUpdate,
+          payload: {'buttonId': button.id, 'toggled': button.toggled},
+        ),
+      );
+    }
+  }
+
+  /// Exports the button library and pages as a JSON profile string.
+  String exportProfile() => _buttonManager.exportProfile();
+
+  /// Replaces the button library and pages with an imported JSON profile.
+  /// Returns an error message, or null on success.
+  Future<String?> importProfile(String json) async {
+    final error = await _buttonManager.importProfile(json);
+    if (error == null) _broadcastPages();
+    return error;
+  }
+
   /// Broadcasts the pages and buttons to all connected clients
   void _broadcastPages() {
     if (_isRunning) {
-      _webSocketService.broadcast(
+      _broadcast(
         Message(
           type: MessageType.pagesResponse,
           payload: _buttonManager.pages.map((p) => p.toJson()).toList(),

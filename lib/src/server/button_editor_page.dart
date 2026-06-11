@@ -41,6 +41,18 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
   // List of actions for this button
   List<ButtonAction> _actions = [];
 
+  /// Actions run when the button is held (long-pressed) on the device.
+  List<ButtonAction> _longPressActions = [];
+
+  /// Whether this button toggles between two faces.
+  bool _isToggle = false;
+
+  /// Appearance and actions of the toggled-on face.
+  final _toggleNameController = TextEditingController();
+  String _toggleIcon = '';
+  String _toggleColor = '';
+  List<ButtonAction> _toggleActions = [];
+
   /// Optional live-tile binding to a plugin state.
   StateBinding? _stateBinding;
 
@@ -70,28 +82,30 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
       _selectedColor = widget.button!.color;
 
       // Copy actions (including plugin fields so editing preserves them)
-      _actions =
-          widget.button!.actions
-              .map(
-                (action) => ButtonAction(
-                  id: action.id,
-                  type: action.type,
-                  command: action.command,
-                  key: action.key,
-                  modifiers: List<String>.from(action.modifiers),
-                  pluginId: action.pluginId,
-                  pluginActionId: action.pluginActionId,
-                  settings: Map<String, dynamic>.from(action.settings),
-                ),
-              )
-              .toList();
+      _actions = _copyActions(widget.button!.actions);
+      _longPressActions = _copyActions(widget.button!.longPressActions);
       _stateBinding = widget.button!.stateBinding;
+
+      final toggle = widget.button!.toggleState;
+      if (toggle != null) {
+        _isToggle = true;
+        _toggleNameController.text = toggle.name;
+        _toggleIcon = toggle.iconName;
+        _toggleColor = toggle.color;
+        _toggleActions = _copyActions(toggle.actions);
+      }
     }
   }
+
+  /// Deep-copies actions so editing doesn't mutate the stored button until
+  /// save.
+  List<ButtonAction> _copyActions(List<ButtonAction> actions) =>
+      actions.map((a) => a.copy()).toList();
 
   @override
   void dispose() {
     _nameController.dispose();
+    _toggleNameController.dispose();
     super.dispose();
   }
 
@@ -116,6 +130,17 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         actions: _actions,
         color: _selectedColor,
         stateBinding: _stateBinding,
+        toggleState: _isToggle
+            ? ToggleState(
+                name: _toggleNameController.text.trim(),
+                iconName: _toggleIcon,
+                color: _toggleColor,
+                actions: _toggleActions,
+              )
+            : null,
+        // Keep the current face when editing an existing toggle button.
+        toggled: _isToggle && (widget.button?.toggled ?? false),
+        longPressActions: _longPressActions,
       );
 
       widget.onSave(button);
@@ -162,8 +187,14 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
     }
   }
 
-  /// Navigate to action editor page
-  Future<void> _navigateToActionEditor(ButtonAction? action, int index) async {
+  /// Navigate to action editor page. Edits the action at [index] in [list]
+  /// (the main, toggle-face, or long-press action list), or appends when
+  /// [index] is out of range.
+  Future<void> _navigateToActionEditor(
+    List<ButtonAction> list,
+    ButtonAction? action,
+    int index,
+  ) async {
     final result = await Navigator.push<ButtonAction>(
       context,
       MaterialPageRoute(
@@ -174,19 +205,19 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
 
     if (result != null) {
       setState(() {
-        if (index >= 0 && index < _actions.length) {
+        if (index >= 0 && index < list.length) {
           // Update existing action
-          _actions[index] = result;
+          list[index] = result;
         } else {
           // Add new action
-          _actions.add(result);
+          list.add(result);
         }
       });
     }
   }
 
-  /// Deletes an action
-  void _deleteAction(int index) {
+  /// Deletes an action from [list]
+  void _deleteAction(List<ButtonAction> list, int index) {
     showDialog<void>(
       context: context,
       builder:
@@ -204,7 +235,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                 ),
                 onPressed: () {
                   setState(() {
-                    _actions.removeAt(index);
+                    list.removeAt(index);
                   });
                   Navigator.pop(context);
                 },
@@ -239,9 +270,18 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
       case ActionType.mediaKey:
         return 'Media key: ${action.key}';
       case ActionType.navigatePage:
+        if (action.command.startsWith('page:')) {
+          final pageId = action.command.substring('page:'.length);
+          final pages = widget.server.pages.where((p) => p.id == pageId);
+          return pages.isEmpty
+              ? 'Go to a removed page'
+              : 'Go to page "${pages.first.name}"';
+        }
         return 'Go to ${action.command} page';
       case ActionType.plugin:
         return 'Plugin: ${action.pluginActionId}';
+      case ActionType.delay:
+        return 'Wait ${action.command} ms';
     }
   }
 
@@ -268,6 +308,8 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return 'Navigate Page';
       case ActionType.plugin:
         return 'Plugin Action';
+      case ActionType.delay:
+        return 'Delay';
     }
   }
 
@@ -294,7 +336,190 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
         return Icons.swap_horiz;
       case ActionType.plugin:
         return Icons.extension;
+      case ActionType.delay:
+        return Icons.timer_outlined;
     }
+  }
+
+  /// Builds a titled, reorderable list of actions with add/edit/delete. Used
+  /// for the main actions, the toggled-on face's actions, and the long-press
+  /// actions.
+  Widget _buildActionsCard({
+    required String title,
+    IconData? icon,
+    String? subtitle,
+    required List<ButtonAction> actions,
+    required String emptyText,
+  }) {
+    final tokens = context.tokens;
+    final textTheme = Theme.of(context).textTheme;
+    return SectionCard(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      trailing: TextButton.icon(
+        onPressed: () => _navigateToActionEditor(actions, null, -1),
+        icon: Icon(Icons.add, size: tokens.icon.sm),
+        label: const Text('Add'),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+      flush: true,
+      children: [
+        if (actions.isEmpty)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              tokens.space.lg,
+              0,
+              tokens.space.lg,
+              tokens.space.sm,
+            ),
+            child: Text(
+              emptyText,
+              style: textTheme.bodySmall
+                  ?.copyWith(color: tokens.color.textMuted),
+            ),
+          )
+        else
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: actions.length,
+            onReorderItem: (oldIndex, newIndex) {
+              setState(() {
+                final item = actions.removeAt(oldIndex);
+                actions.insert(newIndex, item);
+              });
+            },
+            itemBuilder: (context, index) {
+              final action = actions[index];
+              return ListTile(
+                key: ValueKey(action.id),
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: tokens.space.lg,
+                ),
+                leading: Container(
+                  width: tokens.space.xxxl,
+                  height: tokens.space.xxxl,
+                  decoration: BoxDecoration(
+                    color: tokens.color.accentSubtle,
+                    borderRadius: tokens.radius.brSm,
+                  ),
+                  child: Icon(
+                    _getActionTypeIcon(action.type),
+                    size: tokens.icon.sm,
+                    color: tokens.color.accent,
+                  ),
+                ),
+                title: Text(
+                  _getActionTypeString(action.type),
+                  style: textTheme.bodyMedium
+                      ?.copyWith(fontWeight: tokens.typeScale.wSemibold),
+                ),
+                subtitle: Text(
+                  _getActionDescription(action),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: tokens.color.textSecondary),
+                ),
+                trailing: IconButton(
+                  icon: Icon(Icons.delete_outline, size: tokens.icon.md),
+                  visualDensity: VisualDensity.compact,
+                  color: tokens.color.textMuted,
+                  onPressed: () => _deleteAction(actions, index),
+                  tooltip: 'Delete',
+                ),
+                onTap: () => _navigateToActionEditor(actions, action, index),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  /// Builds the toggle section: a switch to make this a two-face button plus
+  /// the second face's optional name/icon/color overrides. The face's action
+  /// list renders as its own section below this one.
+  Widget _buildToggleSection() {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    return SectionCard(
+      icon: Icons.toggle_on_outlined,
+      title: 'Toggle',
+      subtitle: _isToggle
+          ? 'Each press alternates faces. Leave a field empty to keep the '
+              'normal appearance.'
+          : 'Two-state button (e.g. Mute / Unmute): each press runs the '
+              'active face\'s actions and flips it on every device.',
+      trailing: Switch(
+        value: _isToggle,
+        onChanged: (value) => setState(() => _isToggle = value),
+      ),
+      children: [
+        if (_isToggle) ...[
+          TextFormField(
+            controller: _toggleNameController,
+            decoration: const InputDecoration(
+              labelText: 'Toggled-on name (optional)',
+              hintText: 'e.g. Unmute',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          SizedBox(height: tokens.space.lg),
+          Row(
+            children: [
+              Text('Icon', style: theme.textTheme.bodyMedium),
+              SizedBox(width: tokens.space.md),
+              if (_toggleIcon.isNotEmpty)
+                Icon(_getIconData(_toggleIcon), size: tokens.icon.lg)
+              else
+                Text(
+                  'same as normal',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: tokens.color.textMuted,
+                  ),
+                ),
+              SizedBox(width: tokens.space.sm),
+              TextButton(
+                onPressed: () async {
+                  final result = await showDialog<IconData>(
+                    context: context,
+                    builder: (context) => const IconPickerDialog(),
+                  );
+                  if (result != null) {
+                    setState(() => _toggleIcon = MacroIcons.idFor(result));
+                  }
+                },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Browse'),
+              ),
+              if (_toggleIcon.isNotEmpty)
+                IconButton(
+                  onPressed: () => setState(() => _toggleIcon = ''),
+                  icon: Icon(Icons.clear, size: tokens.icon.sm),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Use the normal icon',
+                ),
+            ],
+          ),
+          SizedBox(height: tokens.space.md),
+          Text('Color', style: theme.textTheme.bodyMedium),
+          SizedBox(height: tokens.space.sm),
+          _buildColorSwatches(
+            selected: _toggleColor,
+            onChanged: (hex) => setState(() => _toggleColor = hex),
+            allowInherit: true,
+          ),
+        ],
+      ],
+    );
   }
 
   /// Builds the optional "Live Tile" section that binds the button to a plugin
@@ -319,112 +544,148 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
       }
     }
 
-    final theme = Theme.of(context);
     final tokens = context.tokens;
     final currentKey = _stateBinding == null
         ? null
         : '${_stateBinding!.pluginId}|${_stateBinding!.stateId}';
     final hasMatch = states.any((s) => s.key == currentKey);
 
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: tokens.radius.brMd),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: EdgeInsets.all(tokens.space.lg),
-            color: theme.colorScheme.primary,
-            child: Text(
-              'Live Tile (optional)',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
+    return SectionCard(
+      icon: Icons.sensors_outlined,
+      title: 'Live tile',
+      subtitle: states.isEmpty
+          ? 'Install and enable a plugin that exposes live states to drive '
+              'this button with live data.'
+          : 'Show a live value from the system or a plugin on this button.',
+      children: [
+        if (states.isNotEmpty) ...[
+          DropdownButtonFormField<String?>(
+            initialValue: hasMatch ? currentKey : null,
+            decoration: const InputDecoration(
+              labelText: 'Bound state',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                  value: null, child: Text('None')),
+              for (final s in states)
+                DropdownMenuItem<String?>(
+                    value: s.key, child: Text(s.label)),
+            ],
+            onChanged: (value) {
+              setState(() {
+                if (value == null) {
+                  _stateBinding = null;
+                } else {
+                  final match =
+                      states.firstWhere((s) => s.key == value);
+                  _stateBinding = StateBinding(
+                    pluginId: match.pluginId,
+                    stateId: match.stateId,
+                    mode: _stateBinding?.mode ?? StateBindingMode.title,
+                  );
+                }
+              });
+            },
+          ),
+          if (_stateBinding != null) ...[
+            SizedBox(height: tokens.space.md),
+            SegmentedButton<StateBindingMode>(
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
               ),
+              segments: const [
+                ButtonSegment(
+                  value: StateBindingMode.title,
+                  label: Text('Title'),
+                  icon: Icon(Icons.title),
+                ),
+                ButtonSegment(
+                  value: StateBindingMode.icon,
+                  label: Text('Icon'),
+                  icon: Icon(Icons.image_outlined),
+                ),
+              ],
+              selected: {_stateBinding!.mode},
+              onSelectionChanged: (modes) {
+                setState(() {
+                  _stateBinding = StateBinding(
+                    pluginId: _stateBinding!.pluginId,
+                    stateId: _stateBinding!.stateId,
+                    mode: modes.first,
+                  );
+                });
+              },
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  /// One shared swatch row for both the main color and the toggled-on color,
+  /// so the two pickers stay visually identical.
+  Widget _buildColorSwatches({
+    required String selected,
+    required ValueChanged<String> onChanged,
+    bool allowInherit = false,
+  }) {
+    final tokens = context.tokens;
+    final swatchSize = tokens.space.xxxl;
+
+    Widget swatch({
+      required bool isSelected,
+      required VoidCallback onTap,
+      Color? color,
+      Widget? child,
+    }) {
+      return InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: swatchSize,
+          height: swatchSize,
+          decoration: BoxDecoration(
+            color: color ?? tokens.color.surfaceSubtle,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected
+                  ? tokens.color.borderStrong
+                  : tokens.color.border,
+              width: isSelected ? tokens.border.focus : tokens.border.hairline,
             ),
           ),
-          Padding(
-            padding: EdgeInsets.all(tokens.space.lg),
-            child: states.isEmpty
-                ? Text(
-                    'Install and enable a plugin that exposes live states to '
-                    'drive this button with live data.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Show a live value from a plugin on this button.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                      SizedBox(height: tokens.space.md),
-                      DropdownButtonFormField<String?>(
-                        initialValue: hasMatch ? currentKey : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Bound state',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                              value: null, child: Text('None')),
-                          for (final s in states)
-                            DropdownMenuItem<String?>(
-                                value: s.key, child: Text(s.label)),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            if (value == null) {
-                              _stateBinding = null;
-                            } else {
-                              final match =
-                                  states.firstWhere((s) => s.key == value);
-                              _stateBinding = StateBinding(
-                                pluginId: match.pluginId,
-                                stateId: match.stateId,
-                                mode: _stateBinding?.mode ??
-                                    StateBindingMode.title,
-                              );
-                            }
-                          });
-                        },
-                      ),
-                      if (_stateBinding != null) ...[
-                        SizedBox(height: tokens.space.md),
-                        SegmentedButton<StateBindingMode>(
-                          segments: const [
-                            ButtonSegment(
-                              value: StateBindingMode.title,
-                              label: Text('Title'),
-                              icon: Icon(Icons.title),
-                            ),
-                            ButtonSegment(
-                              value: StateBindingMode.icon,
-                              label: Text('Icon'),
-                              icon: Icon(Icons.image_outlined),
-                            ),
-                          ],
-                          selected: {_stateBinding!.mode},
-                          onSelectionChanged: (modes) {
-                            setState(() {
-                              _stateBinding = StateBinding(
-                                pluginId: _stateBinding!.pluginId,
-                                stateId: _stateBinding!.stateId,
-                                mode: modes.first,
-                              );
-                            });
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
+          child: child ??
+              (isSelected
+                  ? Icon(Icons.check,
+                      size: tokens.icon.sm, color: Colors.white)
+                  : null),
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: tokens.space.sm,
+      runSpacing: tokens.space.sm,
+      children: [
+        if (allowInherit)
+          swatch(
+            isSelected: selected.isEmpty,
+            onTap: () => onChanged(''),
+            child: Icon(
+              Icons.block,
+              size: tokens.icon.sm,
+              color: tokens.color.textMuted,
+            ),
           ),
-        ],
-      ),
+        for (final color in _presetColors)
+          swatch(
+            isSelected: selected == _colorToHex(color),
+            onTap: () => onChanged(_colorToHex(color)),
+            color: color,
+          ),
+      ],
     );
   }
 
@@ -438,8 +699,9 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
           TextButton.icon(
             onPressed: _saveButton,
             icon: const Icon(Icons.check),
-            label: const Text('SAVE'),
+            label: const Text('Save'),
           ),
+          SizedBox(width: tokens.space.sm),
         ],
       ),
       body: Form(
@@ -454,7 +716,7 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
               decoration: const InputDecoration(
                 labelText: 'Button Name',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.edit),
+                prefixIcon: Icon(Icons.edit_outlined),
               ),
               // Rebuild so the live button preview reflects the typed name.
               onChanged: (_) => setState(() {}),
@@ -465,318 +727,157 @@ class _ButtonEditorPageState extends State<ButtonEditorPage> {
                 return null;
               },
             ),
-            SizedBox(height: tokens.space.xxl),
+            SizedBox(height: tokens.space.lg),
 
             // Actions section
-            Card(
-              margin: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: tokens.radius.brMd,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(tokens.space.lg),
-                    color: Theme.of(context).colorScheme.primary,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Actions (${_actions.length})',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        FilledButton.icon(
-                          onPressed: () => _navigateToActionEditor(null, -1),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Action'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primaryContainer,
-                            foregroundColor:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_actions.isEmpty)
-                    Padding(
-                      padding: EdgeInsets.all(tokens.space.xxl),
-                      child: Center(
-                        child: Text(
-                          'No actions yet. Add your first action by clicking the button above.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: tokens.color.textMuted),
-                        ),
-                      ),
-                    )
-                  else
-                    ReorderableListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _actions.length,
-                      onReorderItem: (oldIndex, newIndex) {
-                        setState(() {
-                          final item = _actions.removeAt(oldIndex);
-                          _actions.insert(newIndex, item);
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        final action = _actions[index];
-                        return Card(
-                          key: ValueKey(action.id),
-                          margin: EdgeInsets.symmetric(
-                            horizontal: tokens.space.sm,
-                            vertical: tokens.space.xs,
-                          ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.primaryContainer,
-                              child: Icon(_getActionTypeIcon(action.type)),
-                            ),
-                            title: Text(
-                              _getActionTypeString(action.type),
-                              style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(_getActionDescription(action)),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.edit, size: tokens.icon.lg),
-                                  onPressed:
-                                      () => _navigateToActionEditor(
-                                        action,
-                                        index,
-                                      ),
-                                  tooltip: 'Edit',
-                                ),
-                                IconButton(
-                                  icon:
-                                      Icon(Icons.delete, size: tokens.icon.lg),
-                                  onPressed: () => _deleteAction(index),
-                                  tooltip: 'Delete',
-                                ),
-                              ],
-                            ),
-                            onTap: () => _navigateToActionEditor(action, index),
-                          ),
-                        );
-                      },
-                    ),
-                ],
-              ),
+            _buildActionsCard(
+              icon: Icons.bolt_outlined,
+              title: 'Actions (${_actions.length})',
+              actions: _actions,
+              emptyText: 'No actions yet — add one to get started.',
             ),
-            SizedBox(height: tokens.space.xxl),
+            SizedBox(height: tokens.space.lg),
+
+            // Toggle (two-face) section, with the second face's actions as a
+            // sibling section so cards never nest.
+            _buildToggleSection(),
+            if (_isToggle) ...[
+              SizedBox(height: tokens.space.lg),
+              _buildActionsCard(
+                icon: Icons.toggle_on_outlined,
+                title: 'Toggled-on actions (${_toggleActions.length})',
+                actions: _toggleActions,
+                emptyText:
+                    'No separate actions — both faces run the main actions.',
+              ),
+            ],
+            SizedBox(height: tokens.space.lg),
+
+            // Long-press actions section
+            _buildActionsCard(
+              icon: Icons.touch_app_outlined,
+              title: 'Hold actions (${_longPressActions.length})',
+              subtitle:
+                  'Run a different action set when the button is held on the '
+                  'device instead of tapped.',
+              actions: _longPressActions,
+              emptyText: 'No hold actions — holding behaves like a tap.',
+            ),
+            SizedBox(height: tokens.space.lg),
 
             // Live tile section (plugin-driven dynamic title/icon)
             _buildLiveTileSection(),
-            SizedBox(height: tokens.space.xxl),
+            SizedBox(height: tokens.space.lg),
 
             // Button appearance section
-            Card(
-              margin: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: tokens.radius.brMd,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(tokens.space.lg),
-                    color: Theme.of(context).colorScheme.primary,
-                    child: Text(
-                      'Button Appearance',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+            SectionCard(
+              icon: Icons.palette_outlined,
+              title: 'Appearance',
+              children: [
+                // Button preview
+                Center(
+                  child: Container(
+                    width: 104,
+                    height: 104,
+                    decoration: BoxDecoration(
+                      color: _hexToColor(_selectedColor),
+                      borderRadius: tokens.radius.brLg,
                     ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(tokens.space.lg),
+                    padding: EdgeInsets.all(tokens.space.sm),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Button preview
-                        Center(
-                          child: Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              color: _hexToColor(_selectedColor),
-                              borderRadius: tokens.radius.brLg,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: tokens.color.shadow,
-                                  blurRadius: tokens.space.sm,
-                                  spreadRadius: tokens.border.hairline,
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  _getIconData(_selectedIcon),
-                                  size: tokens.space.huge,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(height: tokens.space.sm),
-                                Text(
-                                  _nameController.text.isEmpty
-                                      ? 'Button Name'
-                                      : _nameController.text,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
+                        Icon(
+                          _getIconData(_selectedIcon),
+                          size: tokens.space.xxxl,
+                          color: Colors.white,
                         ),
-                        SizedBox(height: tokens.space.xxl),
-
-                        // Color selection
+                        SizedBox(height: tokens.space.sm),
                         Text(
-                          'Button Color',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        SizedBox(height: tokens.space.sm),
-                        SizedBox(
-                          height: 60,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _presetColors.length,
-                            itemBuilder: (context, index) {
-                              final color = _presetColors[index];
-                              final colorHex = _colorToHex(color);
-                              final isSelected = colorHex == _selectedColor;
-
-                              return Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: tokens.space.sm,
-                                ),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedColor = colorHex;
-                                    });
-                                  },
-                                  child: Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: color,
-                                      shape: BoxShape.circle,
-                                      border:
-                                          isSelected
-                                              ? Border.all(
-                                                color: Colors.white,
-                                                width: tokens.border.focus,
-                                              )
-                                              : null,
-                                      boxShadow:
-                                          isSelected
-                                              ? [
-                                                BoxShadow(
-                                                  color: tokens.color.shadow,
-                                                  blurRadius: tokens.space.xs,
-                                                  spreadRadius:
-                                                      tokens.border.hairline,
-                                                ),
-                                              ]
-                                              : null,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        SizedBox(height: tokens.space.xxl),
-
-                        // Icon selection
-                        Text(
-                          'Button Icon',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        SizedBox(height: tokens.space.sm),
-                        TextButton.icon(
-                          onPressed: _showExtendedIconPicker,
-                          icon: const Icon(Icons.search),
-                          label: const Text('Browse Icons'),
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: tokens.space.lg,
-                              vertical: tokens.space.sm,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: tokens.space.sm),
-
-                        // Icons grid
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 6,
-                                mainAxisSpacing: tokens.space.sm,
-                                crossAxisSpacing: tokens.space.sm,
+                          _nameController.text.isEmpty
+                              ? 'Button Name'
+                              : _nameController.text,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: tokens.typeScale.wSemibold,
                               ),
-                          itemCount: _presetIcons.length,
-                          itemBuilder: (context, index) {
-                            final icon = _presetIcons[index];
-                            final iconString = icon.codePoint.toString();
-                            final isSelected = iconString == _selectedIcon;
-
-                            return InkWell(
-                              onTap: () {
-                                _selectIcon(icon);
-                              },
-                              borderRadius: tokens.radius.brSm,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color:
-                                      isSelected
-                                          ? _hexToColor(_selectedColor)
-                                          : tokens.color.surfaceSubtle,
-                                  borderRadius: tokens.radius.brSm,
-                                ),
-                                child: Icon(
-                                  icon,
-                                  size: tokens.icon.xl,
-                                  color:
-                                      isSelected
-                                          ? Colors.white
-                                          : tokens.color.textPrimary,
-                                ),
-                              ),
-                            );
-                          },
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                SizedBox(height: tokens.space.xl),
+
+                // Color selection
+                Text('Color', style: Theme.of(context).textTheme.bodyMedium),
+                SizedBox(height: tokens.space.sm),
+                _buildColorSwatches(
+                  selected: _selectedColor,
+                  onChanged: (hex) => setState(() => _selectedColor = hex),
+                ),
+                SizedBox(height: tokens.space.xl),
+
+                // Icon selection
+                Row(
+                  children: [
+                    Text('Icon', style: Theme.of(context).textTheme.bodyMedium),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _showExtendedIconPicker,
+                      icon: Icon(Icons.search, size: tokens.icon.sm),
+                      label: const Text('Browse all'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: tokens.space.sm),
+
+                // Icons grid
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 6,
+                    mainAxisSpacing: tokens.space.sm,
+                    crossAxisSpacing: tokens.space.sm,
+                  ),
+                  itemCount: _presetIcons.length,
+                  itemBuilder: (context, index) {
+                    final icon = _presetIcons[index];
+                    final iconString = icon.codePoint.toString();
+                    final isSelected = iconString == _selectedIcon;
+
+                    return InkWell(
+                      onTap: () {
+                        _selectIcon(icon);
+                      },
+                      borderRadius: tokens.radius.brSm,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? _hexToColor(_selectedColor)
+                              : tokens.color.surfaceSubtle,
+                          borderRadius: tokens.radius.brSm,
+                        ),
+                        child: Icon(
+                          icon,
+                          size: tokens.icon.lg,
+                          color: isSelected
+                              ? Colors.white
+                              : tokens.color.textPrimary,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),

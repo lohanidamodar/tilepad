@@ -28,11 +28,16 @@ enum ActionType {
   mediaKey,
 
   /// Switch the client's visible page (target in [ButtonAction.command]:
-  /// next, prev, first, last). Handled entirely on the client.
+  /// next, prev, first, last, or `page:<pageId>` for a specific page).
+  /// Handled entirely on the client.
   navigatePage,
 
   /// Invoke an action provided by an installed plugin
   plugin,
+
+  /// Pause for a number of milliseconds (in [ButtonAction.command]) before
+  /// the next action in a multi-action sequence runs.
+  delay,
 }
 
 /// Represents a single action that can be performed by a button
@@ -98,6 +103,21 @@ class ButtonAction {
     );
   }
 
+  /// Deep-copies this action (same id) so editors can mutate a working copy
+  /// without touching the stored button until save.
+  ButtonAction copy() {
+    return ButtonAction(
+      id: id,
+      type: type,
+      command: command,
+      key: key,
+      modifiers: List<String>.from(modifiers),
+      pluginId: pluginId,
+      pluginActionId: pluginActionId,
+      settings: Map<String, dynamic>.from(settings),
+    );
+  }
+
   /// Converts this action to a JSON map
   Map<String, dynamic> toJson() {
     return {
@@ -147,6 +167,49 @@ class StateBinding {
       };
 }
 
+/// The second face of a toggle button: its appearance and the actions that
+/// run when the button is pressed while in the "on" state.
+class ToggleState {
+  /// Display name shown while toggled on (empty = keep the primary name).
+  String name;
+
+  /// Icon shown while toggled on (empty = keep the primary icon).
+  String iconName;
+
+  /// Background color while toggled on (empty = keep the primary color).
+  String color;
+
+  /// Actions to run when pressed while toggled on (empty = run the primary
+  /// actions for both states).
+  List<ButtonAction> actions;
+
+  ToggleState({
+    this.name = '',
+    this.iconName = '',
+    this.color = '',
+    List<ButtonAction>? actions,
+  }) : actions = actions ?? [];
+
+  factory ToggleState.fromJson(Map<String, dynamic> json) {
+    return ToggleState(
+      name: json['name'] as String? ?? '',
+      iconName: json['iconName'] as String? ?? '',
+      color: json['color'] as String? ?? '',
+      actions: (json['actions'] as List<dynamic>?)
+              ?.map((a) => ButtonAction.fromJson(a as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'iconName': iconName,
+        'color': color,
+        'actions': actions.map((a) => a.toJson()).toList(),
+      };
+}
+
 /// Represents a custom button that can be displayed on the client
 /// and configured from the server.
 class Button {
@@ -168,6 +231,20 @@ class Button {
   /// Optional binding to a live plugin state. When set, the client renders this
   /// button as a "live tile" driven by the bound state.
   StateBinding? stateBinding;
+
+  /// Optional second face for a toggle button. When set, the button alternates
+  /// between its primary face and this one on each press; the server tracks
+  /// and persists which face is active in [toggled].
+  ToggleState? toggleState;
+
+  /// Whether a toggle button is currently showing its second face. Runtime
+  /// state owned by the server, persisted so it survives restarts, and sent to
+  /// clients so they render the active face.
+  bool toggled;
+
+  /// Actions to run when the button is held (long-pressed) on the client
+  /// instead of tapped. Empty = long press does nothing special.
+  List<ButtonAction> longPressActions;
 
   // The following properties are kept for backward compatibility
   // and convenience when dealing with a single action
@@ -213,6 +290,30 @@ class Button {
     return action.type == ActionType.navigatePage ? action.command : null;
   }
 
+  /// The name to render given the current toggle face.
+  String get effectiveName =>
+      (toggled && toggleState != null && toggleState!.name.isNotEmpty)
+          ? toggleState!.name
+          : name;
+
+  /// The icon to render given the current toggle face.
+  String get effectiveIconName =>
+      (toggled && toggleState != null && toggleState!.iconName.isNotEmpty)
+          ? toggleState!.iconName
+          : iconName;
+
+  /// The color to render given the current toggle face.
+  String get effectiveColor =>
+      (toggled && toggleState != null && toggleState!.color.isNotEmpty)
+          ? toggleState!.color
+          : color;
+
+  /// The actions to run for the current toggle face.
+  List<ButtonAction> get effectiveActions =>
+      (toggled && toggleState != null && toggleState!.actions.isNotEmpty)
+          ? toggleState!.actions
+          : actions;
+
   /// Creates a new button with the given properties
   Button({
     String? id,
@@ -225,8 +326,12 @@ class Button {
     List<String> modifiers = const [],
     this.color = '#4285F4', // Default Google blue
     this.stateBinding,
+    this.toggleState,
+    this.toggled = false,
+    List<ButtonAction>? longPressActions,
   }) : id = id ?? const Uuid().v4(),
-       actions = actions ?? [] {
+       actions = actions ?? [],
+       longPressActions = longPressActions ?? [] {
     // If actions weren't provided but type was, create a legacy-style action
     if (this.actions.isEmpty && type != null) {
       this.actions.add(
@@ -249,6 +354,15 @@ class Button {
     final stateBinding =
         stateBindingJson != null ? StateBinding.fromJson(stateBindingJson) : null;
 
+    final toggleStateJson = json['toggleState'] as Map<String, dynamic>?;
+    final toggleState =
+        toggleStateJson != null ? ToggleState.fromJson(toggleStateJson) : null;
+    final toggled = json['toggled'] as bool? ?? false;
+    final longPressActions = (json['longPressActions'] as List<dynamic>?)
+            ?.map((a) => ButtonAction.fromJson(a as Map<String, dynamic>))
+            .toList() ??
+        <ButtonAction>[];
+
     if (actionsList != null) {
       // New format with multiple actions
       return Button(
@@ -264,6 +378,9 @@ class Button {
                 .toList(),
         color: json['color'] as String? ?? '#4285F4',
         stateBinding: stateBinding,
+        toggleState: toggleState,
+        toggled: toggled,
+        longPressActions: longPressActions,
       );
     } else {
       // Legacy format with a single action
@@ -284,6 +401,9 @@ class Button {
             const [],
         color: json['color'] as String? ?? '#4285F4',
         stateBinding: stateBinding,
+        toggleState: toggleState,
+        toggled: toggled,
+        longPressActions: longPressActions,
       );
     }
   }
@@ -297,7 +417,39 @@ class Button {
       'actions': actions.map((action) => action.toJson()).toList(),
       'color': color,
       if (stateBinding != null) 'stateBinding': stateBinding!.toJson(),
+      if (toggleState != null) 'toggleState': toggleState!.toJson(),
+      if (toggleState != null) 'toggled': toggled,
+      if (longPressActions.isNotEmpty)
+        'longPressActions':
+            longPressActions.map((action) => action.toJson()).toList(),
     };
+  }
+
+  /// Deep-copies this button as a NEW library button (fresh id, name suffixed
+  /// with "copy", toggle reset to the primary face).
+  Button duplicate() {
+    return Button(
+      name: '$name copy',
+      iconName: iconName,
+      color: color,
+      actions: actions.map((a) => a.copy()).toList(),
+      stateBinding: stateBinding == null
+          ? null
+          : StateBinding(
+              pluginId: stateBinding!.pluginId,
+              stateId: stateBinding!.stateId,
+              mode: stateBinding!.mode,
+            ),
+      toggleState: toggleState == null
+          ? null
+          : ToggleState(
+              name: toggleState!.name,
+              iconName: toggleState!.iconName,
+              color: toggleState!.color,
+              actions: toggleState!.actions.map((a) => a.copy()).toList(),
+            ),
+      longPressActions: longPressActions.map((a) => a.copy()).toList(),
+    );
   }
 
   /// Helper method to convert ActionType to ButtonType
@@ -320,6 +472,7 @@ class Button {
       case ActionType.openUrl:
       case ActionType.mediaKey:
       case ActionType.navigatePage:
+      case ActionType.delay:
         return ButtonType.command;
       case ActionType.plugin:
         return ButtonType.plugin;

@@ -9,4 +9,5 @@ export 'app_tokens.dart';
 export 'app_typography.dart';
 export 'personalization.dart';
 export 'personalization_panel.dart';
+export 'section_card.dart';
 export 'tokens.dart';

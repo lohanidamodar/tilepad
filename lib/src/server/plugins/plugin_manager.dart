@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import 'plugin_host.dart';
@@ -86,11 +87,12 @@ class PluginManager {
 
   Future<void> _launch(InstalledPlugin plugin) async {
     final id = plugin.manifest.id;
-    final runCommand = plugin.manifest.runCommandFor(currentPlatform);
+    var runCommand = plugin.manifest.runCommandFor(currentPlatform);
     if (runCommand == null) {
       debugPrint('Plugin "$id" has no run command for $currentPlatform');
       return;
     }
+    runCommand = resolveRunFallback(runCommand, plugin.directory);
     // Stop any process already running for this id so re-enabling (or a stray
     // startAll after enable) can't spawn a duplicate or orphan the old one.
     await _processes.remove(id)?.stop();
@@ -103,6 +105,28 @@ class PluginManager {
       runCommand: runCommand,
       workingDir: plugin.directory,
     ));
+  }
+
+  /// Release bundles ship plugins as compiled binaries (e.g. `./obs-plugin`),
+  /// but a source checkout has only the Dart sources. When the manifest's
+  /// command points at a plugin-local binary that doesn't exist, fall back to
+  /// running `plugin.dart` with the Dart SDK so dev setups keep working.
+  static String resolveRunFallback(String runCommand, Directory workingDir) {
+    final parts = parseRunCommand(runCommand);
+    if (parts.isEmpty) return runCommand;
+    final first = parts.first;
+    final isLocalPath = first.contains('/') || first.contains('\\');
+    if (!isLocalPath) return runCommand;
+    final binary = File(
+        p.isAbsolute(first) ? first : p.join(workingDir.path, first));
+    if (binary.existsSync()) return runCommand;
+    final source = File(p.join(workingDir.path, 'plugin.dart'));
+    if (source.existsSync()) {
+      debugPrint(
+          'Plugin binary $first not found; falling back to "dart plugin.dart"');
+      return 'dart plugin.dart';
+    }
+    return runCommand;
   }
 
   Future<void> _defaultLauncher(PluginLaunchSpec spec) async {

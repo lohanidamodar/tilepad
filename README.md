@@ -46,16 +46,21 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 
 ### 🎛️ Buttons, Tiles & Presets
 - **Built-in catalog**: Drop-in, cross-platform buttons grouped into Media, System, Apps, Web, Window, Clipboard and Navigation — no setup needed
+- **Toggle buttons**: Two-state buttons (e.g. Mute/Unmute) with a separate name, icon, color and action set per face — the active face is persisted and synced live to every device
+- **Hold actions**: A button can run a different action set when long-pressed on the device
+- **Multi-action sequences with delays**: Chain several actions on one button and insert pauses (up to 60 s) between steps
 - **Live tiles**: Show live system info on a tile (CPU, RAM, disk, uptime, clock, battery, network) and any plugin-streamed state
 - **Full-page picker**: Searchable, category-filtered grid; multi-select to add several buttons at once
 - **Test on the desktop**: Run a button on the server (no client needed) to verify it
-- **Client controls a real device**: Adjustable tile sizes, drag-to-reorder, dynamic "prompt" buttons
+- **Client controls a real device**: Adjustable tile sizes, drag-to-reorder, dynamic "prompt" buttons, jump-to-page navigation tiles
+- **Profile backup**: Export/import the entire button & page configuration as a JSON file
 
 ### 🎨 Enhanced UI/UX
 - **Material Design 3**: Modern, consistent design language across all platforms
 - **Smooth Animations**: Fluid transitions and responsive animations
 - **Dark/Light Themes**: Automatic system theme detection with manual override
 - **Responsive Design**: Optimized for different screen sizes and orientations
+- **Fullscreen & Orientation**: Immersive fullscreen mode plus portrait/landscape/auto orientation on the client
 - **Haptic Feedback**: Tactile feedback for better user interaction on mobile devices
 
 ### ♿ Accessibility Features
@@ -65,6 +70,10 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 - **Screen Reader Support**: Full compatibility with accessibility services
 - **Semantic Navigation**: Proper focus management and keyboard navigation
 - **Haptic Feedback Levels**: Multiple intensity levels for different interactions
+
+### 🔐 Security
+- **PIN Pairing**: Optionally require a 6-digit PIN before a device can connect — unpaired clients can't run actions or see your pages
+- **Client Management**: Disconnect a client or block its IP from the dashboard
 
 ### 🌐 Network Reliability
 - **Advanced Reconnection**: Exponential backoff with jitter for robust connection recovery
@@ -80,6 +89,24 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 - **Command Execution**: Support for shell commands, keystrokes, and preset actions
 - **Multi-Client Support**: Handle multiple connected clients simultaneously
 - **System Tray Integration**: Minimize to system tray for background operation
+
+## 🖥️ Platform Support
+
+| Capability | Windows | macOS | Linux |
+|---|---|---|---|
+| Shell commands / open URL / apps | ✅ | ✅ | ✅ |
+| Keystrokes & typed text | ✅ (Win32) | ✅ ¹ | ✅ ² (X11, `xdotool`) |
+| Media transport keys | ✅ (native VKs) | ✅ (controls Music & Spotify) | ✅ (`playerctl`) |
+| Volume / mute | ✅ | ✅ | ✅ (`pactl`) |
+| Window snapping presets | ✅ (Win-key) | Cmd shortcuts + Mission Control | ✅ (GNOME Super-key) |
+| Select Window (focus) | ✅ | — | — |
+| System live tiles (CPU/RAM/…) | ✅ | ✅ | ✅ |
+| OBS plugin | ✅ (bundled binary) | ✅ ³ | ✅ (bundled binary) |
+| System tray | ✅ | ✅ | ✅ (AppIndicator) |
+
+> ¹ macOS asks once for **Accessibility** permission (System Settings → Privacy & Security) the first time a keystroke/typing action runs.
+> ² Keystroke and typing actions need `xdotool` and an X11 session (on Wayland, install `xdotool` and run the target apps under XWayland, or use commands instead). Media transport needs `playerctl`.
+> ³ When building from source the OBS plugin runs with your Dart SDK automatically; release bundles ship a compiled standalone binary.
 
 ## 🛠️ Getting Started
 

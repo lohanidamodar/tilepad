@@ -229,6 +229,10 @@ class AccessibilityState {
 class AccessibleButton extends StatefulWidget {
   final Widget child;
   final VoidCallback? onPressed;
+
+  /// Optional hold gesture (e.g. a button's long-press action set). When null
+  /// a long press is treated as a normal press.
+  final VoidCallback? onLongPress;
   final String label;
   final String? hint;
   final ButtonStyle? style;
@@ -238,6 +242,7 @@ class AccessibleButton extends StatefulWidget {
     super.key,
     required this.child,
     required this.onPressed,
+    this.onLongPress,
     required this.label,
     this.hint,
     this.style,
@@ -262,6 +267,7 @@ class _AccessibleButtonState extends State<AccessibleButton> {
       focusable: true,
       focused: _isFocused,
       onTap: widget.enabled ? widget.onPressed : null,
+      onLongPress: widget.enabled ? widget.onLongPress : null,
       child: Focus(
         onFocusChange: (focused) {
           setState(() {
@@ -292,6 +298,16 @@ class _AccessibleButtonState extends State<AccessibleButton> {
               _isPressed = false;
             });
           },
+          onLongPress:
+              widget.enabled && widget.onLongPress != null
+                  ? () {
+                    setState(() {
+                      _isPressed = false;
+                    });
+                    AccessibilityUtils.provideFeedback(FeedbackType.medium);
+                    widget.onLongPress?.call();
+                  }
+                  : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             decoration: BoxDecoration(

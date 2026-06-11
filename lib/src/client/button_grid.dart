@@ -12,10 +12,21 @@ import 'client_providers.dart';
 
 /// Computes the page index a navigation [target] should switch to, given the
 /// [current] index and total page [count]. `next`/`prev` wrap around; an
-/// `index:N` or bare integer target jumps to a clamped absolute page.
-int resolveNavigationIndex(String target, int current, int count) {
+/// `index:N` or bare integer target jumps to a clamped absolute page; a
+/// `page:<pageId>` target jumps to that page's position in [pageIds] (staying
+/// put if the page no longer exists).
+int resolveNavigationIndex(
+  String target,
+  int current,
+  int count, {
+  List<String> pageIds = const [],
+}) {
   if (count <= 0) return current;
   final last = count - 1;
+  if (target.startsWith('page:')) {
+    final index = pageIds.indexOf(target.substring('page:'.length));
+    return index == -1 ? current : index.clamp(0, last);
+  }
   switch (target) {
     case 'next':
       return current >= last ? 0 : current + 1;
@@ -189,14 +200,15 @@ class ButtonGrid extends ConsumerWidget {
 
   /// Builds a single button widget with enhanced animations and accessibility
   Widget _buildButton(BuildContext context, Button button, WidgetRef ref) {
-    final buttonColor = _hexToColor(button.color);
+    // Toggle buttons render the face that's currently active on the server.
+    final buttonColor = _hexToColor(button.effectiveColor);
     final isConnected =
         ref.read(connectionStateProvider).status == ConnectionStatus.connected;
 
     // Resolve a live-tile binding: a bound state can drive the live value
     // (shown under the name) or swap the icon.
-    final label = button.name;
-    var icon = _getIconData(button.iconName);
+    final label = button.effectiveName;
+    var icon = _getIconData(button.effectiveIconName);
     String? liveValue;
     final binding = button.stateBinding;
     if (binding != null) {
@@ -230,7 +242,7 @@ class ButtonGrid extends ConsumerWidget {
         // Page-navigation buttons act entirely on the client — no server round
         // trip, and they work even while reconnecting.
         if (button.navigationTarget != null) {
-          AccessibilityUtils.announce(context, 'Activated ${button.name}');
+          AccessibilityUtils.announce(context, 'Activated ${button.effectiveName}');
           _navigatePage(ref, button.navigationTarget!);
           return;
         }
@@ -244,7 +256,7 @@ class ButtonGrid extends ConsumerWidget {
 
         // Note: AccessibleButton already provides light haptic feedback on
         // tap-down, so we avoid a duplicate buzz here.
-        AccessibilityUtils.announce(context, 'Activated ${button.name}');
+        AccessibilityUtils.announce(context, 'Activated ${button.effectiveName}');
 
         if (button.isPrompt) {
           // Dynamic button: ask the user what to send, then send it.
@@ -253,6 +265,20 @@ class ButtonGrid extends ConsumerWidget {
           onButtonPressed!(button.id);
         }
       },
+      // Buttons with a hold action set get a distinct long-press gesture;
+      // others keep plain taps so holding doesn't change their behaviour.
+      onLongPress: button.longPressActions.isEmpty
+          ? null
+          : () {
+              if (!isConnected) {
+                _handleConnectionLoss(context, ref);
+                return;
+              }
+              AccessibilityUtils.announce(context, 'Held ${button.effectiveName}');
+              ref
+                  .read(connectionStateProvider.notifier)
+                  .pressButton(button.id, longPress: true);
+            },
       child: AnimatedButton(
         color: buttonColor,
         icon: icon,
@@ -272,11 +298,17 @@ class ButtonGrid extends ConsumerWidget {
       {};
 
   /// Switches the visible page for a [ActionType.navigatePage] button.
+  /// `page:<pageId>` jumps to a specific page; other targets are relative.
   void _navigatePage(WidgetRef ref, String target) {
     final pages = ref.read(pagesProvider);
     if (pages.isEmpty) return;
     final current = ref.read(selectedPageIndexProvider);
-    final next = resolveNavigationIndex(target, current, pages.length);
+    final next = resolveNavigationIndex(
+      target,
+      current,
+      pages.length,
+      pageIds: [for (final p in pages) p.id],
+    );
     if (next != current) {
       ref.read(selectedPageIndexProvider.notifier).set(next);
     }

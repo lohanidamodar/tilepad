@@ -29,5 +29,19 @@ void main() {
       expect(resolveNavigationIndex('bogus', 1, 3), 1);
       expect(resolveNavigationIndex('next', 0, 0), 0);
     });
+
+    test('page:<id> jumps to that page by id', () {
+      const ids = ['a', 'b', 'c'];
+      expect(resolveNavigationIndex('page:b', 0, 3, pageIds: ids), 1);
+      expect(resolveNavigationIndex('page:c', 1, 3, pageIds: ids), 2);
+    });
+
+    test('page:<id> of a removed page keeps the current index', () {
+      expect(
+        resolveNavigationIndex('page:gone', 1, 3, pageIds: ['a', 'b', 'c']),
+        1,
+      );
+      expect(resolveNavigationIndex('page:a', 1, 3), 1);
+    });
   });
 }

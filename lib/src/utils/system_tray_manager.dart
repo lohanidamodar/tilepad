@@ -1,13 +1,25 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../server/server.dart';
+
 /// Menu item keys for the system tray context menu.
 const String _kMenuKeyShow = 'show_window';
+const String _kMenuKeyCopyAddress = 'copy_address';
+const String _kMenuKeyToggleServer = 'toggle_server';
+const String _kMenuKeyRestartServer = 'restart_server';
 const String _kMenuKeyExit = 'exit_app';
 
 /// Manager for system tray functionality.
+///
+/// Once a [MarcoServer] is attached the tray becomes a live mini-dashboard:
+/// the menu and tooltip show the server state, address and connected device
+/// count, and offer start/stop/restart and copy-address without opening the
+/// window.
 class SystemTrayManager with TrayListener, WindowListener {
   static final SystemTrayManager _instance = SystemTrayManager._internal();
   factory SystemTrayManager() => _instance;
@@ -15,6 +27,19 @@ class SystemTrayManager with TrayListener, WindowListener {
   SystemTrayManager._internal();
 
   bool _isInitialized = false;
+
+  MarcoServer? _server;
+  StreamSubscription<ServerStatus>? _statusSub;
+  StreamSubscription<List<dynamic>>? _clientsSub;
+
+  /// Cached state rendered into the menu/tooltip.
+  String _serverIp = '';
+  int _clientCount = 0;
+
+  /// Signature of the last menu actually applied, so repeated status/client
+  /// events that change nothing don't rebuild the native menu (rebuilding it
+  /// makes the tray icon flicker on some platforms).
+  String _lastMenuSignature = '';
 
   /// Initialize the system tray.
   Future<void> initSystemTray() async {
@@ -53,7 +78,7 @@ class SystemTrayManager with TrayListener, WindowListener {
       await trayManager.setToolTip('MarcoDeck Server');
 
       // Create menu items
-      await _createMenu();
+      await _refreshMenu();
 
       _isInitialized = true;
       debugPrint('System tray initialized successfully');
@@ -62,16 +87,101 @@ class SystemTrayManager with TrayListener, WindowListener {
     }
   }
 
-  /// Create a system tray menu.
-  Future<void> _createMenu() async {
+  /// Attaches the server so the tray can show live status and control it.
+  void attachServer(MarcoServer server) {
+    _server = server;
+    _statusSub?.cancel();
+    _clientsSub?.cancel();
+    _statusSub = server.serverStatusStream.listen((_) => _onServerChanged());
+    _clientsSub = server.clientsStream.listen((clients) {
+      _clientCount = clients.length;
+      _refreshMenu();
+    });
+    _onServerChanged();
+  }
+
+  /// Detaches the server (e.g. when the app shell is disposed).
+  void detachServer() {
+    _statusSub?.cancel();
+    _clientsSub?.cancel();
+    _statusSub = null;
+    _clientsSub = null;
+    _server = null;
+  }
+
+  Future<void> _onServerChanged() async {
+    final server = _server;
+    if (server != null && server.isRunning) {
+      try {
+        _serverIp = await server.getServerIp();
+      } catch (_) {
+        _serverIp = '';
+      }
+    }
+    await _refreshMenu();
+  }
+
+  /// The server's address, shown in the menu and copied to the clipboard.
+  String get _address {
+    final server = _server;
+    if (server == null || _serverIp.isEmpty) return '';
+    return 'ws://$_serverIp:${server.serverPort}';
+  }
+
+  /// (Re)builds the tray menu and tooltip from the current server state.
+  /// Skipped when nothing visible changed.
+  Future<void> _refreshMenu() async {
+    final server = _server;
+    final running = server?.isRunning ?? false;
+    final address = _address;
+
+    final signature =
+        '${server != null}|$running|$address|$_clientCount';
+    if (signature == _lastMenuSignature) return;
+    _lastMenuSignature = signature;
+
+    final status = server == null
+        ? 'MarcoDeck Server'
+        : running
+            ? 'Running${address.isEmpty ? '' : ' on $address'}'
+            : 'Stopped';
+    final devices =
+        '$_clientCount device${_clientCount == 1 ? '' : 's'} connected';
+
     final menu = Menu(
       items: [
-        MenuItem(key: _kMenuKeyShow, label: 'Show MarcoDeck'),
+        MenuItem(label: status, disabled: true),
+        if (running) MenuItem(label: devices, disabled: true),
+        MenuItem.separator(),
+        MenuItem(key: _kMenuKeyShow, label: 'Open MarcoDeck'),
+        if (running && address.isNotEmpty)
+          MenuItem(key: _kMenuKeyCopyAddress, label: 'Copy server address'),
+        if (server != null) ...[
+          MenuItem.separator(),
+          MenuItem(
+            key: _kMenuKeyToggleServer,
+            label: running ? 'Stop server' : 'Start server',
+          ),
+          if (running)
+            MenuItem(key: _kMenuKeyRestartServer, label: 'Restart server'),
+        ],
         MenuItem.separator(),
         MenuItem(key: _kMenuKeyExit, label: 'Exit'),
       ],
     );
-    await trayManager.setContextMenu(menu);
+
+    try {
+      await trayManager.setContextMenu(menu);
+      await trayManager.setToolTip(
+        server == null
+            ? 'MarcoDeck Server'
+            : running
+                ? 'MarcoDeck — $status ($devices)'
+                : 'MarcoDeck — Stopped',
+      );
+    } catch (e) {
+      debugPrint('Failed to update tray menu: $e');
+    }
   }
 
   /// Show the application window.
@@ -94,20 +204,19 @@ class SystemTrayManager with TrayListener, WindowListener {
 
       // Hide the window
       await windowManager.hide();
-
-      // Show notification in system tray (if possible)
-      try {
-        await trayManager.setToolTip(
-          'MarcoDeck Server is running in the background',
-        );
-      } catch (_) {}
     } catch (e) {
       debugPrint('Error hiding window to tray: $e');
     }
   }
 
-  /// Exit the application.
-  void exitApplication() {
+  /// Exit the application, stopping the server first so clients see a clean
+  /// disconnect instead of a dead socket.
+  Future<void> exitApplication() async {
+    try {
+      await _server?.stop().timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('Error stopping server on exit: $e');
+    }
     exit(0);
   }
 
@@ -134,10 +243,30 @@ class SystemTrayManager with TrayListener, WindowListener {
   }
 
   @override
-  void onTrayMenuItemClick(MenuItem menuItem) {
+  void onTrayMenuItemClick(MenuItem menuItem) async {
     switch (menuItem.key) {
       case _kMenuKeyShow:
         showWindow();
+        break;
+      case _kMenuKeyCopyAddress:
+        final address = _address;
+        if (address.isNotEmpty) {
+          await Clipboard.setData(ClipboardData(text: address));
+        }
+        break;
+      case _kMenuKeyToggleServer:
+        final server = _server;
+        if (server == null) break;
+        if (server.isRunning) {
+          await server.stop();
+        } else {
+          await server.start();
+        }
+        _onServerChanged();
+        break;
+      case _kMenuKeyRestartServer:
+        await _server?.restart();
+        _onServerChanged();
         break;
       case _kMenuKeyExit:
         exitApplication();

@@ -21,6 +21,8 @@ class SettingsScreen extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final accessibilityState = ref.watch(accessibilitySettingsProvider);
     final keepAwake = ref.watch(keepAwakeProvider);
+    final fullscreen = ref.watch(fullscreenProvider);
+    final orientation = ref.watch(deckOrientationProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -65,6 +67,21 @@ class SettingsScreen extends ConsumerWidget {
                   ref.read(keepAwakeProvider.notifier).setKeepAwake(value);
                 },
               ),
+              SizedBox(height: t.space.lg),
+              _buildToggleSetting(
+                context: context,
+                title: 'Fullscreen Mode',
+                subtitle:
+                    'Hide the status and navigation bars so the deck uses the '
+                    'whole screen',
+                icon: Icons.fullscreen_rounded,
+                value: fullscreen,
+                onChanged: (value) {
+                  ref.read(fullscreenProvider.notifier).setFullscreen(value);
+                },
+              ),
+              SizedBox(height: t.space.lg),
+              _buildOrientationSetting(context, ref, orientation),
               SizedBox(height: t.space.lg),
               _buildToggleSetting(
                 context: context,
@@ -154,7 +171,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Remote Macro Control Application',
                 icon: Icons.devices_rounded,
                 trailing: Text(
-                  'v1.0.0',
+                  'v1.3.0',
                   style: textTheme.bodySmall?.copyWith(
                     color: t.color.textMuted,
                   ),
@@ -210,6 +227,61 @@ class SettingsScreen extends ConsumerWidget {
             padding: EdgeInsets.all(t.space.lg),
             child: Column(children: children),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrientationSetting(
+    BuildContext context,
+    WidgetRef ref,
+    DeckOrientation orientation,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          leading: Icon(
+            Icons.screen_rotation_rounded,
+            color: colorScheme.secondary,
+          ),
+          title: const Text(
+            'Screen Orientation',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: const Text('How the deck rotates with the device'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        SizedBox(height: t.space.sm),
+        SegmentedButton<DeckOrientation>(
+          style: const ButtonStyle(visualDensity: VisualDensity.compact),
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+              value: DeckOrientation.portrait,
+              label: Text('Portrait'),
+              icon: Icon(Icons.stay_current_portrait_rounded),
+            ),
+            ButtonSegment(
+              value: DeckOrientation.landscape,
+              label: Text('Landscape'),
+              icon: Icon(Icons.stay_current_landscape_rounded),
+            ),
+            ButtonSegment(
+              value: DeckOrientation.auto,
+              label: Text('Auto'),
+              icon: Icon(Icons.screen_rotation_alt_rounded),
+            ),
+          ],
+          selected: {orientation},
+          onSelectionChanged: (selection) {
+            ref
+                .read(deckOrientationProvider.notifier)
+                .setOrientation(selection.first);
+          },
         ),
       ],
     );

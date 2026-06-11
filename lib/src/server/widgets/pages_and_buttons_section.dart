@@ -313,7 +313,7 @@ class PagesAndButtonsSection extends StatelessWidget {
 
   /// A compact preview shown under the finger while dragging a tile.
   Widget _dragFeedback(BuildContext context, AppTokens t, models.Tile tile) {
-    final color = _hexToColor(tile.button.color);
+    final color = _hexToColor(tile.button.effectiveColor);
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -329,11 +329,11 @@ class PagesAndButtonsSection extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(MacroIcons.resolve(tile.button.iconName),
+            Icon(MacroIcons.resolve(tile.button.effectiveIconName),
                 color: Colors.white, size: t.icon.lg),
             SizedBox(height: t.space.xs),
             Text(
-              tile.button.name,
+              tile.button.effectiveName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context)
@@ -491,7 +491,9 @@ class _TileChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final textTheme = Theme.of(context).textTheme;
-    final color = _hexToColor(tile.button.color);
+    // Show the toggle face that's currently active so the preview matches
+    // what "Run on server" will execute.
+    final color = _hexToColor(tile.button.effectiveColor);
     final canMoveLeft = index > 0;
     final canMoveRight = index < tileCount - 1;
 
@@ -509,7 +511,7 @@ class _TileChip extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    MacroIcons.resolve(tile.button.iconName),
+                    MacroIcons.resolve(tile.button.effectiveIconName),
                     size: t.icon.lg,
                     color: Colors.white,
                   ),
@@ -531,7 +533,7 @@ class _TileChip extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                tile.button.name,
+                tile.button.effectiveName,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: textTheme.labelLarge?.copyWith(

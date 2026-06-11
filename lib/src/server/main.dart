@@ -38,11 +38,14 @@ class _MarcoDeckServerAppState extends ConsumerState<MarcoDeckServerApp>
     super.initState();
     // Register window manager listener
     windowManager.addListener(this);
+    // Give the tray its live status menu (start/stop/restart, address, ...).
+    _trayManager.attachServer(_server);
   }
 
   @override
   void dispose() {
     windowManager.removeListener(this);
+    _trayManager.detachServer();
     _server.stop();
     super.dispose();
   }

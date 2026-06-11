@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -63,10 +65,15 @@ class _ServerScreenState extends State<ServerScreen> {
     _serverStatusSubscription = widget.server.serverStatusStream.listen((
       status,
     ) {
-      // Showing a snackbar does not change widget state, so don't wrap it in
-      // setState; just guard against the widget being disposed.
-      if (mounted) {
-        _showStatusMessage(status);
+      if (!mounted) return;
+      _showStatusMessage(status);
+      // The server can also be started/stopped from the tray menu; track the
+      // running state from status events so the dashboard never goes stale.
+      if (status.type == ServerStatusType.started && !_isRunning) {
+        setState(() => _isRunning = true);
+        _refreshPages();
+      } else if (status.type == ServerStatusType.stopped && _isRunning) {
+        setState(() => _isRunning = false);
       }
     });
   }
@@ -280,18 +287,28 @@ class _ServerScreenState extends State<ServerScreen> {
 
   /// Refreshes the list of pages and buttons
   void _refreshPages() {
+    // Before the first start the button manager hasn't loaded anything yet,
+    // so there is nothing to show.
     if (widget.server.isRunning) {
-      setState(() {
-        _pages = widget.server.pages;
-
-        if (_selectedPage == null ||
-            !_pages.any((p) => p.id == _selectedPage!.id)) {
-          _selectedPage = _pages.isNotEmpty ? _pages.first : null;
-        } else {
-          _selectedPage = _pages.firstWhere((p) => p.id == _selectedPage!.id);
-        }
-      });
+      _applyPages();
     }
+  }
+
+  /// Syncs the local page list (and selection) with the server's current
+  /// configuration. Unlike [_refreshPages] this works while the server is
+  /// stopped — needed after a profile import so the dashboard doesn't keep
+  /// showing the replaced configuration.
+  void _applyPages() {
+    setState(() {
+      _pages = widget.server.pages;
+
+      if (_selectedPage == null ||
+          !_pages.any((p) => p.id == _selectedPage!.id)) {
+        _selectedPage = _pages.isNotEmpty ? _pages.first : null;
+      } else {
+        _selectedPage = _pages.firstWhere((p) => p.id == _selectedPage!.id);
+      }
+    });
   }
 
   /// Shows a dialog to add or edit a page
@@ -620,6 +637,173 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
+  /// Shows the PIN-pairing settings: a toggle plus the current PIN, which
+  /// devices must enter once when they connect.
+  Future<void> _showSecurityDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final t = context.tokens;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final requirePin = widget.server.requirePin;
+            return AlertDialog(
+              icon: const Icon(Icons.lock_outline),
+              title: const Text('Security'),
+              content: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Require PIN pairing'),
+                      subtitle: const Text(
+                        'Devices must enter this PIN once when they connect',
+                      ),
+                      value: requirePin,
+                      onChanged: (value) async {
+                        await widget.server.setRequirePin(value);
+                        setDialogState(() {});
+                      },
+                    ),
+                    if (requirePin) ...[
+                      SizedBox(height: t.space.lg),
+                      Center(
+                        child: SelectableText(
+                          widget.server.pin,
+                          style: Theme.of(context)
+                              .textTheme
+                              .displaySmall
+                              ?.copyWith(
+                                letterSpacing: t.space.sm,
+                                fontWeight: t.typeScale.wSemibold,
+                              ),
+                        ),
+                      ),
+                      SizedBox(height: t.space.sm),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            await widget.server.regeneratePin();
+                            setDialogState(() {});
+                          },
+                          icon: Icon(Icons.refresh_rounded,
+                              size: t.icon.sm),
+                          label: const Text('New PIN'),
+                        ),
+                      ),
+                      Text(
+                        'Changing the PIN does not disconnect already-paired '
+                        'devices; they will need the new PIN next time they '
+                        'connect.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: t.color.textMuted,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Saves the whole configuration (buttons + pages) to a JSON file the user
+  /// picks, for backup or moving to another machine.
+  Future<void> _exportProfile() async {
+    final location = await getSaveLocation(
+      suggestedName:
+          'marcodeck-profile-${DateTime.now().toIso8601String().split('T').first}.json',
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'MarcoDeck profile', extensions: ['json']),
+      ],
+    );
+    if (location == null || !mounted) return;
+    try {
+      await File(location.path).writeAsString(widget.server.exportProfile());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Profile exported to ${location.path}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: context.tokens.color.danger,
+        ),
+      );
+    }
+  }
+
+  /// Replaces the current configuration with a previously exported profile,
+  /// after an explicit confirmation.
+  Future<void> _importProfile() async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'MarcoDeck profile', extensions: ['json']),
+      ],
+    );
+    if (file == null || !mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Profile'),
+        content: const Text(
+          'Importing replaces ALL current buttons and pages with the '
+          'profile\'s contents. A backup of the current configuration is '
+          'kept as pages.json.bak. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Replace & Import'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    String? error;
+    try {
+      error = await widget.server.importProfile(await file.readAsString());
+    } catch (e) {
+      error = 'Could not read file: $e';
+    }
+    if (!mounted) return;
+    if (error == null) {
+      // Apply directly so the dashboard updates even while the server is
+      // stopped (the import has already replaced the configuration).
+      _applyPages();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile imported')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Import failed: $error'),
+          backgroundColor: context.tokens.color.danger,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -647,6 +831,7 @@ class _ServerScreenState extends State<ServerScreen> {
           ],
         ),
         actions: [
+          // Quiet, uniform app-bar actions: icon-only, no filled chips.
           IconButton(
             icon: const Icon(Icons.tune_rounded),
             tooltip: 'Appearance',
@@ -662,18 +847,46 @@ class _ServerScreenState extends State<ServerScreen> {
                 ),
               );
             },
-            style: IconButton.styleFrom(
-              backgroundColor: t.color.surfaceSubtle,
-            ),
           ),
-          SizedBox(width: t.space.sm),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _refreshPages,
             tooltip: 'Refresh',
-            style: IconButton.styleFrom(
-              backgroundColor: t.color.surfaceSubtle,
-            ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: 'More',
+            onSelected: (value) {
+              if (value == 'export') _exportProfile();
+              if (value == 'import') _importProfile();
+              if (value == 'security') _showSecurityDialog();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'security',
+                child: ListTile(
+                  leading: Icon(Icons.lock_outline),
+                  title: Text('Security…'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'export',
+                child: ListTile(
+                  leading: Icon(Icons.upload_file_outlined),
+                  title: Text('Export profile…'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'import',
+                child: ListTile(
+                  leading: Icon(Icons.download_outlined),
+                  title: Text('Import profile…'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
           SizedBox(width: t.space.sm),
         ],

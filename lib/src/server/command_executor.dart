@@ -24,10 +24,15 @@ class CommandExecutor {
   /// Optional bridge to the plugin host for [ActionType.plugin] actions.
   PluginActionInvoker? pluginInvoker;
 
-  /// Executes a button with all of its actions in sequence
-  Future<CommandResult> execute(Button button) async {
+  /// Executes a button with all of its actions in sequence. Toggle buttons
+  /// run the actions of their currently active face.
+  Future<CommandResult> execute(Button button) =>
+      executeActions(button.effectiveActions);
+
+  /// Executes a list of actions in sequence and combines their results.
+  Future<CommandResult> executeActions(List<ButtonAction> actions) async {
     // If there are no actions, return an error
-    if (button.actions.isEmpty) {
+    if (actions.isEmpty) {
       return CommandResult(
         success: false,
         output: '',
@@ -35,14 +40,14 @@ class CommandExecutor {
       );
     }
 
-    // For a single action button, use simple execution
-    if (button.actions.length == 1) {
-      return await executeAction(button.actions.first);
+    // For a single action, use simple execution
+    if (actions.length == 1) {
+      return await executeAction(actions.first);
     }
 
     // For multiple actions, execute them in sequence and combine results
     final results = <CommandResult>[];
-    for (final action in button.actions) {
+    for (final action in actions) {
       final result = await executeAction(action);
       results.add(result);
 
@@ -105,7 +110,27 @@ class CommandExecutor {
 
       case ActionType.plugin:
         return await executePluginAction(action);
+
+      case ActionType.delay:
+        return await executeDelay(action.command);
     }
+  }
+
+  /// Waits for the given number of milliseconds (stored as the action's
+  /// command). Used to pace multi-action sequences; capped at 60 seconds so a
+  /// typo can't hang the press pipeline.
+  Future<CommandResult> executeDelay(String milliseconds) async {
+    final ms = int.tryParse(milliseconds.trim());
+    if (ms == null || ms < 0) {
+      return CommandResult(
+        success: false,
+        output: '',
+        error: 'Invalid delay: "$milliseconds" is not a number of milliseconds',
+      );
+    }
+    final clamped = ms.clamp(0, 60000);
+    await Future.delayed(Duration(milliseconds: clamped));
+    return CommandResult(success: true, output: '', error: '');
   }
 
   /// Opens a URL (or file/folder path) with the OS default handler.
@@ -191,24 +216,30 @@ class CommandExecutor {
     }
   }
 
-  /// macOS media-key command. Transport keys use `osascript` key codes; volume
-  /// uses AppleScript volume settings.
+  /// macOS media-key command. Volume uses AppleScript volume settings;
+  /// transport drives Music and Spotify directly — synthesising F7–F9 key
+  /// codes does NOT trigger the hardware media functions, so scripting the
+  /// players is the reliable route.
   static String? _macMediaKeyCommand(String key) {
+    // Sends [verb] to whichever supported player is running.
+    String players(String verb) =>
+        'osascript -e \'if application "Spotify" is running then tell application "Spotify" to $verb\' '
+        '-e \'if application "Music" is running then tell application "Music" to $verb\'';
     switch (key) {
       case 'playPause':
-        return 'osascript -e \'tell application "System Events" to key code 100\'';
+        return players('playpause');
       case 'next':
-        return 'osascript -e \'tell application "System Events" to key code 101\'';
+        return players('next track');
       case 'previous':
-        return 'osascript -e \'tell application "System Events" to key code 98\'';
+        return players('previous track');
+      case 'stop':
+        return players('pause');
       case 'mute':
         return 'osascript -e \'set volume output muted (not (output muted of (get volume settings)))\'';
       case 'volumeUp':
         return 'osascript -e \'set volume output volume ((output volume of (get volume settings)) + 6)\'';
       case 'volumeDown':
         return 'osascript -e \'set volume output volume ((output volume of (get volume settings)) - 6)\'';
-      case 'stop':
-        return 'osascript -e \'tell application "System Events" to key code 100\'';
       default:
         return null;
     }

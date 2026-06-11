@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -106,6 +107,21 @@ class PagesNotifier extends Notifier<List<Page>> {
   List<Page> build() => [];
 
   void set(List<Page> value) => state = value;
+
+  /// Flips a toggle button's face everywhere it's placed (server sent a
+  /// [MessageType.buttonStateUpdate]). Re-emits the list so tiles rebuild.
+  void setButtonToggled(String buttonId, bool toggled) {
+    var changed = false;
+    for (final page in state) {
+      for (final tile in page.tiles) {
+        if (tile.buttonId == buttonId) {
+          tile.button.toggled = toggled;
+          changed = true;
+        }
+      }
+    }
+    if (changed) state = List.of(state);
+  }
 }
 
 /// The latest live value of a plugin state, used to drive live tiles.
@@ -298,6 +314,127 @@ class KeepAwakeNotifier extends Notifier<bool> {
   }
 }
 
+/// Notifier for the fullscreen (immersive) display setting. When enabled the
+/// system status and navigation bars are hidden so the deck uses the whole
+/// screen, like a hardware Stream Deck.
+class FullscreenNotifier extends Notifier<bool> {
+  static const _prefKey = 'fullscreen_mode';
+
+  @override
+  bool build() {
+    _loadPreference();
+    return false;
+  }
+
+  Future<void> _loadPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fullscreen = prefs.getBool(_prefKey) ?? false;
+      state = fullscreen;
+      // Only take over the UI mode when fullscreen is actually on; users who
+      // never touched the setting keep the platform's default chrome.
+      if (fullscreen) _apply(true);
+    } catch (e) {
+      debugPrint('Error loading fullscreen preference: $e');
+    }
+  }
+
+  Future<void> setFullscreen(bool value) async {
+    state = value;
+    _apply(value);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKey, value);
+    } catch (e) {
+      debugPrint('Error saving fullscreen preference: $e');
+    }
+  }
+
+  void _apply(bool fullscreen) {
+    if (fullscreen) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      // Restore all system overlays (the pre-fullscreen default).
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.manual,
+        overlays: SystemUiOverlay.values,
+      );
+    }
+  }
+}
+
+/// How the client app should orient itself.
+enum DeckOrientation { auto, portrait, landscape }
+
+/// Notifier for the screen orientation setting. Defaults to portrait (the
+/// historical behaviour); landscape suits tablets mounted sideways.
+class DeckOrientationNotifier extends Notifier<DeckOrientation> {
+  static const _prefKey = 'deck_orientation';
+
+  @override
+  DeckOrientation build() {
+    _loadPreference();
+    return DeckOrientation.portrait;
+  }
+
+  Future<void> _loadPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(_prefKey);
+      final orientation = DeckOrientation.values.asNameMap()[stored] ??
+          DeckOrientation.portrait;
+      state = orientation;
+      // Portrait is already applied by main() at launch; skip the redundant
+      // platform-channel call on the startup path.
+      if (orientation != DeckOrientation.portrait) _apply(orientation);
+    } catch (e) {
+      debugPrint('Error loading orientation preference: $e');
+    }
+  }
+
+  Future<void> setOrientation(DeckOrientation value) async {
+    state = value;
+    _apply(value);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefKey, value.name);
+    } catch (e) {
+      debugPrint('Error saving orientation preference: $e');
+    }
+  }
+
+  void _apply(DeckOrientation orientation) {
+    switch (orientation) {
+      case DeckOrientation.auto:
+        SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+        break;
+      case DeckOrientation.portrait:
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+        ]);
+        break;
+      case DeckOrientation.landscape:
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+        break;
+    }
+  }
+}
+
+/// Provider for the fullscreen display setting
+final fullscreenProvider = NotifierProvider<FullscreenNotifier, bool>(
+  FullscreenNotifier.new,
+);
+
+/// Provider for the screen orientation setting
+final deckOrientationProvider =
+    NotifierProvider<DeckOrientationNotifier, DeckOrientation>(
+      DeckOrientationNotifier.new,
+    );
+
 /// Notifier for server connections
 class ServerConnectionsNotifier extends Notifier<List<ServerConnection>> {
   String? _defaultServerId;
@@ -476,11 +613,16 @@ class ConnectionState {
   /// Current server connection if connected
   final ServerConnection? connection;
 
+  /// Whether the server refused the handshake because the pairing PIN was
+  /// missing or wrong. The UI prompts for a PIN instead of auto-retrying.
+  final bool pinRejected;
+
   /// Creates a new connection state
   const ConnectionState({
     required this.status,
     this.errorMessage,
     this.connection,
+    this.pinRejected = false,
   });
 
   /// Creates a copy of this connection state with the specified fields replaced
@@ -488,11 +630,13 @@ class ConnectionState {
     ConnectionStatus? status,
     String? errorMessage,
     ServerConnection? connection,
+    bool? pinRejected,
   }) {
     return ConnectionState(
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       connection: connection ?? this.connection,
+      pinRejected: pinRejected ?? this.pinRejected,
     );
   }
 }
@@ -561,6 +705,18 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     };
   }
 
+  /// Sends the app-level connect handshake (device name + pairing PIN when
+  /// the saved server has one).
+  void _sendConnectHandshake(ServerConnection connection) {
+    final deviceName = ref.read(deviceNameProvider);
+    _webSocketService.sendMessage(
+      Message(type: MessageType.connect, payload: {
+        'deviceName': deviceName,
+        if (connection.pin.isNotEmpty) 'pin': connection.pin,
+      }),
+    );
+  }
+
   /// Handle connection status changes from the WebSocket service
   void _handleConnectionStatusChange(ConnectionStatus status) {
     debugPrint('Connection status changed: $status');
@@ -577,6 +733,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     if (status == ConnectionStatus.connected &&
         (state.status == ConnectionStatus.reconnecting ||
             state.status == ConnectionStatus.error) &&
+        !state.pinRejected &&
         state.connection != null) {
       debugPrint('Socket reconnected; re-sending connect handshake');
       // Reflect the in-progress handshake in the UI (so it no longer reads
@@ -588,15 +745,13 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
           errorMessage: 'Reconnected, completing handshake...',
         );
       }
-      final deviceName = ref.read(deviceNameProvider);
-      _webSocketService.sendMessage(
-        Message(type: MessageType.connect, payload: {'deviceName': deviceName}),
-      );
+      _sendConnectHandshake(state.connection!);
       _setAckTimeout(state.connection!);
       return;
     }
 
     if (status == ConnectionStatus.disconnected &&
+        !state.pinRejected &&
         state.status != ConnectionStatus.disconnected &&
         state.status != ConnectionStatus.reconnecting &&
         state.status != ConnectionStatus.connecting) {
@@ -661,13 +816,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
       if (success) {
         // Send connect message with device name immediately
-        final deviceName = ref.read(deviceNameProvider);
-        _webSocketService.sendMessage(
-          Message(
-            type: MessageType.connect,
-            payload: {'deviceName': deviceName},
-          ),
-        );
+        _sendConnectHandshake(connection);
 
         // Update the last connected time
         ref
@@ -798,13 +947,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
       if (success) {
         // Send connect message with device name
-        final deviceName = ref.read(deviceNameProvider);
-        _webSocketService.sendMessage(
-          Message(
-            type: MessageType.connect,
-            payload: {'deviceName': deviceName},
-          ),
-        );
+        _sendConnectHandshake(state.connection!);
 
         // Set ack timeout
         _setAckTimeout(state.connection!);
@@ -910,6 +1053,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     String? key,
     List<String>? modifiers,
     String? windowId,
+    bool longPress = false,
   }) {
     if (state.status == ConnectionStatus.connected) {
       final payload = <String, dynamic>{'buttonId': buttonId};
@@ -917,6 +1061,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
       if (key != null) payload['key'] = key;
       if (modifiers != null) payload['modifiers'] = modifiers;
       if (windowId != null) payload['windowId'] = windowId;
+      if (longPress) payload['longPress'] = true;
       _webSocketService.sendMessage(
         Message(type: MessageType.buttonPress, payload: payload),
       );
@@ -978,8 +1123,12 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
           _cancelReconnectAttemptCounter();
         }
 
-        // Update state to connected
-        state = state.copyWith(status: ConnectionStatus.connected);
+        // Update state to connected (clearing any earlier PIN rejection so
+        // future drops auto-reconnect normally again)
+        state = state.copyWith(
+          status: ConnectionStatus.connected,
+          pinRejected: false,
+        );
 
         debugPrint('Connection acknowledged by server - now connected');
         break;
@@ -1004,8 +1153,19 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
         _handleStateUpdate(message.payload);
         break;
 
+      case MessageType.buttonStateUpdate:
+        _handleButtonStateUpdate(message.payload);
+        break;
+
       case MessageType.error:
-        debugPrint('Error from server: ${message.payload['error']}');
+        final payload = message.payload;
+        final error = payload is Map ? payload['error'] : payload;
+        final code = payload is Map ? payload['code'] : null;
+        if (code == 'pin-required' || code == 'pin-invalid') {
+          _handlePinRejected(error?.toString() ?? 'PIN required');
+          return;
+        }
+        debugPrint('Error from server: $error');
         break;
 
       default:
@@ -1053,6 +1213,43 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     }
   }
 
+  /// The server refused our handshake PIN. Stop every retry loop (hammering
+  /// a server that will keep refusing is pointless) and surface an error
+  /// state the UI turns into a PIN prompt.
+  void _handlePinRejected(String message) {
+    // The server can repeat the rejection (e.g. replying to stray messages);
+    // only the first one should transition state / surface the prompt.
+    if (state.pinRejected) return;
+    _cancelAckTimeout();
+    _cancelConnectionTimeout();
+    _cancelReconnectAttemptCounter();
+    _isReconnecting = false;
+    // Fully close the transport: this also clears the service's remembered
+    // address so its own retry loop can't keep reconnecting (and getting
+    // dropped) while the user is typing the PIN.
+    _webSocketService.cancelReconnection();
+    _webSocketService.close();
+    state = ConnectionState(
+      status: ConnectionStatus.error,
+      errorMessage: message,
+      connection: state.connection,
+      pinRejected: true,
+    );
+  }
+
+  /// Handles a toggle button flipping faces on the server.
+  void _handleButtonStateUpdate(dynamic payload) {
+    try {
+      final buttonId = payload['buttonId'] as String?;
+      if (buttonId == null) return;
+      ref
+          .read(pagesProvider.notifier)
+          .setButtonToggled(buttonId, payload['toggled'] == true);
+    } catch (e) {
+      debugPrint('Error handling button state update: $e');
+    }
+  }
+
   /// Handles a live plugin state update (drives live tiles).
   void _handleStateUpdate(dynamic payload) {
     try {
@@ -1078,6 +1275,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
           .set(
             CommandResultEvent(
               buttonId: payload['buttonId'],
+              buttonName: payload['buttonName'] as String?,
               success: payload['success'],
               output: payload['output'],
               error: payload['error'],
@@ -1166,6 +1364,11 @@ class CommandResultEvent {
   /// The ID of the button that was pressed
   final String buttonId;
 
+  /// The name of the button face that ran, as reported by the server. For
+  /// toggle buttons this names the face active at press time (the local
+  /// button may have flipped by the time the result arrives).
+  final String? buttonName;
+
   /// Whether the command was successful
   final bool success;
 
@@ -1178,6 +1381,7 @@ class CommandResultEvent {
   /// Creates a new command result event
   CommandResultEvent({
     required this.buttonId,
+    this.buttonName,
     required this.success,
     required this.output,
     required this.error,

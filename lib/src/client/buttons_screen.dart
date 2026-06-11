@@ -195,6 +195,32 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     );
   }
 
+  /// Guards against stacking multiple PIN prompts when rejections repeat.
+  bool _pinPromptOpen = false;
+
+  /// Asks for the server's pairing PIN, stores it with the saved server and
+  /// reconnects. Shown when the server rejects the handshake PIN.
+  Future<void> _promptForPin(
+    ServerConnection? connection,
+    String? message,
+  ) async {
+    if (connection == null || !mounted || _pinPromptOpen) return;
+
+    _pinPromptOpen = true;
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (context) =>
+          _PinDialog(connection: connection, message: message),
+    );
+    _pinPromptOpen = false;
+    if (pin == null || pin.trim().isEmpty || !mounted) return;
+
+    final updated = connection.copyWith(pin: pin.trim());
+    // Persist the PIN with the saved server so future connects just work.
+    ref.read(serverConnectionsProvider.notifier).updateConnection(updated);
+    ref.read(connectionStateProvider.notifier).connect(updated);
+  }
+
   /// Resolves a button's display name from its id across all pages.
   String? _buttonName(String buttonId) {
     for (final page in ref.read(pagesProvider)) {
@@ -212,7 +238,10 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
   /// output to show or an error to inspect.
   void _handleCommandResult(BuildContext context, CommandResultEvent result) {
     final tokens = context.tokens;
-    final name = _buttonName(result.buttonId);
+    // Prefer the server-reported face name: a toggle button may have flipped
+    // locally by the time the result arrives, so a lookup would name the
+    // wrong face.
+    final name = result.buttonName ?? _buttonName(result.buttonId);
     final hasDetail = result.success ? result.output.trim().isNotEmpty : true;
 
     AccessibilityUtils.provideFeedback(
@@ -366,6 +395,11 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
       if (previous?.status != ConnectionStatus.connected &&
           next.status == ConnectionStatus.connected) {
         _beginAwaitingButtons();
+      }
+      // The server wants a pairing PIN: prompt, save it with the server and
+      // retry, instead of leaving a dead error state.
+      if (next.pinRejected && previous?.pinRejected != true) {
+        _promptForPin(next.connection, next.errorMessage);
       }
     });
     ref.listen(pagesProvider, (previous, next) {
@@ -1033,6 +1067,92 @@ class _SkeletonGridState extends State<_SkeletonGrid>
           },
         );
       },
+    );
+  }
+}
+
+/// The pairing-PIN prompt. A stateful widget so the text controller lives
+/// exactly as long as the dialog (disposing it from the caller raced the
+/// dialog's exit animation), and scroll-safe so the keyboard can't overflow
+/// the content column.
+class _PinDialog extends StatefulWidget {
+  final ServerConnection connection;
+  final String? message;
+
+  const _PinDialog({required this.connection, this.message});
+
+  @override
+  State<_PinDialog> createState() => _PinDialogState();
+}
+
+class _PinDialogState extends State<_PinDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.connection.pin);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return AlertDialog(
+      icon: const Icon(Icons.pin_outlined),
+      title: Text('PIN for ${widget.connection.name}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.message ?? 'This server requires a PIN.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: tokens.color.textSecondary,
+                  ),
+            ),
+            SizedBox(height: tokens.space.lg),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    letterSpacing: 8,
+                  ),
+              decoration: const InputDecoration(
+                hintText: '••••••',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              onSubmitted: (v) => Navigator.of(context).pop(v),
+            ),
+            SizedBox(height: tokens.space.sm),
+            Text(
+              'The PIN is shown on the server under ⋮ → Security.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: tokens.color.textMuted,
+                  ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Pair'),
+        ),
+      ],
     );
   }
 }

@@ -5,6 +5,56 @@ All notable changes to the MarcoDeck project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-11
+
+### Added
+
+#### 🔐 Security
+- **PIN pairing**: optionally require devices to enter a 6-digit PIN (shown on the server under ⋮ → Security) the first time they connect. Unpaired sockets can't run actions or receive page/state broadcasts; the client prompts for the PIN, stores it with the saved server, and reconnects
+
+#### 🎛️ Buttons & actions
+- **Toggle (two-state) buttons**: a button can carry a second face (name, icon, color and its own action set) and alternates faces on each press — e.g. Mute/Unmute, Start/Stop recording. The active face is tracked on the server, persisted across restarts, and synced live to every connected device
+- **Hold (long-press) actions**: a button can run a different action set when held on the device instead of tapped, with distinct haptic feedback
+- **Delay action**: pause a multi-action sequence for up to 60 s (e.g. launch an app, wait, then send it keystrokes)
+- **Navigate to a specific page**: page-navigation buttons can now jump straight to a named page, not just next/prev/first/last
+
+#### 🖥️ Server
+- **Profile export/import**: back up the whole button/page configuration to a JSON file and restore or move it to another machine (⋮ menu on the dashboard). Importing keeps a safety copy of the replaced configuration as `pages.json.bak`
+- **Duplicate button**: copy any library button (including its toggle face and hold actions) from the Manage Buttons grid
+- **27 new catalog presets**: Mute is now a real toggle (flips to a red "Unmute" face), plus Task Manager, Settings, Code Editor, Spotify, Downloads, Twitch, Reddit, ChatGPT, Switch App, Minimize, Select All, Undo, Redo, First/Last Page navigation, a **Browser** category (New/Close/Reopen Tab, Refresh, Address Bar) and a **Meetings** category (Zoom/Teams/Meet mute & camera toggles)
+- **Live tray menu**: the system tray now shows the server state, address and connected-device count, and offers Start/Stop/Restart, Copy server address and Open MarcoDeck — control the server without opening the window. Exiting from the tray stops the server cleanly first
+
+#### 📱 Client
+- **Fullscreen mode**: hide the status/navigation bars so the deck uses the whole screen (Settings → Display)
+- **Screen orientation setting**: portrait, landscape or auto-rotate — landscape suits tablets mounted sideways
+
+### Changed
+
+#### 🎨 UI polish
+- **One quiet section style everywhere**: the button and action editors now use a shared compact `SectionCard` (hairline border, small accent icon, inline header controls) instead of the old solid accent-filled headers — less visual noise, same minimal feel
+- **Compact action lists**: dense rows with a small type icon, one-line summaries, tap-to-edit, and a single delete affordance
+- **Unified color swatches**: the button color and toggled-on color pickers share one swatch row style
+- The toggled-on face's actions and hold actions are flat sibling sections — no more cards nested inside cards
+- Uniform app-bar actions on the server dashboard and `Save` buttons across editors
+
+### Fixed
+
+#### 🧭 Cross-platform correctness (audit of every preset & action path)
+- **macOS media transport now actually works**: synthesising F7–F9 key codes never triggered the hardware media functions; Play/Pause/Next/Previous/Stop now control Music and Spotify directly
+- **macOS Lock Screen** uses the real Ctrl⌘Q lock (display-sleep only locked when "require password after sleep" was on); **Restart/Shutdown** no longer call `sudo` (a macro press can't answer a password prompt) — macOS asks System Events, Linux goes through `systemctl`/logind
+- **Window presets are now per-desktop**: Win-key snapping on Windows, Super-key (GNOME) on Linux with the correct Minimize (Super+H), and Cmd shortcuts + Mission Control on macOS; Select Window only appears on Windows where it works
+- Linux "Web Browser" preset opened a literal `https://`; macOS "Settings" now opens on both pre- and post-Ventura names
+- **OBS plugin no longer needs the Dart SDK on Linux**: releases compile and bundle a standalone binary (the manifest prefers it, and source checkouts automatically fall back to `dart plugin.dart`)
+
+#### 🔐 PIN pairing follow-ups (from device testing)
+- **Auto-reconnect after a server restart works again**: the deliberate-close fix accidentally cleared the service's remembered address inside `connect()` itself, silently disabling all socket-level auto-reconnect; covered by new loopback reconnect tests (restart ⇒ reconnects, deliberate close ⇒ stays closed)
+- The PIN prompt no longer resets while typing: a pairing rejection now fully closes the transport (the service's auto-reconnect kept reconnecting and getting dropped), unauthorized pings get a normal `pong` so health checks stay calm, repeated rejections are de-duplicated, and the dialog is single-instance with its text controller owned by the dialog (fixes a "controller used after dispose" crash and a render overflow)
+- The tray menu no longer flickers: it only rebuilds when its content actually changes
+
+- The action editor now has proper forms for **Open URL**, **Media Key** and **Navigate Page** actions; previously selecting these types saved an action with an empty target that did nothing
+- Unknown message types received from a newer peer no longer crash the message decode loop
+- Removed the unused `server_screen_new.dart` dead code
+
 ## [1.2.0] - 2026-06-03
 
 ### Added

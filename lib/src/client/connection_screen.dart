@@ -23,6 +23,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
+  final _pinController = TextEditingController();
   bool _isConnecting = false;
   bool _isDiscovering = false;
   late TabController _tabController;
@@ -36,6 +37,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
     if (widget.existingConnection != null) {
       _nameController.text = widget.existingConnection!.name;
       _addressController.text = widget.existingConnection!.address;
+      _pinController.text = widget.existingConnection!.pin;
       _tabController.index = 1; // Manual tab
     } else {
       // Default name
@@ -50,6 +52,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
     _stopDiscovery();
     _nameController.dispose();
     _addressController.dispose();
+    _pinController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -83,12 +86,14 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
         : 'ws://$address';
 
     // Create or update the server connection
+    final pin = _pinController.text.trim();
     final connection = widget.existingConnection != null
         ? widget.existingConnection!.copyWith(
             name: name,
             address: formattedAddress,
+            pin: pin,
           )
-        : ServerConnection(name: name, address: formattedAddress);
+        : ServerConnection(name: name, address: formattedAddress, pin: pin);
 
     // Save the connection
     ref.read(serverConnectionsProvider.notifier).addConnection(connection);
@@ -341,6 +346,23 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen>
                   child: const Text('Use localhost'),
                 ),
               ],
+            ),
+            SizedBox(height: tokens.space.sm),
+            TextFormField(
+              controller: _pinController,
+              decoration: InputDecoration(
+                labelText: 'PIN (optional)',
+                hintText: 'Only if the server requires pairing',
+                prefixIcon: const Icon(Icons.pin_outlined),
+                border: OutlineInputBorder(borderRadius: tokens.radius.brMd),
+              ),
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              buildCounter: (context,
+                      {required currentLength,
+                      required isFocused,
+                      maxLength}) =>
+                  null,
             ),
             SizedBox(height: tokens.space.xl),
             Row(
