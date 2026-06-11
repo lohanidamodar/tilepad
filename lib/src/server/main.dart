@@ -16,21 +16,21 @@ void main() async {
   await SystemTrayManager().initSystemTray();
 
   // Run the app
-  runApp(const ProviderScope(child: MarcoDeckServerApp()));
+  runApp(const ProviderScope(child: TilepadServerApp()));
 }
 
-/// The MarcoDeck server application
-class MarcoDeckServerApp extends ConsumerStatefulWidget {
-  /// Creates a new MarcoDeck server app
-  const MarcoDeckServerApp({super.key});
+/// The Tilepad server application
+class TilepadServerApp extends ConsumerStatefulWidget {
+  /// Creates a new Tilepad server app
+  const TilepadServerApp({super.key});
 
   @override
-  ConsumerState<MarcoDeckServerApp> createState() => _MarcoDeckServerAppState();
+  ConsumerState<TilepadServerApp> createState() => _TilepadServerAppState();
 }
 
-class _MarcoDeckServerAppState extends ConsumerState<MarcoDeckServerApp>
+class _TilepadServerAppState extends ConsumerState<TilepadServerApp>
     with WindowListener {
-  final _server = MarcoServer();
+  final _server = TilepadServer();
   final _trayManager = SystemTrayManager();
 
   @override
@@ -88,7 +88,7 @@ class _MarcoDeckServerAppState extends ConsumerState<MarcoDeckServerApp>
     final p = ref.watch(personalizationProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'MarcoDeck Server',
+      title: 'Tilepad Server',
       theme: buildAppTheme(
         brightness: Brightness.light,
         accent: p.accent,

@@ -6,9 +6,9 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/models/button.dart';
-import 'package:marco_deck/src/models/message.dart';
-import 'package:marco_deck/src/server/server.dart';
+import 'package:tilepad/src/models/button.dart';
+import 'package:tilepad/src/models/message.dart';
+import 'package:tilepad/src/server/server.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Regression test: after a server restart, each client message must be
@@ -51,7 +51,7 @@ void main() {
 
   test('a button press is handled exactly once after a server restart',
       () async {
-    final server = MarcoServer(
+    final server = TilepadServer(
       port: await freePort(),
       pluginPort: await freePort(),
     );

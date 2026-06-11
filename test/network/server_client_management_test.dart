@@ -5,7 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/network/websocket_service.dart';
+import 'package:tilepad/src/network/websocket_service.dart';
 import 'package:web_socket_channel/io.dart';
 
 /// Exercises the server-side client management (disconnect + IP blocklist)

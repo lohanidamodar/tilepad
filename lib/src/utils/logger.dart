@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 /// Log level enumeration
 enum LogLevel { debug, info, warning, error }
 
-/// Enhanced logging utility for the MarcoDeck application
-class MarcoDeckLogger {
-  static const String _tag = 'MarcoDeck';
+/// Enhanced logging utility for the Tilepad application
+class TilepadLogger {
+  static const String _tag = 'Tilepad';
 
   /// Current log level (can be configured based on build mode)
   static LogLevel _currentLevel = kDebugMode ? LogLevel.debug : LogLevel.info;
@@ -105,21 +105,21 @@ mixin LoggingMixin {
 
   /// Log a debug message
   void logDebug(String message) {
-    MarcoDeckLogger.debug(message, logComponent);
+    TilepadLogger.debug(message, logComponent);
   }
 
   /// Log an info message
   void logInfo(String message) {
-    MarcoDeckLogger.info(message, logComponent);
+    TilepadLogger.info(message, logComponent);
   }
 
   /// Log a warning message
   void logWarning(String message) {
-    MarcoDeckLogger.warning(message, logComponent);
+    TilepadLogger.warning(message, logComponent);
   }
 
   /// Log an error message
   void logError(String message, [Object? error, StackTrace? stackTrace]) {
-    MarcoDeckLogger.error(message, logComponent, error, stackTrace);
+    TilepadLogger.error(message, logComponent, error, stackTrace);
   }
 }

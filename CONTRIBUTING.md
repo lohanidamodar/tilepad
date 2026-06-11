@@ -1,18 +1,18 @@
-# Contributing to MarcoDeck
+# Contributing to Tilepad
 
-Thank you for your interest in contributing to MarcoDeck! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Tilepad! This document provides guidelines and information for contributors.
 
 ## 🤝 How to Contribute
 
 ### Reporting Issues
-- Use the [GitHub Issues](https://github.com/lohanidamodar/macro-deck-updated/issues) page
+- Use the [GitHub Issues](https://github.com/lohanidamodar/tilepad/issues) page
 - Search existing issues before creating a new one
 - Provide detailed information about the bug or feature request
 - Include steps to reproduce for bugs
 - Specify platform, Flutter version, and device information
 
 ### Suggesting Features
-- Check [existing feature requests](https://github.com/lohanidamodar/macro-deck-updated/issues?q=is%3Aissue+label%3Aenhancement)
+- Check [existing feature requests](https://github.com/lohanidamodar/tilepad/issues?q=is%3Aissue+label%3Aenhancement)
 - Explain the use case and expected behavior
 - Consider accessibility implications
 - Provide mockups or detailed descriptions when possible
@@ -25,8 +25,8 @@ Thank you for your interest in contributing to MarcoDeck! This document provides
 1. **Fork the repository**
 2. **Clone your fork**
    ```bash
-   git clone https://github.com/your-username/macro-deck-updated.git
-   cd macro-deck-updated
+   git clone https://github.com/your-username/tilepad.git
+   cd tilepad
    ```
 3. **Set up development environment**
    ```bash
@@ -327,7 +327,7 @@ Report unacceptable behavior to `security@appwriters.dev`.
 
 ## 🙏 Thank You
 
-Thank you for contributing to MarcoDeck! Your efforts help make this project better for everyone in the community.
+Thank you for contributing to Tilepad! Your efforts help make this project better for everyone in the community.
 
 ---
 

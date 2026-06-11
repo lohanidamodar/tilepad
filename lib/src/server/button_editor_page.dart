@@ -14,7 +14,7 @@ class ButtonEditorPage extends StatefulWidget {
   final Button? button;
 
   /// The server, used to offer plugin actions and live-tile state bindings.
-  final MarcoServer server;
+  final TilepadServer server;
 
   /// Callback when button is saved
   final Function(Button button) onSave;

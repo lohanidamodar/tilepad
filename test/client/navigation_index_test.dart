@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/client/button_grid.dart';
+import 'package:tilepad/src/client/button_grid.dart';
 
 void main() {
   group('resolveNavigationIndex', () {

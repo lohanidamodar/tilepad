@@ -1,20 +1,20 @@
 # OBS Studio plugin
 
-Control [OBS Studio](https://obsproject.com/) from MarcoDeck: switch scenes,
+Control [OBS Studio](https://obsproject.com/) from Tilepad: switch scenes,
 toggle recording and streaming, and show the current scene + record/stream
 status as live tiles.
 
-It speaks **obs-websocket v5** (built into OBS 28+) and the MarcoDeck plugin
+It speaks **obs-websocket v5** (built into OBS 28+) and the Tilepad plugin
 protocol. Pure Dart SDK — no `pub get`.
 
 ## Setup
 
-This plugin is **bundled with MarcoDeck** — it's seeded into your plugins folder
+This plugin is **bundled with Tilepad** — it's seeded into your plugins folder
 on first run and already appears in the **Plugins** list. Just:
 
 1. In OBS: **Tools → WebSocket Server Settings → Enable WebSocket server**.
    Note the **Port** (default `4455`) and, if set, the **Password**.
-2. In MarcoDeck **Plugins**, enable **OBS Studio** and set the **Password**
+2. In Tilepad **Plugins**, enable **OBS Studio** and set the **Password**
    (and Host/Port if not the defaults) in its settings.
 
 Release builds launch a pre-compiled native binary (`obs-plugin.exe` on

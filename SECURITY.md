@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-MarcoDeck is an actively developed open-source project. Security fixes are made
+Tilepad is an actively developed open-source project. Security fixes are made
 against the latest release and the `main` branch.
 
 ## Reporting a vulnerability
@@ -10,7 +10,7 @@ against the latest release and the `main` branch.
 **Please do not open a public issue for security vulnerabilities.**
 
 Instead, report them privately via GitHub's
-[private vulnerability reporting](https://github.com/lohanidamodar/macro-deck-updated/security/advisories/new)
+[private vulnerability reporting](https://github.com/lohanidamodar/tilepad/security/advisories/new)
 (Security → Report a vulnerability), or email the maintainer at
 **security@appwriters.dev**.
 
@@ -26,7 +26,7 @@ unless you prefer to remain anonymous.
 
 ## Scope & threat model
 
-MarcoDeck pairs a **desktop server** (which executes commands, sends keystrokes
+Tilepad pairs a **desktop server** (which executes commands, sends keystrokes
 and launches programs) with **mobile/web clients** over your local network. By
 design, a connected client can run the actions you configure on the server.
 

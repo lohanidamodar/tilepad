@@ -1,4 +1,4 @@
-package dev.appwriters.marco_deck
+package dev.appwriters.tilepad
 
 import io.flutter.embedding.android.FlutterActivity
 

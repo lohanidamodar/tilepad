@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/models/button.dart';
-import 'package:marco_deck/src/server/button_manager.dart';
+import 'package:tilepad/src/models/button.dart';
+import 'package:tilepad/src/server/button_manager.dart';
 
 void main() {
   // saveConfig() inside importProfile touches path_provider, which isn't
@@ -28,7 +28,7 @@ void main() {
       final manager = seeded();
       final data = jsonDecode(manager.exportProfile()) as Map<String, dynamic>;
 
-      expect(data['marcoDeckProfile'], 1);
+      expect(data['tilepadProfile'], 1);
       expect(data['buttons'], hasLength(1));
       expect(data['pages'], hasLength(1));
       final tile = (data['pages'][0]['tiles'] as List).single;

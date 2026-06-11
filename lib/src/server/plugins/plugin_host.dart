@@ -41,7 +41,7 @@ class _PluginConnection {
 /// [pushSettings] to the rest of the server. Live state lands in [stateStore].
 ///
 /// This class handles the *protocol*; spawning the OS processes is delegated to
-/// [PluginProcess] (wired by [MarcoServer]). The two are separated so the
+/// [PluginProcess] (wired by [TilepadServer]). The two are separated so the
 /// protocol can be tested with an in-process fake plugin.
 class PluginHost {
   final StateStore stateStore;

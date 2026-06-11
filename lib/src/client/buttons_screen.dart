@@ -444,7 +444,7 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
           children: [
             Flexible(
               child: Text(
-                connectionState.connection?.name ?? 'MarcoDeck',
+                connectionState.connection?.name ?? 'Tilepad',
                 style: TextStyle(fontWeight: tokens.typeScale.wBold),
                 overflow: TextOverflow.ellipsis,
               ),

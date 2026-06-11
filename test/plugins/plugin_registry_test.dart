@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/server/plugins/plugin_registry.dart';
+import 'package:tilepad/src/server/plugins/plugin_registry.dart';
 import 'package:path/path.dart' as p;
 
 void main() {

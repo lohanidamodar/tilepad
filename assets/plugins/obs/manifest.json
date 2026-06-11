@@ -1,8 +1,8 @@
 {
-  "id": "com.marcodeck.obs",
+  "id": "com.tilepad.obs",
   "name": "OBS Studio",
   "version": "1.0.3",
-  "author": "MarcoDeck",
+  "author": "Tilepad",
   "apiVersion": 1,
   "run": {
     "windows": "./obs-plugin.exe",

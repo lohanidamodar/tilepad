@@ -1,4 +1,4 @@
-// A minimal MarcoDeck plugin written in Dart, using only the Dart SDK so it
+// A minimal Tilepad plugin written in Dart, using only the Dart SDK so it
 // runs with `dart plugin.dart` and needs no `pub get`.
 //
 // It demonstrates every plugin capability:
@@ -7,7 +7,7 @@
 //   - a configurable plugin setting (`greeting`)
 //   - a live state streamed to the client every second (`clock`)
 //
-// The MarcoDeck server launches this process with:
+// The Tilepad server launches this process with:
 //   dart plugin.dart --mdk-port <port> --mdk-plugin-id <id> --mdk-token <token>
 // We connect back to ws://127.0.0.1:<port>, register, then speak the protocol.
 import 'dart:async';

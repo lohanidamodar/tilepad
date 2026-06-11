@@ -184,7 +184,7 @@ class ButtonManager {
   /// pretty-printed JSON profile for backup or sharing.
   String exportProfile() {
     return const JsonEncoder.withIndent('  ').convert({
-      'marcoDeckProfile': 1,
+      'tilepadProfile': 1,
       'exportedAt': DateTime.now().toIso8601String(),
       'buttons': _library.map((b) => b.toJson()).toList(),
       'pages': _pages.map(_pageToStorage).toList(),
@@ -200,7 +200,7 @@ class ButtonManager {
     try {
       final data = jsonDecode(json);
       if (data is! Map<String, dynamic>) {
-        return 'Not a MarcoDeck profile (expected a JSON object)';
+        return 'Not a Tilepad profile (expected a JSON object)';
       }
       buttons = [
         for (final b in (data['buttons'] as List<dynamic>? ?? const []))
@@ -252,7 +252,7 @@ class ButtonManager {
     final base = (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
         ? await getApplicationSupportDirectory()
         : await getApplicationDocumentsDirectory();
-    final dir = Directory('${base.path}/marco_deck');
+    final dir = Directory('${base.path}/tilepad');
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }

@@ -71,7 +71,7 @@ class IODiscoveryService implements DiscoveryService {
 
     try {
       final message = jsonEncode({
-        'type': 'marco_deck_server',
+        'type': 'tilepad_server',
         'name': _serverName,
         'port': _serverPort,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
@@ -171,8 +171,8 @@ class IODiscoveryService implements DiscoveryService {
 
       final data = jsonDecode(message) as Map<String, dynamic>;
 
-      if (data['type'] != 'marco_deck_server') {
-        debugPrint('Ignoring non-marco_deck message');
+      if (data['type'] != 'tilepad_server') {
+        debugPrint('Ignoring non-tilepad message');
         return;
       }
 

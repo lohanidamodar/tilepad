@@ -1,4 +1,4 @@
-// Basic Flutter widget test for the MarcoDeck client app.
+// Basic Flutter widget test for the Tilepad client app.
 //
 // The client app is a Riverpod app whose first screen (the splash screen)
 // drives animations, persisted-preference loads, and a navigation transition.
@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:marco_deck/src/client/main.dart';
+import 'package:tilepad/src/client/main.dart';
 
 void main() {
   testWidgets('App boots and renders a MaterialApp', (
@@ -32,7 +32,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(
-      const ProviderScope(child: MarcoDeckClientApp()),
+      const ProviderScope(child: TilepadClientApp()),
     );
 
     // Verify the app shell is present immediately.

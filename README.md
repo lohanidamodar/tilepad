@@ -1,7 +1,7 @@
-# MarcoDeck - Open Source Touch Portal Alternative
+# Tilepad - Open Source Touch Portal Alternative
 
 <p align="center">
-  <img src="assets/logo.png" alt="MarcoDeck Logo" width="120" height="120">
+  <img src="assets/logo.png" alt="Tilepad Logo" width="120" height="120">
 </p>
 
 <p align="center">
@@ -30,13 +30,13 @@
 
 ## 📥 Download
 
-Grab the latest build from the [**Releases**](https://github.com/lohanidamodar/macro-deck-updated/releases) page:
+Grab the latest build from the [**Releases**](https://github.com/lohanidamodar/tilepad/releases) page:
 
 | Platform | Download |
 |----------|----------|
-| **Windows** (server) | `MarcoDeck-Setup-x.y.z.exe` (installer) or `MarcoDeck-windows-portable.zip` |
-| **Linux** (server) | `MarcoDeck-linux.tar.gz` |
-| **Android** (client) | `MarcoDeck-client.apk` |
+| **Windows** (server) | `Tilepad-Setup-x.y.z.exe` (installer) or `Tilepad-windows-portable.zip` |
+| **Linux** (server) | `Tilepad-linux.tar.gz` |
+| **Android** (client) | `Tilepad-client.apk` |
 | **macOS / iOS / Web** | [build from source](#-installation) |
 
 > The desktop **server** runs your macros; the mobile/web **client** is the remote control. You need both.
@@ -132,8 +132,8 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/lohanidamodar/macro-deck-updated.git
-   cd macro-deck-updated
+   git clone https://github.com/lohanidamodar/tilepad.git
+   cd tilepad
    ```
 
 2. **Install dependencies**
@@ -186,8 +186,8 @@ flutter build linux --release -t lib/src/server/main.dart
 **Windows installer** (optional): with [Inno Setup](https://jrsoftware.org/isinfo.php)
 installed, package the Windows build into a Setup `.exe`:
 ```bash
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.0.0 windows\installer\marcodeck.iss
-# -> windows/installer/output/MarcoDeck-Setup-1.0.0.exe
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.0.0 windows\installer\tilepad.iss
+# -> windows/installer/output/Tilepad-Setup-1.0.0.exe
 ```
 
 #### Mobile Client
@@ -234,7 +234,7 @@ flutter build web --release
 
 ## 🧩 Plugins
 
-MarcoDeck supports a **plugin system** so developers can add new actions and live
+Tilepad supports a **plugin system** so developers can add new actions and live
 data **without modifying or recompiling the app** — the same out-of-process model
 used by Stream Deck and Touch Portal.
 
@@ -261,7 +261,7 @@ show up in the add-button picker.
 
 ## ♿ Accessibility
 
-MarcoDeck is designed to be accessible to all users:
+Tilepad is designed to be accessible to all users:
 
 ### Visual Accessibility
 - **High Contrast Mode**: Enhanced color contrast for better visibility
@@ -395,12 +395,12 @@ This project is distributed under the **BSD 3-Clause License**. See [LICENSE](LI
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/lohanidamodar/macro-deck-updated/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/lohanidamodar/macro-deck-updated/discussions)
-- **Documentation**: [Wiki](https://github.com/lohanidamodar/macro-deck-updated/wiki)
+- **Issues**: [GitHub Issues](https://github.com/lohanidamodar/tilepad/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/lohanidamodar/tilepad/discussions)
+- **Documentation**: [Wiki](https://github.com/lohanidamodar/tilepad/wiki)
 
 ---
 
 <p align="center">
-  Made with ❤️ by the MarcoDeck community
+  Made with ❤️ by the Tilepad community
 </p>

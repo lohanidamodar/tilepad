@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/server/plugins/state_store.dart';
+import 'package:tilepad/src/server/plugins/state_store.dart';
 
 void main() {
   group('StateStore', () {

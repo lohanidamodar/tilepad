@@ -4,7 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/network/websocket_service_io.dart';
+import 'package:tilepad/src/network/websocket_service_io.dart';
 
 /// Exercises the client service's reconnect behaviour against a real loopback
 /// WebSocket server:

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/models/button.dart';
-import 'package:marco_deck/src/server/button_presets.dart';
-import 'package:marco_deck/src/server/plugins/plugin_manifest.dart';
+import 'package:tilepad/src/models/button.dart';
+import 'package:tilepad/src/server/button_presets.dart';
+import 'package:tilepad/src/server/plugins/plugin_manifest.dart';
 
 void main() {
   group('PluginPresetDef parsing', () {

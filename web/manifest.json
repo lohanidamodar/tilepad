@@ -1,6 +1,6 @@
 {
-    "name": "marco_deck",
-    "short_name": "marco_deck",
+    "name": "Tilepad",
+    "short_name": "Tilepad",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

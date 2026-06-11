@@ -1,11 +1,14 @@
 # Changelog
 
-All notable changes to the MarcoDeck project will be documented in this file.
+All notable changes to the Tilepad project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Changed
+- **The project is now Tilepad** (formerly MarcoDeck): app names, the Dart package, platform application ids (`dev.appwriters.tilepad`), the Windows installer, release artifact names (`Tilepad-*`) and the bundled OBS plugin id (`com.tilepad.obs`) are all renamed. Because the application ids changed, configuration and preferences start fresh after upgrading — **export your profile from the old version first** (⋮ → Export profile) and import it in Tilepad
 
 ### Added
 - **Active Window live tile**: a new system state shows the focused window's title on a tile, on all three platforms (native Win32 on Windows; System Events on macOS — same Accessibility permission as keystrokes; `xdotool` on Linux/X11). Offered as a preset next to the other system tiles
@@ -36,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Profile export/import**: back up the whole button/page configuration to a JSON file and restore or move it to another machine (⋮ menu on the dashboard). Importing keeps a safety copy of the replaced configuration as `pages.json.bak`
 - **Duplicate button**: copy any library button (including its toggle face and hold actions) from the Manage Buttons grid
 - **27 new catalog presets**: Mute is now a real toggle (flips to a red "Unmute" face), plus Task Manager, Settings, Code Editor, Spotify, Downloads, Twitch, Reddit, ChatGPT, Switch App, Minimize, Select All, Undo, Redo, First/Last Page navigation, a **Browser** category (New/Close/Reopen Tab, Refresh, Address Bar) and a **Meetings** category (Zoom/Teams/Meet mute & camera toggles)
-- **Live tray menu**: the system tray now shows the server state, address and connected-device count, and offers Start/Stop/Restart, Copy server address and Open MarcoDeck — control the server without opening the window. Exiting from the tray stops the server cleanly first
+- **Live tray menu**: the system tray now shows the server state, address and connected-device count, and offers Start/Stop/Restart, Copy server address and Open Tilepad — control the server without opening the window. Exiting from the tray stops the server cleanly first
 
 #### 📱 Client
 - **Fullscreen mode**: hide the status/navigation bars so the deck uses the whole screen (Settings → Display)
@@ -230,4 +233,4 @@ No migration required for existing users. All data and configurations are preser
 
 ---
 
-For more details on any changes, see the [commit history](https://github.com/lohanidamodar/macro-deck-updated/commits/main) or [GitHub releases](https://github.com/lohanidamodar/macro-deck-updated/releases).
+For more details on any changes, see the [commit history](https://github.com/lohanidamodar/tilepad/commits/main) or [GitHub releases](https://github.com/lohanidamodar/tilepad/releases).

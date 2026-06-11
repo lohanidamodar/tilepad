@@ -1,4 +1,4 @@
-/// MarcoDeck design system — shared by client and server.
+/// Tilepad design system — shared by client and server.
 ///
 /// Import this single barrel to access tokens, the theme builder,
 /// personalization, and the personalization panel.

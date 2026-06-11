@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/server/plugins/plugin_host.dart';
-import 'package:marco_deck/src/server/plugins/plugin_manager.dart';
-import 'package:marco_deck/src/server/plugins/plugin_protocol.dart';
-import 'package:marco_deck/src/server/plugins/plugin_registry.dart';
+import 'package:tilepad/src/server/plugins/plugin_host.dart';
+import 'package:tilepad/src/server/plugins/plugin_manager.dart';
+import 'package:tilepad/src/server/plugins/plugin_protocol.dart';
+import 'package:tilepad/src/server/plugins/plugin_registry.dart';
 import 'package:path/path.dart' as p;
 import 'package:web_socket_channel/io.dart';
 

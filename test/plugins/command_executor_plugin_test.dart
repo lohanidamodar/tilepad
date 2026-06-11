@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/models/button.dart';
-import 'package:marco_deck/src/server/command_executor.dart';
-import 'package:marco_deck/src/server/plugins/plugin_host.dart';
+import 'package:tilepad/src/models/button.dart';
+import 'package:tilepad/src/server/command_executor.dart';
+import 'package:tilepad/src/server/plugins/plugin_host.dart';
 
 void main() {
   group('CommandExecutor plugin routing', () {

@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = marco_deck
+PRODUCT_NAME = tilepad
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = dev.appwriters.marcoDeck
+PRODUCT_BUNDLE_IDENTIFIER = dev.appwriters.tilepad
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 dev.appwriters. All rights reserved.

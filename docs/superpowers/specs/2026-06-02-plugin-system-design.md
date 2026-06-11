@@ -1,4 +1,4 @@
-# MarcoDeck Plugin System — Design
+# Tilepad Plugin System — Design
 
 **Date:** 2026-06-02
 **Status:** Approved (brainstorming)
@@ -6,7 +6,7 @@
 
 ## Goal
 
-Let third-party developers add new capabilities to MarcoDeck **without modifying or
+Let third-party developers add new capabilities to Tilepad **without modifying or
 recompiling the app**. Plugins are pluggable, can be enabled/disabled at runtime, and
 support dynamic, two-way capabilities (configurable actions, dynamic option lists,
 plugin settings, and live state pushed to the phone client).
@@ -25,7 +25,7 @@ protocol, declared via a manifest. We do **not** embed a scripting language.
 - Embedding Lua/JS would force one language + a sandbox we must maintain, and is *less*
   like the premium apps, not more.
 - Stream Deck and Touch Portal both use out-of-process executables + manifest + socket.
-  This is language-agnostic, recompile-free, crash-isolated, and fits MarcoDeck's existing
+  This is language-agnostic, recompile-free, crash-isolated, and fits Tilepad's existing
   JSON-over-WebSocket architecture.
 
 ## Scope (v1)
@@ -81,7 +81,7 @@ New module: `lib/src/server/plugins/`
 | `state_store.dart` | In-memory latest value per `(pluginId, stateId)`; change stream. |
 | `plugin_protocol.dart` | Message type constants + encode/decode helpers for the plugin protocol. |
 
-`CommandExecutor` gains one branch (route `ActionType.plugin` to the host). `MarcoServer`
+`CommandExecutor` gains one branch (route `ActionType.plugin` to the host). `TilepadServer`
 wires the host, forwards state updates to clients, and exposes registry operations to the UI.
 
 ### Process lifecycle (Stream Deck style)

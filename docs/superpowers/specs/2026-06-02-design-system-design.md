@@ -1,4 +1,4 @@
-# MarcoDeck Design System — Design
+# Tilepad Design System — Design
 
 **Date:** 2026-06-02
 **Status:** Approved direction (autonomous build)

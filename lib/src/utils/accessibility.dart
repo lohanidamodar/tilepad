@@ -4,7 +4,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Accessibility utilities for the MarcoDeck application
+/// Accessibility utilities for the Tilepad application
 class AccessibilityUtils {
   /// Announce a message to screen readers
   static void announce(BuildContext context, String message) {

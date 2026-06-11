@@ -5,9 +5,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco_deck/src/server/plugins/plugin_host.dart';
-import 'package:marco_deck/src/server/plugins/plugin_manager.dart';
-import 'package:marco_deck/src/server/plugins/plugin_registry.dart';
+import 'package:tilepad/src/server/plugins/plugin_host.dart';
+import 'package:tilepad/src/server/plugins/plugin_manager.dart';
+import 'package:tilepad/src/server/plugins/plugin_registry.dart';
 import 'package:path/path.dart' as p;
 
 /// Spawns the real OBS plugin process and drives it through the host protocol.
@@ -15,7 +15,7 @@ import 'package:path/path.dart' as p;
 /// register and report its connection state as Disconnected. (Live OBS control
 /// is verified manually against a running OBS.) Requires `dart` on PATH.
 void main() {
-  const id = 'com.marcodeck.obs';
+  const id = 'com.tilepad.obs';
   late Directory tmp;
   late PluginHost host;
   late PluginRegistry registry;

@@ -1,6 +1,6 @@
-# MarcoDeck Plugin Protocol
+# Tilepad Plugin Protocol
 
-MarcoDeck plugins add new actions and live data to the desktop server **without
+Tilepad plugins add new actions and live data to the desktop server **without
 modifying or recompiling the app** — the same model used by Stream Deck and
 Touch Portal.
 
@@ -157,7 +157,7 @@ so the phone shows the live value as the button's **title**, or — with
 connect the server replays the latest snapshot so tiles render immediately.
 
 > **Icon-mode payloads:** for an *icon* binding, send `image` as a numeric icon
-> code point string (the same format MarcoDeck uses for button icons), e.g.
+> code point string (the same format Tilepad uses for button icons), e.g.
 > `{ "type": "setStateImage", "stateId": "mic", "image": "61234" }`. Named icons
 > and data-URI images are not resolved yet. *Title* bindings just use `value`.
 

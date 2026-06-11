@@ -18,15 +18,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:marco_deck/src/client/buttons_screen.dart';
-import 'package:marco_deck/src/client/client_providers.dart';
-import 'package:marco_deck/src/design/design.dart';
-import 'package:marco_deck/src/models/button.dart';
-import 'package:marco_deck/src/models/server_connection.dart';
-import 'package:marco_deck/src/server/button_editor_page.dart';
-import 'package:marco_deck/src/server/button_presets.dart';
-import 'package:marco_deck/src/server/server.dart';
-import 'package:marco_deck/src/server/system_info.dart';
+import 'package:tilepad/src/client/buttons_screen.dart';
+import 'package:tilepad/src/client/client_providers.dart';
+import 'package:tilepad/src/design/design.dart';
+import 'package:tilepad/src/models/button.dart';
+import 'package:tilepad/src/models/server_connection.dart';
+import 'package:tilepad/src/server/button_editor_page.dart';
+import 'package:tilepad/src/server/button_presets.dart';
+import 'package:tilepad/src/server/server.dart';
+import 'package:tilepad/src/server/system_info.dart';
 
 /// Connection stub: reports "connected" without touching the network.
 class _FakeConnection extends ConnectionStateNotifier {
@@ -183,7 +183,7 @@ void main() {
     await tester.pumpWidget(_host(
       child: ButtonEditorPage(
         button: mute,
-        server: MarcoServer(),
+        server: TilepadServer(),
         onSave: (_) {},
       ),
       brightness: Brightness.light,
