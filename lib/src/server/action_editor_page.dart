@@ -121,7 +121,7 @@ final List<PredefinedCommand> predefinedCommands = [
       'windows':
           'powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{PRTSC}\')"',
       'macos': 'screencapture -i ~/Desktop/screenshot.png',
-      'linux': 'gnome-screenshot -i',
+      'linux': 'sh -c "flameshot gui || gnome-screenshot -i || spectacle"',
     },
     icon: PiconsRegular.camera,
   ),

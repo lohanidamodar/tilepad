@@ -37,6 +37,15 @@ class StateStore {
 
   /// Sets (or replaces) a state value, emitting on [changes].
   void set(String pluginId, String stateId, {dynamic value, String? image}) {
+    // Skip unchanged values: sampled states (clock, active window, metrics)
+    // are written every tick but change far less often, and every emission is
+    // broadcast to all clients.
+    final existing = _entries[_key(pluginId, stateId)];
+    if (existing != null &&
+        existing.value == value &&
+        existing.image == image) {
+      return;
+    }
     final entry = StateEntry(
       pluginId: pluginId,
       stateId: stateId,

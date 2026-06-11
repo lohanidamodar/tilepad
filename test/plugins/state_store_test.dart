@@ -44,6 +44,20 @@ void main() {
       await sub.cancel();
     });
 
+    test('does not re-emit unchanged values (sampled states)', () async {
+      final store = StateStore();
+      final events = <StateEntry>[];
+      final sub = store.changes.listen(events.add);
+      store.set('system', 'window', value: 'Editor');
+      store.set('system', 'window', value: 'Editor'); // same → no event
+      store.set('system', 'window', value: 'Browser'); // change → event
+      store.set('system', 'window', value: 'Browser', image: 'b.png');
+      await Future<void>.delayed(Duration.zero);
+      expect(events, hasLength(3));
+      expect(events.map((e) => e.value), ['Editor', 'Browser', 'Browser']);
+      await sub.cancel();
+    });
+
     test('clearPlugin removes that plugin\'s entries only', () {
       final store = StateStore();
       store.set('com.a', 'scene', value: 'Intro');

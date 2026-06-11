@@ -153,7 +153,8 @@ List<PresetCategory> buttonPresetCatalog() => [
           _byPlatform(
               'powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{PRTSC}\')"',
               'screencapture -i ~/Desktop/screenshot.png',
-              'gnome-screenshot -i'),
+              // Try the common screenshot tools in turn; distros vary.
+              'sh -c "flameshot gui || gnome-screenshot -i || spectacle"'),
           _system0,
         ),
         _preset(
@@ -194,7 +195,10 @@ List<PresetCategory> buttonPresetCatalog() => [
         _command(
           'Terminal',
           PiconsRegular.terminalWindow,
-          _byPlatform('start cmd', 'open -a Terminal', 'x-terminal-emulator'),
+          // x-terminal-emulator is the Debian/Ubuntu alternatives name; fall
+          // back to the common terminals elsewhere.
+          _byPlatform('start cmd', 'open -a Terminal',
+              'sh -c "x-terminal-emulator || gnome-terminal || konsole"'),
           _apps0,
         ),
         _command(
@@ -206,7 +210,9 @@ List<PresetCategory> buttonPresetCatalog() => [
         _command(
           'Text Editor',
           PiconsRegular.note,
-          _byPlatform('notepad', 'open -a TextEdit', 'gedit'),
+          // gedit became gnome-text-editor on GNOME 42+.
+          _byPlatform('notepad', 'open -a TextEdit',
+              'sh -c "gedit || gnome-text-editor || kate"'),
           _apps0,
         ),
         _command(
