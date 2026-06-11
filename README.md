@@ -19,6 +19,15 @@
 
 ---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/client-deck.png" width="300" alt="Phone client showing a deck page with live system tiles, media controls and meeting shortcuts">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/button-editor.png" width="540" alt="Server button editor showing a Mute/Unmute toggle button with actions, toggle face and hold actions">
+</p>
+<p align="center"><sub>The phone client with live tiles (left) and the server's button editor configuring a Mute/Unmute toggle (right).</sub></p>
+
 ## 📥 Download
 
 Grab the latest build from the [**Releases**](https://github.com/lohanidamodar/macro-deck-updated/releases) page:

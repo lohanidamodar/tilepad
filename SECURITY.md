@@ -12,7 +12,7 @@ against the latest release and the `main` branch.
 Instead, report them privately via GitHub's
 [private vulnerability reporting](https://github.com/lohanidamodar/macro-deck-updated/security/advisories/new)
 (Security → Report a vulnerability), or email the maintainer at
-**dlohani48@gmail.com**.
+**security@appwriters.dev**.
 
 Please include:
 
@@ -32,9 +32,13 @@ design, a connected client can run the actions you configure on the server.
 
 Keep this in mind when deploying:
 
+- **Enable PIN pairing** (server dashboard → ⋮ → Security). With it on,
+  devices must enter a 6-digit PIN once before they can run actions or receive
+  your page configuration and live state.
 - **Run servers only on trusted networks.** The server listens on your LAN;
-  anyone who can reach it and pass the handshake can trigger configured actions.
-  Use the connected-clients panel to disconnect or **block** unknown devices.
+  without PIN pairing, anyone who can reach it and pass the handshake can
+  trigger configured actions. Use the connected-clients panel to disconnect or
+  **block** unknown devices.
 - **Plugins are programs you choose to install** (like Stream Deck / Touch
   Portal plugins). They run as separate processes with your user's privileges.
   Only install plugins you trust. The plugin WebSocket is bound to `127.0.0.1`

@@ -52,3 +52,7 @@ srv*.png
 
 # Inno Setup installer output
 windows/installer/output/
+
+# Compiled bundled-plugin binaries (built by the release workflow)
+assets/plugins/obs/obs-plugin
+assets/plugins/obs/obs-plugin.exe
