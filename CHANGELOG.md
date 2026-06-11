@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Launch at startup**: a server setting (⋮ → Launch at startup) registers Tilepad with the OS so the server starts when you log in — a registry `Run` entry on Windows, a LaunchAgent on macOS, an XDG autostart entry on Linux. The OS entry is the source of truth, so the checkbox always shows what will actually happen at login
 
 ### Changed
-- **Releases are cut from `main`**: merging a `pubspec.yaml` version bump now tags, builds and publishes the GitHub release automatically — no more `release/*` trigger branches
+- **Publishing a GitHub release triggers the builds**: create a release for tag `v<version>` and the workflow attaches the artifacts (APK, Windows installer + portable zip, Linux tarball) to it, filling in the matching changelog section as notes when the release was published without a body — no more `release/*` trigger branches
 
 ## [1.4.0] - 2026-06-11
 

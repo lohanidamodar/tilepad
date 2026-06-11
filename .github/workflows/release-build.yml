@@ -1,19 +1,18 @@
 name: Release
 
-# Releases are cut from main: when a push to main changes `version:` in
-# pubspec.yaml to a version that has no tag yet, this workflow builds the
-# artifacts (Android APK, Windows installer + portable zip, Linux tarball)
-# and publishes a GitHub release, creating the v<version> tag itself with
-# release notes taken from the matching CHANGELOG.md section.
-#
-# Pushing a `v*` tag or dispatching the workflow with a version input also
-# works, for re-runs or out-of-band releases.
+# Builds the release artifacts (Android APK, Windows installer + portable
+# zip, Linux tarball) and attaches them to the GitHub release:
+#   - publish a release (the usual flow): the artifacts are uploaded to it,
+#     and the matching CHANGELOG.md section becomes the notes if the release
+#     was created without a body,
+#   - pushing a `v*` tag or dispatching with a version input also works;
+#     those create the release themselves, with changelog notes.
 on:
+  release:
+    types: [published]
   push:
     tags:
       - "v*"
-    branches:
-      - "main"
   workflow_dispatch:
     inputs:
       version:
@@ -28,44 +27,41 @@ env:
   FLUTTER_VERSION: "3.44.0"
 
 jobs:
-  # Decides whether this event produces a release and under which tag, so the
-  # build jobs stay trigger-agnostic.
+  # Resolves the tag and whether to fill in release notes, so the build jobs
+  # stay trigger-agnostic.
   prepare:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
-      release: ${{ steps.resolve.outputs.release }}
+      notes: ${{ steps.resolve.outputs.notes }}
     steps:
-      - uses: actions/checkout@v4
       - name: Resolve release tag
         id: resolve
         shell: bash
+        env:
+          # Via env, not inline interpolation — bodies and tag names are
+          # user-controlled text.
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          EVENT_BODY: ${{ github.event.release.body }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          release=true
+          notes=true
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            tag="v${{ inputs.version }}"
-          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            tag="$GITHUB_REF_NAME"
+            tag="v$INPUT_VERSION"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            tag="$EVENT_TAG"
+            # Keep notes the release was published with; only fill in the
+            # changelog section when the body was left empty.
+            if [ -n "$EVENT_BODY" ]; then notes=false; fi
           else
-            # Push to main: release the pubspec version unless already tagged.
-            version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | cut -d+ -f1)
-            tag="v$version"
-            if [ -z "$version" ]; then
-              echo "No version found in pubspec.yaml" >&2
-              exit 1
-            fi
-            if git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null; then
-              echo "$tag already released — nothing to do."
-              release=false
-            fi
+            tag="$GITHUB_REF_NAME"
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "release=$release" >> "$GITHUB_OUTPUT"
-          echo "Releasing: $release (tag $tag)"
+          echo "notes=$notes" >> "$GITHUB_OUTPUT"
+          echo "Releasing $tag (write notes: $notes)"
 
   build-apk:
     needs: prepare
-    if: needs.prepare.outputs.release == 'true'
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
@@ -97,12 +93,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          body_path: release-notes.md
+          body_path: ${{ needs.prepare.outputs.notes == 'true' && 'release-notes.md' || '' }}
           files: build/app/outputs/flutter-apk/Tilepad-client.apk
 
   build-windows:
     needs: prepare
-    if: needs.prepare.outputs.release == 'true'
     runs-on: windows-latest
     env:
       RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
@@ -154,14 +149,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          body_path: release-notes.md
+          body_path: ${{ needs.prepare.outputs.notes == 'true' && 'release-notes.md' || '' }}
           files: |
             windows/installer/output/Tilepad-Setup-${{ steps.version.outputs.version }}.exe
             build/artifacts/Tilepad-windows-portable.zip
 
   build-linux:
     needs: prepare
-    if: needs.prepare.outputs.release == 'true'
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
@@ -201,5 +195,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          body_path: release-notes.md
+          body_path: ${{ needs.prepare.outputs.notes == 'true' && 'release-notes.md' || '' }}
           files: build/artifacts/Tilepad-linux.tar.gz
