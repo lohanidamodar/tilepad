@@ -5,6 +5,12 @@ All notable changes to the Tilepad project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Clear buttons on prompt dialogs**: the text prompt gets an in-field ✕ that empties the field, and the keystroke prompt gets a Clear action that resets the combo — both also forget the remembered last-sent value
+- **Refresh button on the window picker**: refetch the server's open windows without closing the dialog
+
 ## [1.4.1] - 2026-06-11
 
 ### Added

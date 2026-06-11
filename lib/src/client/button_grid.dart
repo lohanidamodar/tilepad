@@ -347,61 +347,85 @@ class ButtonGrid extends ConsumerWidget {
   }
 
   /// Fetches the server's open windows and lets the user pick one to focus.
+  /// The list is fetched fresh on every open, and the refresh button refetches
+  /// without closing the dialog (windows come and go while it's up).
   Future<String?> _showWindowPicker(
     BuildContext context,
     WidgetRef ref,
     Button button,
   ) {
-    final future = ref.read(connectionStateProvider.notifier).fetchWindows();
+    final notifier = ref.read(connectionStateProvider.notifier);
+    var future = notifier.fetchWindows();
     return showDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(button.name),
-          content: SizedBox(
-            width: 380,
-            height: 420,
-            child: FutureBuilder<List<WindowInfo>>(
-              future: future,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final windows = snapshot.data ?? const <WindowInfo>[];
-                if (windows.isEmpty) {
-                  return const Center(child: Text('No open windows found'));
-                }
-                return ListView.separated(
-                  itemCount: windows.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final window = windows[index];
-                    return ListTile(
-                      leading: const Icon(Icons.web_asset),
-                      title: Text(
-                        window.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onTap: () => Navigator.of(context).pop(window.id),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      button.name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded),
+                    tooltip: 'Refresh window list',
+                    onPressed: () => setDialogState(() {
+                      future = notifier.fetchWindows();
+                    }),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 380,
+                height: 420,
+                child: FutureBuilder<List<WindowInfo>>(
+                  future: future,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final windows = snapshot.data ?? const <WindowInfo>[];
+                    if (windows.isEmpty) {
+                      return const Center(child: Text('No open windows found'));
+                    }
+                    return ListView.separated(
+                      itemCount: windows.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final window = windows[index];
+                        return ListTile(
+                          leading: const Icon(Icons.web_asset),
+                          title: Text(
+                            window.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => Navigator.of(context).pop(window.id),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  /// Prompts for free text to send.
+  /// Prompts for free text to send. The field prefills with the last sent
+  /// text; the clear icon empties it and forgets the prefill.
   Future<String?> _showTextPrompt(BuildContext context, Button button) {
     final controller = TextEditingController(text: _lastText[button.id] ?? '');
     return showDialog<String>(
@@ -409,18 +433,31 @@ class ButtonGrid extends ConsumerWidget {
       builder: (context) {
         return AlertDialog(
           title: Text(button.name),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            minLines: 1,
-            maxLines: 4,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'Text to send',
-              hintText: 'Type the text to send…',
-              border: OutlineInputBorder(),
+          content: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) => TextField(
+              controller: controller,
+              autofocus: true,
+              minLines: 1,
+              maxLines: 4,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: 'Text to send',
+                hintText: 'Type the text to send…',
+                border: const OutlineInputBorder(),
+                suffixIcon: value.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear_rounded),
+                        tooltip: 'Clear',
+                        onPressed: () {
+                          controller.clear();
+                          _lastText.remove(button.id);
+                        },
+                      ),
+              ),
+              onSubmitted: (v) => Navigator.of(context).pop(v),
             ),
-            onSubmitted: (v) => Navigator.of(context).pop(v),
           ),
           actions: [
             TextButton(
@@ -438,7 +475,8 @@ class ButtonGrid extends ConsumerWidget {
     );
   }
 
-  /// Prompts for a key combination to send.
+  /// Prompts for a key combination to send. The picker prefills with the last
+  /// sent combo; Clear resets it to the default and forgets the prefill.
   Future<({String key, Set<String> modifiers})?> _showKeyComboPrompt(
     BuildContext context,
     Button button,
@@ -446,38 +484,55 @@ class ButtonGrid extends ConsumerWidget {
     final last = _lastCombo[button.id];
     var key = last?.key ?? 'a';
     var modifiers = {...?last?.modifiers};
+    // Bumped to give the picker a fresh Key, so it rebuilds from the reset
+    // initial values (it keeps the combo in its own state).
+    var generation = 0;
     return showDialog<({String key, Set<String> modifiers})>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(button.name),
-          content: SizedBox(
-            width: 360,
-            child: SingleChildScrollView(
-              child: KeyComboPicker(
-                initialKey: key,
-                initialModifiers: modifiers,
-                onChanged: (k, m) {
-                  key = k;
-                  modifiers = m;
-                },
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(button.name),
+              content: SizedBox(
+                width: 360,
+                child: SingleChildScrollView(
+                  child: KeyComboPicker(
+                    key: ValueKey(generation),
+                    initialKey: key,
+                    initialModifiers: modifiers,
+                    onChanged: (k, m) {
+                      key = k;
+                      modifiers = m;
+                    },
+                  ),
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton.icon(
-              onPressed:
-                  () => Navigator.of(
-                    context,
-                  ).pop((key: key, modifiers: modifiers)),
-              icon: const Icon(Icons.send_rounded),
-              label: const Text('Send'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => setDialogState(() {
+                    key = 'a';
+                    modifiers = {};
+                    _lastCombo.remove(button.id);
+                    generation++;
+                  }),
+                  child: const Text('Clear'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed:
+                      () => Navigator.of(
+                        context,
+                      ).pop((key: key, modifiers: modifiers)),
+                  icon: const Icon(Icons.send_rounded),
+                  label: const Text('Send'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
