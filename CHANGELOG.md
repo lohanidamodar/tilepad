@@ -5,6 +5,15 @@ All notable changes to the MarcoDeck project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Active Window live tile**: a new system state shows the focused window's title on a tile, on all three platforms (native Win32 on Windows; System Events on macOS — same Accessibility permission as keystrokes; `xdotool` on Linux/X11). Offered as a preset next to the other system tiles
+
+### Fixed
+- **Preset reliability across Linux distros**: Screenshot, Terminal and Text Editor presets now try the common tools in turn (`flameshot`/`gnome-screenshot`/`spectacle`, `x-terminal-emulator`/`gnome-terminal`/`konsole`, `gedit`/`gnome-text-editor`/`kate`) instead of assuming one distro's default
+- Live states no longer re-broadcast unchanged values to every client on each 2-second sample (clock, metrics, active window)
+
 ## [1.3.1] - 2026-06-11
 
 ### Fixed

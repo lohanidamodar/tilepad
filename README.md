@@ -101,6 +101,7 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 | Window snapping presets | ✅ (Win-key) | Cmd shortcuts + Mission Control | ✅ (GNOME Super-key) |
 | Select Window (focus) | ✅ | — | — |
 | System live tiles (CPU/RAM/…) | ✅ | ✅ | ✅ |
+| Active Window live tile | ✅ | ✅ ¹ | ✅ ² (X11) |
 | OBS plugin | ✅ (bundled binary) | ✅ ³ | ✅ (bundled binary) |
 | System tray | ✅ | ✅ | ✅ (AppIndicator) |
 

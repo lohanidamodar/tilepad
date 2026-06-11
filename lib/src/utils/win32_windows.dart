@@ -60,6 +60,25 @@ class Win32Windows {
       );
   }
 
+  /// The title of the currently focused (foreground) window, or null when
+  /// there is none / it has no title.
+  static String? foregroundTitle() {
+    try {
+      final hwnd = GetForegroundWindow();
+      if (hwnd.address == 0) return null;
+      final length = GetWindowTextLength(hwnd).value;
+      if (length == 0) return null;
+      final buffer = wsalloc(length + 1);
+      GetWindowText(hwnd, buffer, length + 1);
+      final title = buffer.toDartString();
+      free(buffer);
+      return title.trim().isEmpty ? null : title.trim();
+    } catch (e) {
+      debugPrint('Error reading foreground window title: $e');
+      return null;
+    }
+  }
+
   /// Brings the window with the given [handle] (its address as a string) to
   /// the foreground, restoring it first if minimized.
   static bool activate(String handle) {

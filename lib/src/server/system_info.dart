@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:picons/picons.dart';
 
 import '../models/button.dart';
+import '../utils/win32_windows.dart';
 import 'plugins/state_store.dart';
 
 /// Reserved live-state source id for built-in system metrics. Tiles bind to
@@ -31,6 +32,8 @@ final List<SystemState> systemStates = [
   SystemState('battery', 'Battery', PiconsRegular.batteryHigh.codePoint.toString()),
   SystemState('net', 'Network', PiconsRegular.wifiHigh.codePoint.toString()),
   SystemState('host', 'Host', PiconsRegular.desktopTower.codePoint.toString()),
+  SystemState('window', 'Active Window',
+      PiconsRegular.appWindow.codePoint.toString()),
 ];
 
 /// Reserved state id of the combined multi-metric readout.
@@ -250,6 +253,7 @@ class SystemInfoService {
       }
       // Wall-clock time is platform-independent and cheap.
       _put('clock', SystemMetrics.formatClock(DateTime.now()));
+      await _sampleActiveWindow();
       _publishSummary();
     } catch (e) {
       debugPrint('SystemInfoService sample error: $e');
@@ -260,6 +264,42 @@ class SystemInfoService {
     if (value != null && value.isNotEmpty) {
       store.set(systemSourceId, id, value: value);
     }
+  }
+
+  /// Publishes the focused window's title as the `window` state.
+  ///
+  /// Windows reads it natively; macOS asks System Events (frontmost app name,
+  /// plus the window title where the app exposes one — needs the same
+  /// Accessibility permission as keystrokes); Linux uses `xdotool` (X11).
+  /// Failures are silent: the tile simply keeps its last value.
+  Future<void> _sampleActiveWindow() async {
+    try {
+      String? title;
+      if (Platform.isWindows) {
+        title = Win32Windows.foregroundTitle();
+      } else if (Platform.isMacOS) {
+        const script = '''
+tell application "System Events"
+  set p to first application process whose frontmost is true
+  set appName to name of p
+  try
+    return appName & " — " & (name of front window of p)
+  on error
+    return appName
+  end try
+end tell''';
+        final out = await Process.run('osascript', ['-e', script]);
+        if (out.exitCode == 0) title = out.stdout.toString().trim();
+      } else if (Platform.isLinux) {
+        final out = await Process.run(
+            'xdotool', ['getactivewindow', 'getwindowname']);
+        if (out.exitCode == 0) title = out.stdout.toString().trim();
+      }
+      if (title == null || title.isEmpty) return;
+      // Keep the wire payload tidy; the tile ellipsizes anyway.
+      if (title.length > 60) title = '${title.substring(0, 59)}…';
+      _put('window', title);
+    } catch (_) {}
   }
 
   /// Publishes the network tile from cumulative byte counters, deriving the
