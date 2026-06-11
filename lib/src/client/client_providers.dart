@@ -1123,8 +1123,12 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
           _cancelReconnectAttemptCounter();
         }
 
-        // Update state to connected
-        state = state.copyWith(status: ConnectionStatus.connected);
+        // Update state to connected (clearing any earlier PIN rejection so
+        // future drops auto-reconnect normally again)
+        state = state.copyWith(
+          status: ConnectionStatus.connected,
+          pinRejected: false,
+        );
 
         debugPrint('Connection acknowledged by server - now connected');
         break;
@@ -1213,11 +1217,18 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
   /// a server that will keep refusing is pointless) and surface an error
   /// state the UI turns into a PIN prompt.
   void _handlePinRejected(String message) {
+    // The server can repeat the rejection (e.g. replying to stray messages);
+    // only the first one should transition state / surface the prompt.
+    if (state.pinRejected) return;
     _cancelAckTimeout();
     _cancelConnectionTimeout();
     _cancelReconnectAttemptCounter();
     _isReconnecting = false;
+    // Fully close the transport: this also clears the service's remembered
+    // address so its own retry loop can't keep reconnecting (and getting
+    // dropped) while the user is typing the PIN.
     _webSocketService.cancelReconnection();
+    _webSocketService.close();
     state = ConnectionState(
       status: ConnectionStatus.error,
       errorMessage: message,

@@ -195,68 +195,24 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     );
   }
 
+  /// Guards against stacking multiple PIN prompts when rejections repeat.
+  bool _pinPromptOpen = false;
+
   /// Asks for the server's pairing PIN, stores it with the saved server and
   /// reconnects. Shown when the server rejects the handshake PIN.
   Future<void> _promptForPin(
     ServerConnection? connection,
     String? message,
   ) async {
-    if (connection == null || !mounted) return;
+    if (connection == null || !mounted || _pinPromptOpen) return;
 
-    final controller = TextEditingController(text: connection.pin);
+    _pinPromptOpen = true;
     final pin = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.pin_outlined),
-        title: Text('PIN for ${connection.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message ?? 'This server requires a PIN.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.tokens.color.textSecondary,
-                  ),
-            ),
-            SizedBox(height: context.tokens.space.lg),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    letterSpacing: 8,
-                  ),
-              decoration: const InputDecoration(
-                hintText: '••••••',
-                border: OutlineInputBorder(),
-                counterText: '',
-              ),
-              onSubmitted: (v) => Navigator.of(context).pop(v),
-            ),
-            SizedBox(height: context.tokens.space.sm),
-            Text(
-              'The PIN is shown on the server under ⋮ → Security.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.tokens.color.textMuted,
-                  ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Pair'),
-          ),
-        ],
-      ),
+      builder: (context) =>
+          _PinDialog(connection: connection, message: message),
     );
-    controller.dispose();
+    _pinPromptOpen = false;
     if (pin == null || pin.trim().isEmpty || !mounted) return;
 
     final updated = connection.copyWith(pin: pin.trim());
@@ -1111,6 +1067,92 @@ class _SkeletonGridState extends State<_SkeletonGrid>
           },
         );
       },
+    );
+  }
+}
+
+/// The pairing-PIN prompt. A stateful widget so the text controller lives
+/// exactly as long as the dialog (disposing it from the caller raced the
+/// dialog's exit animation), and scroll-safe so the keyboard can't overflow
+/// the content column.
+class _PinDialog extends StatefulWidget {
+  final ServerConnection connection;
+  final String? message;
+
+  const _PinDialog({required this.connection, this.message});
+
+  @override
+  State<_PinDialog> createState() => _PinDialogState();
+}
+
+class _PinDialogState extends State<_PinDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.connection.pin);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return AlertDialog(
+      icon: const Icon(Icons.pin_outlined),
+      title: Text('PIN for ${widget.connection.name}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.message ?? 'This server requires a PIN.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: tokens.color.textSecondary,
+                  ),
+            ),
+            SizedBox(height: tokens.space.lg),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    letterSpacing: 8,
+                  ),
+              decoration: const InputDecoration(
+                hintText: '••••••',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              onSubmitted: (v) => Navigator.of(context).pop(v),
+            ),
+            SizedBox(height: tokens.space.sm),
+            Text(
+              'The PIN is shown on the server under ⋮ → Security.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: tokens.color.textMuted,
+                  ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Pair'),
+        ),
+      ],
     );
   }
 }

@@ -678,9 +678,21 @@ class MarcoServer {
   /// replies (acks, pages, state snapshot, results) go only to that client.
   void _handleClientMessage(Message message, String clientId) async {
     // While PIN pairing is on, only clients that completed a valid connect
-    // handshake may do anything else.
+    // handshake may do anything else. Transport health-checks are exempt:
+    // a pong leaks nothing, and replying keeps an un-paired client's socket
+    // calm instead of making its health check churn reconnects.
+    if (_requirePin &&
+        message.type == MessageType.ping &&
+        !_authorizedClients.contains(clientId)) {
+      _webSocketService.sendMessageToClient(
+        clientId,
+        Message(type: MessageType.pong),
+      );
+      return;
+    }
     if (_requirePin &&
         message.type != MessageType.connect &&
+        message.type != MessageType.disconnect &&
         !_authorizedClients.contains(clientId)) {
       _webSocketService.sendMessageToClient(
         clientId,

@@ -128,8 +128,12 @@ List<PresetCategory> buttonPresetCatalog() => [
         _preset(
           'Lock Screen',
           PiconsRegular.lock,
-          _byPlatform('rundll32.exe user32.dll,LockWorkStation',
-              'pmset displaysleepnow', 'xdg-screensaver lock'),
+          _byPlatform(
+              'rundll32.exe user32.dll,LockWorkStation',
+              // Ctrl+Cmd+Q is the real Lock Screen shortcut; display sleep
+              // only locks when "require password after sleep" is on.
+              'osascript -e \'tell application "System Events" to keystroke "q" using {control down, command down}\'',
+              'xdg-screensaver lock'),
           _system0,
         ),
         _preset(
@@ -153,14 +157,21 @@ List<PresetCategory> buttonPresetCatalog() => [
         _preset(
           'Restart',
           PiconsRegular.arrowsClockwise,
-          _byPlatform('shutdown /r /t 0', 'sudo shutdown -r now', 'sudo reboot'),
+          // No sudo: a macro press can't answer a password prompt. macOS asks
+          // System Events; Linux goes through logind/polkit.
+          _byPlatform(
+              'shutdown /r /t 0',
+              'osascript -e \'tell app "System Events" to restart\'',
+              'systemctl reboot'),
           _system0,
         ),
         _preset(
           'Shutdown',
           PiconsRegular.power,
           _byPlatform(
-              'shutdown /s /t 0', 'sudo shutdown -h now', 'sudo shutdown -h now'),
+              'shutdown /s /t 0',
+              'osascript -e \'tell app "System Events" to shut down\'',
+              'systemctl poweroff'),
           _system0,
         ),
       ]),
@@ -168,7 +179,8 @@ List<PresetCategory> buttonPresetCatalog() => [
         _command(
           'Web Browser',
           PiconsRegular.globe,
-          _byPlatform('start chrome', 'open -a "Google Chrome"', 'xdg-open https://'),
+          _byPlatform('start chrome', 'open -a "Google Chrome"',
+              'xdg-open https://www.google.com'),
           _apps0,
         ),
         _command(
@@ -205,7 +217,7 @@ List<PresetCategory> buttonPresetCatalog() => [
         _command(
           'Settings',
           PiconsRegular.gear,
-          _byPlatform('start ms-settings:', 'open -a "System Settings"',
+          _byPlatform('start ms-settings:', 'open "x-apple.systempreferences:"',
               'gnome-control-center'),
           _apps0,
         ),
@@ -232,31 +244,42 @@ List<PresetCategory> buttonPresetCatalog() => [
         _url('ChatGPT', PiconsRegular.chatCircleText, 'https://chatgpt.com',
             _web0),
       ]),
+      // Window-management shortcuts differ per desktop: Win-key snapping on
+      // Windows, Super-key (GNOME-style) on Linux, and Cmd shortcuts plus
+      // Mission Control on macOS (which has no built-in snap keys to send).
       PresetCategory('Window', [
-        Button(
-          name: 'Select Window',
-          iconName: _icon(PiconsRegular.appWindow.codePoint),
-          color: _window0,
-          actions: [ButtonAction(type: ActionType.selectWindow)],
-        ),
-        _keys('Snap Left', PiconsRegular.arrowLineLeft, 'left', const ['win'], _window0),
-        _keys('Snap Right', PiconsRegular.arrowLineRight, 'right', const ['win'], _window0),
-        _keys('Maximize', PiconsRegular.arrowsOut, 'up', const ['win'], _window0),
-        _keys('Show Desktop', PiconsRegular.desktop, 'd', const ['win'], _window0),
-        _keys(
-          'Switch App',
-          PiconsRegular.arrowsLeftRight,
-          'tab',
-          Platform.isMacOS ? const ['meta'] : const ['alt'],
-          _window0,
-        ),
-        _keys(
-          'Minimize',
-          PiconsRegular.arrowLineDown,
-          Platform.isMacOS ? 'm' : 'down',
-          Platform.isMacOS ? const ['meta'] : const ['win'],
-          _window0,
-        ),
+        if (Platform.isWindows)
+          Button(
+            name: 'Select Window',
+            iconName: _icon(PiconsRegular.appWindow.codePoint),
+            color: _window0,
+            actions: [ButtonAction(type: ActionType.selectWindow)],
+          ),
+        if (Platform.isMacOS) ...[
+          _command('Mission Control', PiconsRegular.squaresFour,
+              'open -a "Mission Control"', _window0),
+          _keys('Hide App', PiconsRegular.eyeSlash, 'h', const ['meta'],
+              _window0),
+          _keys('Quit App', PiconsRegular.xCircle, 'q', const ['meta'],
+              _window0),
+          _keys('Switch App', PiconsRegular.arrowsLeftRight, 'tab',
+              const ['meta'], _window0),
+          _keys('Minimize', PiconsRegular.arrowLineDown, 'm', const ['meta'],
+              _window0),
+        ] else ...[
+          _keys('Snap Left', PiconsRegular.arrowLineLeft, 'left',
+              const ['win'], _window0),
+          _keys('Snap Right', PiconsRegular.arrowLineRight, 'right',
+              const ['win'], _window0),
+          _keys('Maximize', PiconsRegular.arrowsOut, 'up', const ['win'],
+              _window0),
+          _keys('Show Desktop', PiconsRegular.desktop, 'd', const ['win'],
+              _window0),
+          _keys('Switch App', PiconsRegular.arrowsLeftRight, 'tab',
+              const ['alt'], _window0),
+          _keys('Minimize', PiconsRegular.arrowLineDown,
+              Platform.isWindows ? 'down' : 'h', const ['win'], _window0),
+        ],
       ]),
       PresetCategory('Clipboard', [
         _keys('Copy', PiconsRegular.copy, 'c', _clipModifier, _clip0),

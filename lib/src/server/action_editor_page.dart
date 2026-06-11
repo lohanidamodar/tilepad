@@ -64,8 +64,8 @@ final List<PredefinedCommand> predefinedCommands = [
     description: 'Shutdown the computer',
     platformCommands: {
       'windows': 'shutdown /s /t 0',
-      'macos': 'sudo shutdown -h now',
-      'linux': 'sudo shutdown -h now',
+      'macos': 'osascript -e \'tell app "System Events" to shut down\'',
+      'linux': 'systemctl poweroff',
     },
     icon: PiconsRegular.power,
   ),
@@ -74,8 +74,8 @@ final List<PredefinedCommand> predefinedCommands = [
     description: 'Restart the computer',
     platformCommands: {
       'windows': 'shutdown /r /t 0',
-      'macos': 'sudo shutdown -r now',
-      'linux': 'sudo reboot',
+      'macos': 'osascript -e \'tell app "System Events" to restart\'',
+      'linux': 'systemctl reboot',
     },
     icon: PiconsRegular.arrowsClockwise,
   ),
@@ -84,7 +84,8 @@ final List<PredefinedCommand> predefinedCommands = [
     description: 'Lock the computer screen',
     platformCommands: {
       'windows': 'rundll32.exe user32.dll,LockWorkStation',
-      'macos': 'pmset displaysleepnow',
+      'macos':
+          'osascript -e \'tell application "System Events" to keystroke "q" using {control down, command down}\'',
       'linux': 'xdg-screensaver lock',
     },
     icon: PiconsRegular.lock,

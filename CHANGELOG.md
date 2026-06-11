@@ -38,6 +38,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Uniform app-bar actions on the server dashboard and `Save` buttons across editors
 
 ### Fixed
+
+#### 🧭 Cross-platform correctness (audit of every preset & action path)
+- **macOS media transport now actually works**: synthesising F7–F9 key codes never triggered the hardware media functions; Play/Pause/Next/Previous/Stop now control Music and Spotify directly
+- **macOS Lock Screen** uses the real Ctrl⌘Q lock (display-sleep only locked when "require password after sleep" was on); **Restart/Shutdown** no longer call `sudo` (a macro press can't answer a password prompt) — macOS asks System Events, Linux goes through `systemctl`/logind
+- **Window presets are now per-desktop**: Win-key snapping on Windows, Super-key (GNOME) on Linux with the correct Minimize (Super+H), and Cmd shortcuts + Mission Control on macOS; Select Window only appears on Windows where it works
+- Linux "Web Browser" preset opened a literal `https://`; macOS "Settings" now opens on both pre- and post-Ventura names
+- **OBS plugin no longer needs the Dart SDK on Linux**: releases compile and bundle a standalone binary (the manifest prefers it, and source checkouts automatically fall back to `dart plugin.dart`)
+
+#### 🔐 PIN pairing follow-ups (from device testing)
+- The PIN prompt no longer resets while typing: a pairing rejection now fully closes the transport (the service's auto-reconnect kept reconnecting and getting dropped), unauthorized pings get a normal `pong` so health checks stay calm, repeated rejections are de-duplicated, and the dialog is single-instance with its text controller owned by the dialog (fixes a "controller used after dispose" crash and a render overflow)
+- The tray menu no longer flickers: it only rebuilds when its content actually changes
+
 - The action editor now has proper forms for **Open URL**, **Media Key** and **Navigate Page** actions; previously selecting these types saved an action with an empty target that did nothing
 - Unknown message types received from a newer peer no longer crash the message decode loop
 - Removed the unused `server_screen_new.dart` dead code

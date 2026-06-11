@@ -48,6 +48,8 @@ jobs:
         run: flutter config --enable-windows-desktop
       - name: Flutter pub get
         run: flutter pub get
+      - name: Compile bundled OBS plugin (refresh the committed binary)
+        run: dart compile exe assets/plugins/obs/plugin.dart -o assets/plugins/obs/obs-plugin.exe
       - name: Build Windows release (server)
         run: flutter build windows --release -t lib/src/server/main.dart
       - name: Resolve version
@@ -90,6 +92,8 @@ jobs:
         run: flutter config --enable-linux-desktop
       - name: Flutter pub get
         run: flutter pub get
+      - name: Compile bundled OBS plugin (standalone binary, no Dart SDK needed on target)
+        run: dart compile exe assets/plugins/obs/plugin.dart -o assets/plugins/obs/obs-plugin
       - name: Build Linux release (server)
         run: flutter build linux --release -t lib/src/server/main.dart
       - name: Archive Linux build

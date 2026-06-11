@@ -444,6 +444,12 @@ class IOClientWebSocketService implements ClientWebSocketService {
     _awaitingPong = false;
     _lastPingTime = null;
 
+    // A deliberate close must also stop FUTURE auto-reconnects: the socket's
+    // onDone fires after this and would otherwise restart the retry loop from
+    // the remembered address (e.g. hammering a server that just rejected our
+    // pairing PIN). connect() re-arms the address on the next real attempt.
+    _lastConnectedAddress = null;
+
     // Mark as not connected
     _isConnected = false;
 

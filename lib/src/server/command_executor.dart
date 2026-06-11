@@ -216,24 +216,30 @@ class CommandExecutor {
     }
   }
 
-  /// macOS media-key command. Transport keys use `osascript` key codes; volume
-  /// uses AppleScript volume settings.
+  /// macOS media-key command. Volume uses AppleScript volume settings;
+  /// transport drives Music and Spotify directly — synthesising F7–F9 key
+  /// codes does NOT trigger the hardware media functions, so scripting the
+  /// players is the reliable route.
   static String? _macMediaKeyCommand(String key) {
+    // Sends [verb] to whichever supported player is running.
+    String players(String verb) =>
+        'osascript -e \'if application "Spotify" is running then tell application "Spotify" to $verb\' '
+        '-e \'if application "Music" is running then tell application "Music" to $verb\'';
     switch (key) {
       case 'playPause':
-        return 'osascript -e \'tell application "System Events" to key code 100\'';
+        return players('playpause');
       case 'next':
-        return 'osascript -e \'tell application "System Events" to key code 101\'';
+        return players('next track');
       case 'previous':
-        return 'osascript -e \'tell application "System Events" to key code 98\'';
+        return players('previous track');
+      case 'stop':
+        return players('pause');
       case 'mute':
         return 'osascript -e \'set volume output muted (not (output muted of (get volume settings)))\'';
       case 'volumeUp':
         return 'osascript -e \'set volume output volume ((output volume of (get volume settings)) + 6)\'';
       case 'volumeDown':
         return 'osascript -e \'set volume output volume ((output volume of (get volume settings)) - 6)\'';
-      case 'stop':
-        return 'osascript -e \'tell application "System Events" to key code 100\'';
       default:
         return null;
     }

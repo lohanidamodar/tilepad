@@ -90,6 +90,24 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 - **Multi-Client Support**: Handle multiple connected clients simultaneously
 - **System Tray Integration**: Minimize to system tray for background operation
 
+## 🖥️ Platform Support
+
+| Capability | Windows | macOS | Linux |
+|---|---|---|---|
+| Shell commands / open URL / apps | ✅ | ✅ | ✅ |
+| Keystrokes & typed text | ✅ (Win32) | ✅ ¹ | ✅ ² (X11, `xdotool`) |
+| Media transport keys | ✅ (native VKs) | ✅ (controls Music & Spotify) | ✅ (`playerctl`) |
+| Volume / mute | ✅ | ✅ | ✅ (`pactl`) |
+| Window snapping presets | ✅ (Win-key) | Cmd shortcuts + Mission Control | ✅ (GNOME Super-key) |
+| Select Window (focus) | ✅ | — | — |
+| System live tiles (CPU/RAM/…) | ✅ | ✅ | ✅ |
+| OBS plugin | ✅ (bundled binary) | ✅ ³ | ✅ (bundled binary) |
+| System tray | ✅ | ✅ | ✅ (AppIndicator) |
+
+> ¹ macOS asks once for **Accessibility** permission (System Settings → Privacy & Security) the first time a keystroke/typing action runs.
+> ² Keystroke and typing actions need `xdotool` and an X11 session (on Wayland, install `xdotool` and run the target apps under XWayland, or use commands instead). Media transport needs `playerctl`.
+> ³ When building from source the OBS plugin runs with your Dart SDK automatically; release bundles ship a compiled standalone binary.
+
 ## 🛠️ Getting Started
 
 ### Prerequisites

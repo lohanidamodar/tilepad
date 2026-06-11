@@ -1,13 +1,13 @@
 {
   "id": "com.marcodeck.obs",
   "name": "OBS Studio",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "MarcoDeck",
   "apiVersion": 1,
   "run": {
     "windows": "./obs-plugin.exe",
-    "macos": "dart plugin.dart",
-    "linux": "dart plugin.dart"
+    "macos": "./obs-plugin",
+    "linux": "./obs-plugin"
   },
   "settings": [
     { "key": "host", "type": "string", "label": "OBS Host", "default": "127.0.0.1" },

@@ -36,6 +36,11 @@ class SystemTrayManager with TrayListener, WindowListener {
   String _serverIp = '';
   int _clientCount = 0;
 
+  /// Signature of the last menu actually applied, so repeated status/client
+  /// events that change nothing don't rebuild the native menu (rebuilding it
+  /// makes the tray icon flicker on some platforms).
+  String _lastMenuSignature = '';
+
   /// Initialize the system tray.
   Future<void> initSystemTray() async {
     if (_isInitialized) return;
@@ -124,10 +129,16 @@ class SystemTrayManager with TrayListener, WindowListener {
   }
 
   /// (Re)builds the tray menu and tooltip from the current server state.
+  /// Skipped when nothing visible changed.
   Future<void> _refreshMenu() async {
     final server = _server;
     final running = server?.isRunning ?? false;
     final address = _address;
+
+    final signature =
+        '${server != null}|$running|$address|$_clientCount';
+    if (signature == _lastMenuSignature) return;
+    _lastMenuSignature = signature;
 
     final status = server == null
         ? 'MarcoDeck Server'
