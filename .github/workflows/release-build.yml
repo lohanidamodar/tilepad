@@ -52,6 +52,18 @@ jobs:
           fi
           echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
           echo "Releasing as $tag"
+      - name: Extract release notes from changelog
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#v}"
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md)." > release-notes.md
+          fi
       - name: Build Android APK (client)
         run: flutter build apk --release --no-tree-shake-icons -t lib/src/client/main.dart
       - name: Rename APK
@@ -60,6 +72,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
+          body_path: release-notes.md
           files: build/app/outputs/flutter-apk/Tilepad-client.apk
 
   build-windows:
@@ -85,6 +98,18 @@ jobs:
           fi
           echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
           echo "Releasing as $tag"
+      - name: Extract release notes from changelog
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#v}"
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md)." > release-notes.md
+          fi
       - name: Compile bundled OBS plugin (refresh the committed binary)
         run: dart compile exe assets/plugins/obs/plugin.dart -o assets/plugins/obs/obs-plugin.exe
       - name: Build Windows release (server)
@@ -111,6 +136,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
+          body_path: release-notes.md
           files: |
             windows/installer/output/Tilepad-Setup-${{ steps.version.outputs.version }}.exe
             build/artifacts/Tilepad-windows-portable.zip
@@ -140,6 +166,18 @@ jobs:
           fi
           echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
           echo "Releasing as $tag"
+      - name: Extract release notes from changelog
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#v}"
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md)." > release-notes.md
+          fi
       - name: Compile bundled OBS plugin (standalone binary, no Dart SDK needed on target)
         run: dart compile exe assets/plugins/obs/plugin.dart -o assets/plugins/obs/obs-plugin
       - name: Build Linux release (server)
@@ -152,4 +190,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
+          body_path: release-notes.md
           files: build/artifacts/Tilepad-linux.tar.gz
