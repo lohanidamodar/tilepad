@@ -6,13 +6,19 @@ name: Release
 #     and the matching CHANGELOG.md section becomes the notes if the release
 #     was created without a body,
 #   - pushing a `v*` tag or dispatching with a version input also works;
-#     those create the release themselves, with changelog notes.
+#     those create the release themselves, with changelog notes,
+#   - pushing a branch named `release/v<x.y.z>` does the same — a fallback
+#     for automation that can publish branches but not releases, tags or
+#     dispatches. The branch is only the trigger (deletable right after);
+#     the workflow creates the real `v<x.y.z>` tag itself.
 on:
   release:
     types: [published]
   push:
     tags:
       - "v*"
+    branches:
+      - "release/v*"
   workflow_dispatch:
     inputs:
       version:
@@ -54,7 +60,8 @@ jobs:
             # changelog section when the body was left empty.
             if [ -n "$EVENT_BODY" ]; then notes=false; fi
           else
-            tag="$GITHUB_REF_NAME"
+            # A v* tag push, or a release/v* branch push (strip the prefix).
+            tag="${GITHUB_REF_NAME#release/}"
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "notes=$notes" >> "$GITHUB_OUTPUT"
