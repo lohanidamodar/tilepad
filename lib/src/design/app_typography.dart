@@ -11,8 +11,16 @@ class AppTypography {
 
   static const TypeScale _t = TypeScale.base;
 
+  /// Tests and screenshot tooling set this to skip google_fonts (which throws
+  /// asynchronously when runtime fetching is disabled) and use locally
+  /// registered families instead.
+  @visibleForTesting
+  static bool useSystemFonts = false;
+
   /// The display/UI font family resolver.
-  static TextStyle _sans([TextStyle? base]) => GoogleFonts.onest(textStyle: base);
+  static TextStyle _sans([TextStyle? base]) => useSystemFonts
+      ? (base ?? const TextStyle()).copyWith(fontFamily: 'Roboto')
+      : GoogleFonts.onest(textStyle: base);
 
   /// The monospace family used for IPs, ports, clocks and key combos.
   static TextStyle mono({
@@ -20,12 +28,20 @@ class AppTypography {
     FontWeight? fontWeight,
     Color? color,
   }) =>
-      GoogleFonts.jetBrainsMono(
-        fontSize: fontSize ?? _t.mono,
-        fontWeight: fontWeight ?? _t.wMedium,
-        color: color,
-        letterSpacing: 0,
-      );
+      useSystemFonts
+          ? TextStyle(
+              fontFamily: 'monospace',
+              fontSize: fontSize ?? _t.mono,
+              fontWeight: fontWeight ?? _t.wMedium,
+              color: color,
+              letterSpacing: 0,
+            )
+          : GoogleFonts.jetBrainsMono(
+              fontSize: fontSize ?? _t.mono,
+              fontWeight: fontWeight ?? _t.wMedium,
+              color: color,
+              letterSpacing: 0,
+            );
 
   /// Builds the app [TextTheme] for the given [onSurface] color. Colors are
   /// applied by widgets/components; this sets the scale (size/weight/tracking).

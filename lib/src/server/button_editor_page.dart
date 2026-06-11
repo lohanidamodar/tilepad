@@ -1,4 +1,3 @@
-// filepath: g:\dev\projects\macro-deck\lib\src\server\button_editor_page.dart
 import 'package:flutter/material.dart';
 import '../utils/macro_icons.dart';
 

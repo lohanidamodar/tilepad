@@ -1,4 +1,3 @@
-// filepath: g:\dev\projects\macro-deck\lib\src\server\page_editor_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../design/design.dart';

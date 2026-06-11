@@ -1,4 +1,3 @@
-// filepath: g:\dev\projects\macro-deck\lib\src\server\action_editor_page.dart
 import 'package:flutter/material.dart';
 import 'package:picons/picons.dart';
 import 'dart:io' show Platform;
