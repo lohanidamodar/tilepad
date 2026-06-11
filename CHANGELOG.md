@@ -5,6 +5,11 @@ All notable changes to the MarcoDeck project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-06-11
+
+### Fixed
+- **Prompt text was typed twice (commands ran twice) after a server restart**: every `start()` added another listener on the client-message stream without cancelling the previous one, so each restart multiplied how many times a press was handled. Subscriptions are now cancelled and re-created per start, with a restart regression test that counts exactly one result per press
+
 ## [1.3.0] - 2026-06-11
 
 ### Added

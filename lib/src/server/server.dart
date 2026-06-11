@@ -50,6 +50,13 @@ class MarcoServer {
   PluginManager? _pluginManager;
   SystemInfoService? _systemInfo;
   StreamSubscription<StateEntry>? _stateSub;
+
+  /// Client message / connection subscriptions. The service's broadcast
+  /// streams outlive a stop(), so these MUST be cancelled and re-created per
+  /// start — otherwise every restart adds another handler and each client
+  /// message is processed multiple times (e.g. prompt text typed twice).
+  StreamSubscription<AddressedMessage>? _messageSub;
+  StreamSubscription<ClientConnectionEvent>? _clientConnSub;
   Directory? _pluginsDir;
 
   /// Stream controller for client connection events
@@ -331,13 +338,17 @@ class MarcoServer {
       debugPrint('UDP discovery broadcasting started');
 
       // Listen for client messages (tagged with the sender so connect-time
-      // replays can target just that client instead of broadcasting).
-      _webSocketService.addressedMessageStream.listen(
+      // replays can target just that client instead of broadcasting). Cancel
+      // any earlier subscription first so a restart never double-handles.
+      await _messageSub?.cancel();
+      _messageSub = _webSocketService.addressedMessageStream.listen(
         (m) => _handleClientMessage(m.message, m.clientId),
       );
 
       // Listen for client connections and disconnections
-      _webSocketService.clientConnectionStream.listen(_handleClientConnection);
+      await _clientConnSub?.cancel();
+      _clientConnSub =
+          _webSocketService.clientConnectionStream.listen(_handleClientConnection);
 
       // Initialize connected clients list
       _updateConnectedClients();
@@ -414,6 +425,10 @@ class MarcoServer {
       _systemInfo = null;
       await _stateSub?.cancel();
       _stateSub = null;
+      await _messageSub?.cancel();
+      _messageSub = null;
+      await _clientConnSub?.cancel();
+      _clientConnSub = null;
       await _stopPlugins();
 
       await _webSocketService.close();
