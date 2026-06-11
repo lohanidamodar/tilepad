@@ -13,7 +13,12 @@ import 'package:flutter/foundation.dart';
 ///
 /// Enabling rewrites the entry with the current executable path, so a moved
 /// installation heals itself the next time the toggle is switched on.
+///
+/// Every entry launches the app with `--hidden` so a login start goes
+/// straight to the tray instead of opening the window over the desktop.
 class StartupService {
+  /// Flag the autostart entries pass so the app starts minimized to the tray.
+  static const hiddenFlag = '--hidden';
   static const _windowsRunKey =
       r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
   static const _windowsValueName = 'Tilepad';
@@ -86,7 +91,7 @@ class StartupService {
               'add', _windowsRunKey,
               '/v', _windowsValueName,
               '/t', 'REG_SZ',
-              '/d', '"$_executable"',
+              '/d', '"$_executable" $hiddenFlag',
               '/f',
             ]
           : ['delete', _windowsRunKey, '/v', _windowsValueName, '/f'],
@@ -123,7 +128,7 @@ class StartupService {
 Type=Application
 Name=Tilepad
 Comment=Start the Tilepad server at login
-Exec="$_executable"
+Exec="$_executable" $hiddenFlag
 Terminal=false
 X-GNOME-Autostart-enabled=true
 ''';
@@ -152,6 +157,7 @@ X-GNOME-Autostart-enabled=true
   <key>ProgramArguments</key>
   <array>
     <string>$exe</string>
+    <string>$hiddenFlag</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

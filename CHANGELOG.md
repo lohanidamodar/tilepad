@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Clear buttons on prompt dialogs**: the text prompt gets an in-field ✕ that empties the field, and the keystroke prompt gets a Clear action that resets the combo — both also forget the remembered last-sent value
 - **Refresh button on the window picker**: refetch the server's open windows without closing the dialog
+- **Launch at startup starts in the tray**: the autostart entry now launches the server with `--hidden`, so a login start goes straight to the tray icon instead of opening the window over the desktop. Already-enabled entries pick this up the next time the toggle is switched off and on
+
+### Fixed
+- **White window when opening from the tray**: restoring the server window from the tray could show a blank white surface (Flutter stops scheduling frames while the window is hidden); the window is now restored from minimize and repainted explicitly when shown
+- **Server could message the wrong device**: the WebSocket server tracked sockets and client info in two index-matched lists that drifted apart after a failed broadcast send, after which per-client messages (pages, command results, PIN errors) could go to a different connected device. Sockets are now keyed by client id
+- **Reconnecting a device could drop it from the dashboard**: closing the replaced socket during a reconnect raced its cleanup handler, which could evict the freshly reconnected client; renaming a device twice also failed to update the client list
+- **Client connection cleanup**: the client's first health check timer is now cancelled on close (it could fire against the next connection), and a deliberate close no longer emits the disconnected status twice
 
 ## [1.4.1] - 2026-06-11
 

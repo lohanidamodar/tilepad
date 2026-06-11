@@ -30,8 +30,9 @@ void main() {
           File('${temp.path}/autostart/tilepad.desktop').readAsStringSync();
       expect(contents, contains('[Desktop Entry]'));
       expect(contents, contains('Name=Tilepad'));
-      // Quoted so a path with spaces survives the Exec field.
-      expect(contents, contains('Exec="/opt/tile pad/tilepad"'));
+      // Quoted so a path with spaces survives the Exec field, plus the flag
+      // that makes a login launch start in the tray.
+      expect(contents, contains('Exec="/opt/tile pad/tilepad" --hidden'));
 
       expect(await svc.setEnabled(false), isTrue);
       expect(await svc.isEnabled(), isFalse);
@@ -79,6 +80,8 @@ void main() {
           plist,
           contains(
               '<string>/Applications/Tilepad &amp; Co.app/Contents/MacOS/tilepad</string>'));
+      // A login launch starts in the tray.
+      expect(plist, contains('<string>--hidden</string>'));
 
       expect(await svc.setEnabled(false), isTrue);
       expect(await svc.isEnabled(), isFalse);
@@ -111,8 +114,9 @@ void main() {
         'reg', 'add', key,
         '/v', 'Tilepad',
         '/t', 'REG_SZ',
-        // Quoted, as Run entries expect for paths with spaces.
-        '/d', r'"C:\Program Files\Tilepad\tilepad.exe"',
+        // Quoted, as Run entries expect for paths with spaces, plus the flag
+        // that makes a login launch start in the tray.
+        '/d', r'"C:\Program Files\Tilepad\tilepad.exe" --hidden',
         '/f',
       ]);
       expect(calls[3], ['reg', 'delete', key, '/v', 'Tilepad', '/f']);
