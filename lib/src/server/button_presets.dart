@@ -101,6 +101,8 @@ const _web0 = '#16A34A'; // green
 const _window0 = '#0891B2'; // cyan
 const _clip0 = '#0D9488'; // teal
 const _nav0 = '#475569'; // slate
+const _browser0 = '#0284C7'; // sky
+const _meet0 = '#DB2777'; // pink
 
 /// The clipboard modifier is Command on macOS, Ctrl elsewhere.
 List<String> get _clipModifier => Platform.isMacOS ? const ['meta'] : const ['ctrl'];
@@ -233,6 +235,13 @@ List<PresetCategory> buttonPresetCatalog() => [
           _byPlatform('start spotify:', 'open -a Spotify', 'spotify'),
           _apps0,
         ),
+        _command(
+          'Downloads',
+          PiconsRegular.downloadSimple,
+          _byPlatform('explorer "%USERPROFILE%\\Downloads"',
+              'open ~/Downloads', 'xdg-open ~/Downloads'),
+          _apps0,
+        ),
       ]),
       PresetCategory('Web', [
         _url('Google', PiconsRegular.magnifyingGlass, 'https://google.com', _web0),
@@ -295,6 +304,64 @@ List<PresetCategory> buttonPresetCatalog() => [
             Platform.isMacOS ? 'z' : 'y',
             Platform.isMacOS ? const ['meta', 'shift'] : _clipModifier,
             _clip0),
+      ]),
+      // Browser tab/navigation shortcuts: same accelerators in every major
+      // browser, with Cmd on macOS.
+      PresetCategory('Browser', [
+        _keys('New Tab', PiconsRegular.plusCircle, 't', _clipModifier,
+            _browser0),
+        _keys('Close Tab', PiconsRegular.xSquare, 'w', _clipModifier,
+            _browser0),
+        _keys(
+            'Reopen Tab',
+            PiconsRegular.arrowUUpLeft,
+            't',
+            Platform.isMacOS
+                ? const ['meta', 'shift']
+                : const ['ctrl', 'shift'],
+            _browser0),
+        _keys('Refresh', PiconsRegular.arrowsClockwise, 'r', _clipModifier,
+            _browser0),
+        _keys('Address Bar', PiconsRegular.textbox, 'l', _clipModifier,
+            _browser0),
+      ]),
+      // The classic Stream Deck use case: meeting mute/camera toggles. These
+      // use each app's in-app shortcut, so the meeting window must be focused
+      // (combine with Select Window / Switch App, or enable the app's global
+      // shortcut option where it has one).
+      PresetCategory('Meetings', [
+        _keys(
+            'Zoom Mute',
+            PiconsRegular.microphoneSlash,
+            'a',
+            Platform.isMacOS ? const ['meta', 'shift'] : const ['alt'],
+            _meet0),
+        _keys(
+            'Zoom Camera',
+            PiconsRegular.videoCameraSlash,
+            'v',
+            Platform.isMacOS ? const ['meta', 'shift'] : const ['alt'],
+            _meet0),
+        _keys(
+            'Teams Mute',
+            PiconsRegular.microphone,
+            'm',
+            Platform.isMacOS
+                ? const ['meta', 'shift']
+                : const ['ctrl', 'shift'],
+            _meet0),
+        _keys(
+            'Teams Camera',
+            PiconsRegular.videoCamera,
+            'o',
+            Platform.isMacOS
+                ? const ['meta', 'shift']
+                : const ['ctrl', 'shift'],
+            _meet0),
+        _keys('Meet Mute', PiconsRegular.microphoneSlash, 'd', _clipModifier,
+            _meet0),
+        _keys('Meet Camera', PiconsRegular.videoCameraSlash, 'e',
+            _clipModifier, _meet0),
       ]),
       PresetCategory('Navigation', [
         _nav('Next Page', PiconsRegular.caretRight, 'next', _nav0),

@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### 🖥️ Server
 - **Profile export/import**: back up the whole button/page configuration to a JSON file and restore or move it to another machine (⋮ menu on the dashboard). Importing keeps a safety copy of the replaced configuration as `pages.json.bak`
 - **Duplicate button**: copy any library button (including its toggle face and hold actions) from the Manage Buttons grid
-- **15 new catalog presets**: Mute is now a real toggle (flips to a red "Unmute" face), plus Task Manager, Settings, Code Editor, Spotify, Twitch, Reddit, ChatGPT, Switch App, Minimize, Select All, Undo, Redo, and First/Last Page navigation
+- **27 new catalog presets**: Mute is now a real toggle (flips to a red "Unmute" face), plus Task Manager, Settings, Code Editor, Spotify, Downloads, Twitch, Reddit, ChatGPT, Switch App, Minimize, Select All, Undo, Redo, First/Last Page navigation, a **Browser** category (New/Close/Reopen Tab, Refresh, Address Bar) and a **Meetings** category (Zoom/Teams/Meet mute & camera toggles)
 - **Live tray menu**: the system tray now shows the server state, address and connected-device count, and offers Start/Stop/Restart, Copy server address and Open MarcoDeck — control the server without opening the window. Exiting from the tray stops the server cleanly first
 
 #### 📱 Client
@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OBS plugin no longer needs the Dart SDK on Linux**: releases compile and bundle a standalone binary (the manifest prefers it, and source checkouts automatically fall back to `dart plugin.dart`)
 
 #### 🔐 PIN pairing follow-ups (from device testing)
+- **Auto-reconnect after a server restart works again**: the deliberate-close fix accidentally cleared the service's remembered address inside `connect()` itself, silently disabling all socket-level auto-reconnect; covered by new loopback reconnect tests (restart ⇒ reconnects, deliberate close ⇒ stays closed)
 - The PIN prompt no longer resets while typing: a pairing rejection now fully closes the transport (the service's auto-reconnect kept reconnecting and getting dropped), unauthorized pings get a normal `pong` so health checks stay calm, repeated rejections are de-duplicated, and the dialog is single-instance with its text controller owned by the dialog (fixes a "controller used after dispose" crash and a render overflow)
 - The tray menu no longer flickers: it only rebuilds when its content actually changes
 

@@ -96,16 +96,19 @@ class IOClientWebSocketService implements ClientWebSocketService {
     _isConnecting = true;
     try {
       debugPrint('Attempting to connect to: $address');
-      _lastConnectedAddress = address;
-      _reconnectAttempts = 0;
 
       // Notify connecting status
       if (_connectionStatusController != null) {
         _connectionStatusController!.add(ConnectionStatus.connecting);
       }
 
-      // Close existing connection if any
+      // Close existing connection if any. This also clears
+      // _lastConnectedAddress (deliberate-close semantics), so the address
+      // must be re-armed AFTER it — otherwise every connection comes up with
+      // no remembered address and a later drop never auto-reconnects.
       await close();
+      _lastConnectedAddress = address;
+      _reconnectAttempts = 0;
 
       // Create the connection with enhanced timeout handling
       try {
