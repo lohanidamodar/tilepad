@@ -1,18 +1,18 @@
 name: Release
 
-# Three ways to cut a release (all publish the same artifacts — Android APK,
-# Windows installer + portable zip, Linux tarball):
-#   1. push a tag like `v1.2.3`,
-#   2. run the workflow from the Actions tab with a version input, or
-#   3. push/create a branch named `release/v1.2.3` (handy for integrations
-#      that can create branches but not tags or dispatch workflows).
-# For 2 and 3 the release step creates the tag itself.
+# Builds the release artifacts (Android APK, Windows installer + portable
+# zip, Linux tarball) and attaches them to the GitHub release:
+#   - publish a release (the usual flow): the artifacts are uploaded to it,
+#     and the matching CHANGELOG.md section becomes the notes if the release
+#     was created without a body,
+#   - pushing a `v*` tag or dispatching with a version input also works;
+#     those create the release themselves, with changelog notes.
 on:
+  release:
+    types: [published]
   push:
     tags:
       - "v*"
-    branches:
-      - "release/v*"
   workflow_dispatch:
     inputs:
       version:
@@ -25,14 +25,46 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.44.0"
-  # The tag the release is published under: v<input> for manual dispatches,
-  # the tag itself for tag pushes, and v<x.y.z> for release/v<x.y.z> branches
-  # (resolved per job below since expressions have no string-strip function).
-  DISPATCH_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
 
 jobs:
-  build-apk:
+  # Resolves the tag and whether to fill in release notes, so the build jobs
+  # stay trigger-agnostic.
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      notes: ${{ steps.resolve.outputs.notes }}
+    steps:
+      - name: Resolve release tag
+        id: resolve
+        shell: bash
+        env:
+          # Via env, not inline interpolation — bodies and tag names are
+          # user-controlled text.
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          EVENT_BODY: ${{ github.event.release.body }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          notes=true
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="v$INPUT_VERSION"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            tag="$EVENT_TAG"
+            # Keep notes the release was published with; only fill in the
+            # changelog section when the body was left empty.
+            if [ -n "$EVENT_BODY" ]; then notes=false; fi
+          else
+            tag="$GITHUB_REF_NAME"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "notes=$notes" >> "$GITHUB_OUTPUT"
+          echo "Releasing $tag (write notes: $notes)"
+
+  build-apk:
+    needs: prepare
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -41,17 +73,6 @@ jobs:
           channel: stable
       - name: Flutter pub get
         run: flutter pub get
-      - name: Resolve release tag
-        shell: bash
-        run: |
-          if [ -n "$DISPATCH_VERSION" ]; then
-            tag="v$DISPATCH_VERSION"
-          else
-            ref="$GITHUB_REF_NAME"
-            tag="${ref#release/}"
-          fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
-          echo "Releasing as $tag"
       - name: Extract release notes from changelog
         shell: bash
         run: |
@@ -72,11 +93,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          body_path: release-notes.md
+          body_path: ${{ needs.prepare.outputs.notes == 'true' && 'release-notes.md' || '' }}
           files: build/app/outputs/flutter-apk/Tilepad-client.apk
 
   build-windows:
+    needs: prepare
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -87,17 +111,6 @@ jobs:
         run: flutter config --enable-windows-desktop
       - name: Flutter pub get
         run: flutter pub get
-      - name: Resolve release tag
-        shell: bash
-        run: |
-          if [ -n "$DISPATCH_VERSION" ]; then
-            tag="v$DISPATCH_VERSION"
-          else
-            ref="$GITHUB_REF_NAME"
-            tag="${ref#release/}"
-          fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
-          echo "Releasing as $tag"
       - name: Extract release notes from changelog
         shell: bash
         run: |
@@ -136,13 +149,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          body_path: release-notes.md
+          body_path: ${{ needs.prepare.outputs.notes == 'true' && 'release-notes.md' || '' }}
           files: |
             windows/installer/output/Tilepad-Setup-${{ steps.version.outputs.version }}.exe
             build/artifacts/Tilepad-windows-portable.zip
 
   build-linux:
+    needs: prepare
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - name: Install Linux build dependencies
@@ -155,17 +171,6 @@ jobs:
         run: flutter config --enable-linux-desktop
       - name: Flutter pub get
         run: flutter pub get
-      - name: Resolve release tag
-        shell: bash
-        run: |
-          if [ -n "$DISPATCH_VERSION" ]; then
-            tag="v$DISPATCH_VERSION"
-          else
-            ref="$GITHUB_REF_NAME"
-            tag="${ref#release/}"
-          fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
-          echo "Releasing as $tag"
       - name: Extract release notes from changelog
         shell: bash
         run: |
@@ -190,5 +195,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          body_path: release-notes.md
+          body_path: ${{ needs.prepare.outputs.notes == 'true' && 'release-notes.md' || '' }}
           files: build/artifacts/Tilepad-linux.tar.gz
