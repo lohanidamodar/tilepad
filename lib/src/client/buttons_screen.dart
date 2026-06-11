@@ -195,6 +195,76 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
     );
   }
 
+  /// Asks for the server's pairing PIN, stores it with the saved server and
+  /// reconnects. Shown when the server rejects the handshake PIN.
+  Future<void> _promptForPin(
+    ServerConnection? connection,
+    String? message,
+  ) async {
+    if (connection == null || !mounted) return;
+
+    final controller = TextEditingController(text: connection.pin);
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.pin_outlined),
+        title: Text('PIN for ${connection.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message ?? 'This server requires a PIN.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.tokens.color.textSecondary,
+                  ),
+            ),
+            SizedBox(height: context.tokens.space.lg),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    letterSpacing: 8,
+                  ),
+              decoration: const InputDecoration(
+                hintText: '••••••',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              onSubmitted: (v) => Navigator.of(context).pop(v),
+            ),
+            SizedBox(height: context.tokens.space.sm),
+            Text(
+              'The PIN is shown on the server under ⋮ → Security.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.tokens.color.textMuted,
+                  ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Pair'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (pin == null || pin.trim().isEmpty || !mounted) return;
+
+    final updated = connection.copyWith(pin: pin.trim());
+    // Persist the PIN with the saved server so future connects just work.
+    ref.read(serverConnectionsProvider.notifier).updateConnection(updated);
+    ref.read(connectionStateProvider.notifier).connect(updated);
+  }
+
   /// Resolves a button's display name from its id across all pages.
   String? _buttonName(String buttonId) {
     for (final page in ref.read(pagesProvider)) {
@@ -369,6 +439,11 @@ class _ButtonsScreenState extends ConsumerState<ButtonsScreen> {
       if (previous?.status != ConnectionStatus.connected &&
           next.status == ConnectionStatus.connected) {
         _beginAwaitingButtons();
+      }
+      // The server wants a pairing PIN: prompt, save it with the server and
+      // retry, instead of leaving a dead error state.
+      if (next.pinRejected && previous?.pinRejected != true) {
+        _promptForPin(next.connection, next.errorMessage);
       }
     });
     ref.listen(pagesProvider, (previous, next) {

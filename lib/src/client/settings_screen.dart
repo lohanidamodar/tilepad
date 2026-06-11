@@ -171,7 +171,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Remote Macro Control Application',
                 icon: Icons.devices_rounded,
                 trailing: Text(
-                  'v1.0.0',
+                  'v1.3.0',
                   style: textTheme.bodySmall?.copyWith(
                     color: t.color.textMuted,
                   ),

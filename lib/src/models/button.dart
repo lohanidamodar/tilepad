@@ -425,6 +425,33 @@ class Button {
     };
   }
 
+  /// Deep-copies this button as a NEW library button (fresh id, name suffixed
+  /// with "copy", toggle reset to the primary face).
+  Button duplicate() {
+    return Button(
+      name: '$name copy',
+      iconName: iconName,
+      color: color,
+      actions: actions.map((a) => a.copy()).toList(),
+      stateBinding: stateBinding == null
+          ? null
+          : StateBinding(
+              pluginId: stateBinding!.pluginId,
+              stateId: stateBinding!.stateId,
+              mode: stateBinding!.mode,
+            ),
+      toggleState: toggleState == null
+          ? null
+          : ToggleState(
+              name: toggleState!.name,
+              iconName: toggleState!.iconName,
+              color: toggleState!.color,
+              actions: toggleState!.actions.map((a) => a.copy()).toList(),
+            ),
+      longPressActions: longPressActions.map((a) => a.copy()).toList(),
+    );
+  }
+
   /// Helper method to convert ActionType to ButtonType
   ButtonType _convertActionType(ActionType actionType) {
     switch (actionType) {

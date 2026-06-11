@@ -613,11 +613,16 @@ class ConnectionState {
   /// Current server connection if connected
   final ServerConnection? connection;
 
+  /// Whether the server refused the handshake because the pairing PIN was
+  /// missing or wrong. The UI prompts for a PIN instead of auto-retrying.
+  final bool pinRejected;
+
   /// Creates a new connection state
   const ConnectionState({
     required this.status,
     this.errorMessage,
     this.connection,
+    this.pinRejected = false,
   });
 
   /// Creates a copy of this connection state with the specified fields replaced
@@ -625,11 +630,13 @@ class ConnectionState {
     ConnectionStatus? status,
     String? errorMessage,
     ServerConnection? connection,
+    bool? pinRejected,
   }) {
     return ConnectionState(
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       connection: connection ?? this.connection,
+      pinRejected: pinRejected ?? this.pinRejected,
     );
   }
 }
@@ -698,6 +705,18 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     };
   }
 
+  /// Sends the app-level connect handshake (device name + pairing PIN when
+  /// the saved server has one).
+  void _sendConnectHandshake(ServerConnection connection) {
+    final deviceName = ref.read(deviceNameProvider);
+    _webSocketService.sendMessage(
+      Message(type: MessageType.connect, payload: {
+        'deviceName': deviceName,
+        if (connection.pin.isNotEmpty) 'pin': connection.pin,
+      }),
+    );
+  }
+
   /// Handle connection status changes from the WebSocket service
   void _handleConnectionStatusChange(ConnectionStatus status) {
     debugPrint('Connection status changed: $status');
@@ -714,6 +733,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     if (status == ConnectionStatus.connected &&
         (state.status == ConnectionStatus.reconnecting ||
             state.status == ConnectionStatus.error) &&
+        !state.pinRejected &&
         state.connection != null) {
       debugPrint('Socket reconnected; re-sending connect handshake');
       // Reflect the in-progress handshake in the UI (so it no longer reads
@@ -725,15 +745,13 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
           errorMessage: 'Reconnected, completing handshake...',
         );
       }
-      final deviceName = ref.read(deviceNameProvider);
-      _webSocketService.sendMessage(
-        Message(type: MessageType.connect, payload: {'deviceName': deviceName}),
-      );
+      _sendConnectHandshake(state.connection!);
       _setAckTimeout(state.connection!);
       return;
     }
 
     if (status == ConnectionStatus.disconnected &&
+        !state.pinRejected &&
         state.status != ConnectionStatus.disconnected &&
         state.status != ConnectionStatus.reconnecting &&
         state.status != ConnectionStatus.connecting) {
@@ -798,13 +816,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
       if (success) {
         // Send connect message with device name immediately
-        final deviceName = ref.read(deviceNameProvider);
-        _webSocketService.sendMessage(
-          Message(
-            type: MessageType.connect,
-            payload: {'deviceName': deviceName},
-          ),
-        );
+        _sendConnectHandshake(connection);
 
         // Update the last connected time
         ref
@@ -935,13 +947,7 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
 
       if (success) {
         // Send connect message with device name
-        final deviceName = ref.read(deviceNameProvider);
-        _webSocketService.sendMessage(
-          Message(
-            type: MessageType.connect,
-            payload: {'deviceName': deviceName},
-          ),
-        );
+        _sendConnectHandshake(state.connection!);
 
         // Set ack timeout
         _setAckTimeout(state.connection!);
@@ -1150,6 +1156,11 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
       case MessageType.error:
         final payload = message.payload;
         final error = payload is Map ? payload['error'] : payload;
+        final code = payload is Map ? payload['code'] : null;
+        if (code == 'pin-required' || code == 'pin-invalid') {
+          _handlePinRejected(error?.toString() ?? 'PIN required');
+          return;
+        }
         debugPrint('Error from server: $error');
         break;
 
@@ -1196,6 +1207,23 @@ class ConnectionStateNotifier extends Notifier<ConnectionState> {
     } catch (e) {
       debugPrint('Error handling pages response: $e');
     }
+  }
+
+  /// The server refused our handshake PIN. Stop every retry loop (hammering
+  /// a server that will keep refusing is pointless) and surface an error
+  /// state the UI turns into a PIN prompt.
+  void _handlePinRejected(String message) {
+    _cancelAckTimeout();
+    _cancelConnectionTimeout();
+    _cancelReconnectAttemptCounter();
+    _isReconnecting = false;
+    _webSocketService.cancelReconnection();
+    state = ConnectionState(
+      status: ConnectionStatus.error,
+      errorMessage: message,
+      connection: state.connection,
+      pinRejected: true,
+    );
   }
 
   /// Handles a toggle button flipping faces on the server.

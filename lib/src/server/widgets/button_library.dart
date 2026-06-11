@@ -813,6 +813,8 @@ class _ButtonLibraryScreenState extends State<ButtonLibraryScreen> {
                       button: button,
                       subtitle: _summary(button),
                       onEdit: () => _editButton(button),
+                      onDuplicate: () =>
+                          widget.server.addLibraryButton(button.duplicate()),
                       onDelete: () => _deleteButton(button),
                       onRun: (button.actions.isNotEmpty &&
                               button.navigationTarget == null &&
@@ -834,6 +836,7 @@ class _LibraryCard extends StatelessWidget {
   final models.Button button;
   final String subtitle;
   final VoidCallback onEdit;
+  final VoidCallback onDuplicate;
   final VoidCallback onDelete;
   final VoidCallback? onRun;
 
@@ -841,6 +844,7 @@ class _LibraryCard extends StatelessWidget {
     required this.button,
     required this.subtitle,
     required this.onEdit,
+    required this.onDuplicate,
     required this.onDelete,
     this.onRun,
   });
@@ -889,6 +893,9 @@ class _LibraryCard extends StatelessWidget {
                           case 'edit':
                             onEdit();
                             break;
+                          case 'duplicate':
+                            onDuplicate();
+                            break;
                           case 'delete':
                             onDelete();
                             break;
@@ -910,6 +917,14 @@ class _LibraryCard extends StatelessWidget {
                             contentPadding: EdgeInsets.zero,
                             leading: Icon(Icons.edit_outlined),
                             title: Text('Edit'),
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'duplicate',
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.copy_outlined),
+                            title: Text('Duplicate'),
                           ),
                         ),
                         PopupMenuItem(

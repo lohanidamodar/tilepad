@@ -228,6 +228,18 @@ class ButtonManager {
       return 'Could not read profile: $e';
     }
 
+    // Keep a safety copy of the replaced configuration next to it, so a bad
+    // import is recoverable by renaming pages.json.bak back.
+    try {
+      _configPath ??= '${(await _getConfigDirectory()).path}/pages.json';
+      final current = File(_configPath!);
+      if (await current.exists()) {
+        await current.copy('${_configPath!}.bak');
+      }
+    } catch (e) {
+      debugPrint('Could not back up configuration before import: $e');
+    }
+
     _library
       ..clear()
       ..addAll(buttons);

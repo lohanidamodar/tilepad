@@ -71,6 +71,10 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 - **Semantic Navigation**: Proper focus management and keyboard navigation
 - **Haptic Feedback Levels**: Multiple intensity levels for different interactions
 
+### 🔐 Security
+- **PIN Pairing**: Optionally require a 6-digit PIN before a device can connect — unpaired clients can't run actions or see your pages
+- **Client Management**: Disconnect a client or block its IP from the dashboard
+
 ### 🌐 Network Reliability
 - **Advanced Reconnection**: Exponential backoff with jitter for robust connection recovery
 - **Health Monitoring**: Continuous connection health checks with ping/pong protocol

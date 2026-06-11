@@ -5,9 +5,12 @@ All notable changes to the MarcoDeck project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.0] - 2026-06-11
 
 ### Added
+
+#### 🔐 Security
+- **PIN pairing**: optionally require devices to enter a 6-digit PIN (shown on the server under ⋮ → Security) the first time they connect. Unpaired sockets can't run actions or receive page/state broadcasts; the client prompts for the PIN, stores it with the saved server, and reconnects
 
 #### 🎛️ Buttons & actions
 - **Toggle (two-state) buttons**: a button can carry a second face (name, icon, color and its own action set) and alternates faces on each press — e.g. Mute/Unmute, Start/Stop recording. The active face is tracked on the server, persisted across restarts, and synced live to every connected device
@@ -16,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Navigate to a specific page**: page-navigation buttons can now jump straight to a named page, not just next/prev/first/last
 
 #### 🖥️ Server
-- **Profile export/import**: back up the whole button/page configuration to a JSON file and restore or move it to another machine (⋮ menu on the dashboard)
+- **Profile export/import**: back up the whole button/page configuration to a JSON file and restore or move it to another machine (⋮ menu on the dashboard). Importing keeps a safety copy of the replaced configuration as `pages.json.bak`
+- **Duplicate button**: copy any library button (including its toggle face and hold actions) from the Manage Buttons grid
+- **15 new catalog presets**: Mute is now a real toggle (flips to a red "Unmute" face), plus Task Manager, Settings, Code Editor, Spotify, Twitch, Reddit, ChatGPT, Switch App, Minimize, Select All, Undo, Redo, and First/Last Page navigation
 
 #### 📱 Client
 - **Fullscreen mode**: hide the status/navigation bars so the deck uses the whole screen (Settings → Display)

@@ -632,6 +632,88 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
+  /// Shows the PIN-pairing settings: a toggle plus the current PIN, which
+  /// devices must enter once when they connect.
+  Future<void> _showSecurityDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final t = context.tokens;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final requirePin = widget.server.requirePin;
+            return AlertDialog(
+              icon: const Icon(Icons.lock_outline),
+              title: const Text('Security'),
+              content: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Require PIN pairing'),
+                      subtitle: const Text(
+                        'Devices must enter this PIN once when they connect',
+                      ),
+                      value: requirePin,
+                      onChanged: (value) async {
+                        await widget.server.setRequirePin(value);
+                        setDialogState(() {});
+                      },
+                    ),
+                    if (requirePin) ...[
+                      SizedBox(height: t.space.lg),
+                      Center(
+                        child: SelectableText(
+                          widget.server.pin,
+                          style: Theme.of(context)
+                              .textTheme
+                              .displaySmall
+                              ?.copyWith(
+                                letterSpacing: t.space.sm,
+                                fontWeight: t.typeScale.wSemibold,
+                              ),
+                        ),
+                      ),
+                      SizedBox(height: t.space.sm),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            await widget.server.regeneratePin();
+                            setDialogState(() {});
+                          },
+                          icon: Icon(Icons.refresh_rounded,
+                              size: t.icon.sm),
+                          label: const Text('New PIN'),
+                        ),
+                      ),
+                      Text(
+                        'Changing the PIN does not disconnect already-paired '
+                        'devices; they will need the new PIN next time they '
+                        'connect.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: t.color.textMuted,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   /// Saves the whole configuration (buttons + pages) to a JSON file the user
   /// picks, for backup or moving to another machine.
   Future<void> _exportProfile() async {
@@ -676,7 +758,8 @@ class _ServerScreenState extends State<ServerScreen> {
         title: const Text('Import Profile'),
         content: const Text(
           'Importing replaces ALL current buttons and pages with the '
-          'profile\'s contents. This cannot be undone. Continue?',
+          'profile\'s contents. A backup of the current configuration is '
+          'kept as pages.json.bak. Continue?',
         ),
         actions: [
           TextButton(
@@ -771,8 +854,17 @@ class _ServerScreenState extends State<ServerScreen> {
             onSelected: (value) {
               if (value == 'export') _exportProfile();
               if (value == 'import') _importProfile();
+              if (value == 'security') _showSecurityDialog();
             },
             itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'security',
+                child: ListTile(
+                  leading: Icon(Icons.lock_outline),
+                  title: Text('Security…'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
               PopupMenuItem(
                 value: 'export',
                 child: ListTile(

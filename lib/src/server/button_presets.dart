@@ -47,6 +47,29 @@ Button _media(String name, IconData icon, String mediaKey, String color) =>
       actions: [ButtonAction(type: ActionType.mediaKey, key: mediaKey)],
     );
 
+/// A two-face toggle whose both faces press the same media key (e.g. mute /
+/// unmute) — the face flip is the visual state.
+Button _mediaToggle({
+  required String name,
+  required IconData icon,
+  required String toggledName,
+  required IconData toggledIcon,
+  required String toggledColor,
+  required String mediaKey,
+  required String color,
+}) =>
+    Button(
+      name: name,
+      iconName: _icon(icon.codePoint),
+      color: color,
+      actions: [ButtonAction(type: ActionType.mediaKey, key: mediaKey)],
+      toggleState: ToggleState(
+        name: toggledName,
+        iconName: _icon(toggledIcon.codePoint),
+        color: toggledColor,
+      ),
+    );
+
 Button _url(String name, IconData icon, String url, String color) => Button(
       name: name,
       iconName: _icon(icon.codePoint),
@@ -89,7 +112,15 @@ List<PresetCategory> buttonPresetCatalog() => [
         _media('Next', PiconsRegular.skipForward, 'next', _media0),
         _media('Previous', PiconsRegular.skipBack, 'previous', _media0),
         _media('Stop', PiconsRegular.stop, 'stop', _media0),
-        _media('Mute', PiconsRegular.speakerX, 'mute', _media0),
+        _mediaToggle(
+          name: 'Mute',
+          icon: PiconsRegular.speakerX,
+          toggledName: 'Unmute',
+          toggledIcon: PiconsRegular.speakerSimpleX,
+          toggledColor: '#DC2626',
+          mediaKey: 'mute',
+          color: _media0,
+        ),
         _media('Volume Up', PiconsRegular.speakerHigh, 'volumeUp', _media0),
         _media('Volume Down', PiconsRegular.speakerLow, 'volumeDown', _media0),
       ]),
@@ -164,12 +195,42 @@ List<PresetCategory> buttonPresetCatalog() => [
           _byPlatform('notepad', 'open -a TextEdit', 'gedit'),
           _apps0,
         ),
+        _command(
+          'Task Manager',
+          PiconsRegular.pulse,
+          _byPlatform('taskmgr', 'open -a "Activity Monitor"',
+              'gnome-system-monitor'),
+          _apps0,
+        ),
+        _command(
+          'Settings',
+          PiconsRegular.gear,
+          _byPlatform('start ms-settings:', 'open -a "System Settings"',
+              'gnome-control-center'),
+          _apps0,
+        ),
+        _command(
+          'Code Editor',
+          PiconsRegular.code,
+          _byPlatform('code', 'open -a "Visual Studio Code"', 'code'),
+          _apps0,
+        ),
+        _command(
+          'Spotify',
+          PiconsRegular.musicNotes,
+          _byPlatform('start spotify:', 'open -a Spotify', 'spotify'),
+          _apps0,
+        ),
       ]),
       PresetCategory('Web', [
         _url('Google', PiconsRegular.magnifyingGlass, 'https://google.com', _web0),
         _url('YouTube', PiconsRegular.youtubeLogo, 'https://youtube.com', _web0),
         _url('Gmail', PiconsRegular.envelope, 'https://mail.google.com', _web0),
         _url('GitHub', PiconsRegular.githubLogo, 'https://github.com', _web0),
+        _url('Twitch', PiconsRegular.twitchLogo, 'https://twitch.tv', _web0),
+        _url('Reddit', PiconsRegular.redditLogo, 'https://reddit.com', _web0),
+        _url('ChatGPT', PiconsRegular.chatCircleText, 'https://chatgpt.com',
+            _web0),
       ]),
       PresetCategory('Window', [
         Button(
@@ -182,15 +243,41 @@ List<PresetCategory> buttonPresetCatalog() => [
         _keys('Snap Right', PiconsRegular.arrowLineRight, 'right', const ['win'], _window0),
         _keys('Maximize', PiconsRegular.arrowsOut, 'up', const ['win'], _window0),
         _keys('Show Desktop', PiconsRegular.desktop, 'd', const ['win'], _window0),
+        _keys(
+          'Switch App',
+          PiconsRegular.arrowsLeftRight,
+          'tab',
+          Platform.isMacOS ? const ['meta'] : const ['alt'],
+          _window0,
+        ),
+        _keys(
+          'Minimize',
+          PiconsRegular.arrowLineDown,
+          Platform.isMacOS ? 'm' : 'down',
+          Platform.isMacOS ? const ['meta'] : const ['win'],
+          _window0,
+        ),
       ]),
       PresetCategory('Clipboard', [
         _keys('Copy', PiconsRegular.copy, 'c', _clipModifier, _clip0),
         _keys('Paste', PiconsRegular.clipboard, 'v', _clipModifier, _clip0),
         _keys('Cut', PiconsRegular.scissors, 'x', _clipModifier, _clip0),
+        _keys('Select All', PiconsRegular.selectionAll, 'a', _clipModifier,
+            _clip0),
+        _keys('Undo', PiconsRegular.arrowCounterClockwise, 'z', _clipModifier,
+            _clip0),
+        _keys(
+            'Redo',
+            PiconsRegular.arrowClockwise,
+            Platform.isMacOS ? 'z' : 'y',
+            Platform.isMacOS ? const ['meta', 'shift'] : _clipModifier,
+            _clip0),
       ]),
       PresetCategory('Navigation', [
         _nav('Next Page', PiconsRegular.caretRight, 'next', _nav0),
         _nav('Previous Page', PiconsRegular.caretLeft, 'prev', _nav0),
+        _nav('First Page', PiconsRegular.caretDoubleLeft, 'first', _nav0),
+        _nav('Last Page', PiconsRegular.caretDoubleRight, 'last', _nav0),
       ]),
     ];
 

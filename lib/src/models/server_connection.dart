@@ -14,12 +14,17 @@ class ServerConnection {
   /// Last time this server was connected to
   final DateTime lastConnected;
 
+  /// PIN sent during the connect handshake when the server requires pairing
+  /// (empty = none configured).
+  final String pin;
+
   /// Creates a new server connection
   ServerConnection({
     String? id,
     required this.name,
     required this.address,
     DateTime? lastConnected,
+    this.pin = '',
   }) : id = id ?? const Uuid().v4(),
        lastConnected = lastConnected ?? DateTime.now();
 
@@ -28,12 +33,14 @@ class ServerConnection {
     String? name,
     String? address,
     DateTime? lastConnected,
+    String? pin,
   }) {
     return ServerConnection(
       id: id,
       name: name ?? this.name,
       address: address ?? this.address,
       lastConnected: lastConnected ?? this.lastConnected,
+      pin: pin ?? this.pin,
     );
   }
 
@@ -44,6 +51,7 @@ class ServerConnection {
       name: json['name'] as String,
       address: json['address'] as String,
       lastConnected: DateTime.parse(json['lastConnected'] as String),
+      pin: json['pin'] as String? ?? '',
     );
   }
 
@@ -54,6 +62,7 @@ class ServerConnection {
       'name': name,
       'address': address,
       'lastConnected': lastConnected.toIso8601String(),
+      if (pin.isNotEmpty) 'pin': pin,
     };
   }
 }
