@@ -12,6 +12,7 @@ import 'plugins_screen.dart';
 import 'server.dart';
 import 'system_info.dart';
 import 'page_editor_dialog.dart';
+import 'services/startup_service.dart';
 import 'widgets/server_status_card.dart';
 import 'widgets/connected_clients_card.dart';
 import 'widgets/pages_and_buttons_section.dart';
@@ -43,6 +44,11 @@ class _ServerScreenState extends State<ServerScreen> {
   late StreamSubscription<List<ClientInfo>> _clientsSubscription;
   late StreamSubscription<ServerStatus> _serverStatusSubscription;
 
+  // Launch-at-login: the OS entry is the source of truth, mirrored here so
+  // the ⋮ menu checkbox renders synchronously.
+  final _startupService = StartupService();
+  bool _launchAtStartup = false;
+
   // Text controller for the port input field
   final _portController = TextEditingController();
 
@@ -52,6 +58,14 @@ class _ServerScreenState extends State<ServerScreen> {
     _serverPort = widget.server.serverPort;
     _portController.text = _serverPort.toString();
     _initializeServer();
+
+    if (StartupService.isSupported) {
+      _startupService.isEnabled().then((enabled) {
+        if (mounted && enabled != _launchAtStartup) {
+          setState(() => _launchAtStartup = enabled);
+        }
+      });
+    }
 
     // Subscribe to client connection updates
     _clientsSubscription = widget.server.clientsStream.listen((clients) {
@@ -719,6 +733,29 @@ class _ServerScreenState extends State<ServerScreen> {
     );
   }
 
+  /// Flips the OS launch-at-login entry, then re-reads it so the checkbox
+  /// reflects what the OS actually has (e.g. after a permission failure).
+  Future<void> _toggleLaunchAtStartup() async {
+    final target = !_launchAtStartup;
+    final applied = await _startupService.setEnabled(target);
+    final enabled = await _startupService.isEnabled();
+    if (!mounted) return;
+    setState(() => _launchAtStartup = enabled);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          !applied
+              ? 'Could not change the startup setting'
+              : enabled
+                  ? 'Tilepad will start when you log in'
+                  : 'Tilepad removed from startup',
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: applied ? null : context.tokens.color.danger,
+      ),
+    );
+  }
+
   /// Saves the whole configuration (buttons + pages) to a JSON file the user
   /// picks, for backup or moving to another machine.
   Future<void> _exportProfile() async {
@@ -860,9 +897,23 @@ class _ServerScreenState extends State<ServerScreen> {
               if (value == 'export') _exportProfile();
               if (value == 'import') _importProfile();
               if (value == 'security') _showSecurityDialog();
+              if (value == 'autostart') _toggleLaunchAtStartup();
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              if (StartupService.isSupported)
+                PopupMenuItem(
+                  value: 'autostart',
+                  child: ListTile(
+                    leading: Icon(
+                      _launchAtStartup
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                    ),
+                    title: const Text('Launch at startup'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              const PopupMenuItem(
                 value: 'security',
                 child: ListTile(
                   leading: Icon(Icons.lock_outline),
@@ -870,7 +921,7 @@ class _ServerScreenState extends State<ServerScreen> {
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'export',
                 child: ListTile(
                   leading: Icon(Icons.upload_file_outlined),
@@ -878,7 +929,7 @@ class _ServerScreenState extends State<ServerScreen> {
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'import',
                 child: ListTile(
                   leading: Icon(Icons.download_outlined),

@@ -1,18 +1,19 @@
 name: Release
 
-# Three ways to cut a release (all publish the same artifacts — Android APK,
-# Windows installer + portable zip, Linux tarball):
-#   1. push a tag like `v1.2.3`,
-#   2. run the workflow from the Actions tab with a version input, or
-#   3. push/create a branch named `release/v1.2.3` (handy for integrations
-#      that can create branches but not tags or dispatch workflows).
-# For 2 and 3 the release step creates the tag itself.
+# Releases are cut from main: when a push to main changes `version:` in
+# pubspec.yaml to a version that has no tag yet, this workflow builds the
+# artifacts (Android APK, Windows installer + portable zip, Linux tarball)
+# and publishes a GitHub release, creating the v<version> tag itself with
+# release notes taken from the matching CHANGELOG.md section.
+#
+# Pushing a `v*` tag or dispatching the workflow with a version input also
+# works, for re-runs or out-of-band releases.
 on:
   push:
     tags:
       - "v*"
     branches:
-      - "release/v*"
+      - "main"
   workflow_dispatch:
     inputs:
       version:
@@ -25,14 +26,49 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.44.0"
-  # The tag the release is published under: v<input> for manual dispatches,
-  # the tag itself for tag pushes, and v<x.y.z> for release/v<x.y.z> branches
-  # (resolved per job below since expressions have no string-strip function).
-  DISPATCH_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
 
 jobs:
-  build-apk:
+  # Decides whether this event produces a release and under which tag, so the
+  # build jobs stay trigger-agnostic.
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      release: ${{ steps.resolve.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve release tag
+        id: resolve
+        shell: bash
+        run: |
+          release=true
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="v${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            # Push to main: release the pubspec version unless already tagged.
+            version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | cut -d+ -f1)
+            tag="v$version"
+            if [ -z "$version" ]; then
+              echo "No version found in pubspec.yaml" >&2
+              exit 1
+            fi
+            if git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null; then
+              echo "$tag already released — nothing to do."
+              release=false
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "Releasing: $release (tag $tag)"
+
+  build-apk:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -41,17 +77,6 @@ jobs:
           channel: stable
       - name: Flutter pub get
         run: flutter pub get
-      - name: Resolve release tag
-        shell: bash
-        run: |
-          if [ -n "$DISPATCH_VERSION" ]; then
-            tag="v$DISPATCH_VERSION"
-          else
-            ref="$GITHUB_REF_NAME"
-            tag="${ref#release/}"
-          fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
-          echo "Releasing as $tag"
       - name: Extract release notes from changelog
         shell: bash
         run: |
@@ -76,7 +101,11 @@ jobs:
           files: build/app/outputs/flutter-apk/Tilepad-client.apk
 
   build-windows:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -87,17 +116,6 @@ jobs:
         run: flutter config --enable-windows-desktop
       - name: Flutter pub get
         run: flutter pub get
-      - name: Resolve release tag
-        shell: bash
-        run: |
-          if [ -n "$DISPATCH_VERSION" ]; then
-            tag="v$DISPATCH_VERSION"
-          else
-            ref="$GITHUB_REF_NAME"
-            tag="${ref#release/}"
-          fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
-          echo "Releasing as $tag"
       - name: Extract release notes from changelog
         shell: bash
         run: |
@@ -142,7 +160,11 @@ jobs:
             build/artifacts/Tilepad-windows-portable.zip
 
   build-linux:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - name: Install Linux build dependencies
@@ -155,17 +177,6 @@ jobs:
         run: flutter config --enable-linux-desktop
       - name: Flutter pub get
         run: flutter pub get
-      - name: Resolve release tag
-        shell: bash
-        run: |
-          if [ -n "$DISPATCH_VERSION" ]; then
-            tag="v$DISPATCH_VERSION"
-          else
-            ref="$GITHUB_REF_NAME"
-            tag="${ref#release/}"
-          fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
-          echo "Releasing as $tag"
       - name: Extract release notes from changelog
         shell: bash
         run: |

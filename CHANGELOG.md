@@ -5,6 +5,14 @@ All notable changes to the Tilepad project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-06-11
+
+### Added
+- **Launch at startup**: a server setting (⋮ → Launch at startup) registers Tilepad with the OS so the server starts when you log in — a registry `Run` entry on Windows, a LaunchAgent on macOS, an XDG autostart entry on Linux. The OS entry is the source of truth, so the checkbox always shows what will actually happen at login
+
+### Changed
+- **Releases are cut from `main`**: merging a `pubspec.yaml` version bump now tags, builds and publishes the GitHub release automatically — no more `release/*` trigger branches
+
 ## [1.4.0] - 2026-06-11
 
 ### Changed
