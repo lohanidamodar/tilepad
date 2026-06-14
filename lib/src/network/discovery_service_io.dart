@@ -142,10 +142,12 @@ class IODiscoveryService implements DiscoveryService {
         'Client listening for server broadcasts on port $_discoveryPort',
       );
 
-      // Listen for incoming datagrams
-      _listenSocket!.listen((event) {
+      // Listen for incoming datagrams. Capture the socket locally: the field
+      // is nulled by stopDiscovery(), and a late event must not hit a null.
+      final socket = _listenSocket!;
+      socket.listen((event) {
         if (event == RawSocketEvent.read) {
-          final datagram = _listenSocket!.receive();
+          final datagram = socket.receive();
           if (datagram != null) {
             _handleDiscoveryMessage(datagram);
           }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'server.dart';
 import 'server_screen.dart';
@@ -8,12 +7,17 @@ import '../utils/system_tray_manager.dart';
 import '../design/design.dart';
 
 /// Main entry point for the server app
-void main() async {
+void main(List<String> args) async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize window manager
-  await SystemTrayManager().initSystemTray();
+  // `--hidden` is what the launch-at-login entry passes so the app starts
+  // minimized to the tray instead of opening its window over the desktop.
+  final startHidden = args.contains('--hidden');
+
+  // Initialize window manager and the tray icon. Window-close events are
+  // handled there too (close hides to the tray instead of quitting).
+  await SystemTrayManager().initSystemTray(startHidden: startHidden);
 
   // Run the app
   runApp(const ProviderScope(child: TilepadServerApp()));
@@ -28,60 +32,23 @@ class TilepadServerApp extends ConsumerStatefulWidget {
   ConsumerState<TilepadServerApp> createState() => _TilepadServerAppState();
 }
 
-class _TilepadServerAppState extends ConsumerState<TilepadServerApp>
-    with WindowListener {
+class _TilepadServerAppState extends ConsumerState<TilepadServerApp> {
   final _server = TilepadServer();
   final _trayManager = SystemTrayManager();
 
   @override
   void initState() {
     super.initState();
-    // Register window manager listener
-    windowManager.addListener(this);
     // Give the tray its live status menu (start/stop/restart, address, ...).
     _trayManager.attachServer(_server);
   }
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
     _trayManager.detachServer();
     _server.stop();
     super.dispose();
   }
-
-  // Handle window close event - minimize to background instead of closing
-  @override
-  void onWindowClose() {
-    // Hide window instead of closing it
-    _trayManager.hideToTray();
-  }
-
-  // Implement required WindowListener methods (empty implementations)
-  @override
-  void onWindowFocus() {}
-  @override
-  void onWindowBlur() {}
-  @override
-  void onWindowMaximize() {}
-  @override
-  void onWindowMinimize() {}
-  @override
-  void onWindowUnmaximize() {}
-  @override
-  void onWindowRestore() {}
-  @override
-  void onWindowResized() {}
-  @override
-  void onWindowMoved() {}
-  @override
-  void onWindowEnterFullScreen() {}
-  @override
-  void onWindowLeaveFullScreen() {}
-  @override
-  void onWindowDocked() {}
-  @override
-  void onWindowUndocked() {}
 
   @override
   Widget build(BuildContext context) {

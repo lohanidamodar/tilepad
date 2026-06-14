@@ -42,7 +42,10 @@ class SystemTrayManager with TrayListener, WindowListener {
   String _lastMenuSignature = '';
 
   /// Initialize the system tray.
-  Future<void> initSystemTray() async {
+  ///
+  /// With [startHidden] the window is not shown — the app starts as just the
+  /// tray icon (used by the launch-at-login entry via `--hidden`).
+  Future<void> initSystemTray({bool startHidden = false}) async {
     if (_isInitialized) return;
 
     debugPrint('Initializing window manager and system tray...');
@@ -59,8 +62,15 @@ class SystemTrayManager with TrayListener, WindowListener {
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.setPreventClose(true);
-      await windowManager.show();
-      await windowManager.focus();
+      if (startHidden) {
+        // The Windows runner already skips its first-frame auto-show when
+        // `--hidden` is passed; on Linux/macOS the runner shows the window
+        // natively, so hide it again here (it may flash briefly).
+        await windowManager.hide();
+      } else {
+        await windowManager.show();
+        await windowManager.focus();
+      }
     });
 
     // Listen for window and tray events.
@@ -84,6 +94,11 @@ class SystemTrayManager with TrayListener, WindowListener {
       debugPrint('System tray initialized successfully');
     } catch (e) {
       debugPrint('Failed to initialize system tray: $e');
+      if (startHidden) {
+        // Without a tray icon a hidden app would be unreachable; fall back to
+        // showing the window.
+        await showWindow();
+      }
     }
   }
 
@@ -187,8 +202,16 @@ class SystemTrayManager with TrayListener, WindowListener {
   /// Show the application window.
   Future<void> showWindow() async {
     try {
+      if (await windowManager.isMinimized()) {
+        await windowManager.restore();
+      }
       await windowManager.show();
       await windowManager.focus();
+      // While the window is hidden Flutter disables frame scheduling; if the
+      // resume notification races the show, nothing repaints the restored
+      // surface and the window stays white. Force one frame to repaint it
+      // (scheduleForcedFrame ignores the frames-disabled state).
+      WidgetsBinding.instance.scheduleForcedFrame();
     } catch (e) {
       debugPrint('Error showing window: $e');
     }

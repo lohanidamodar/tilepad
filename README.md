@@ -63,7 +63,7 @@ Releases are cut automatically when a `vX.Y.Z` tag is pushed.
 - **Test on the desktop**: Run a button on the server (no client needed) to verify it
 - **Client controls a real device**: Adjustable tile sizes, drag-to-reorder, dynamic "prompt" buttons, jump-to-page navigation tiles
 - **Profile backup**: Export/import the entire button & page configuration as a JSON file
-- **Launch at startup**: Optionally start the server when you log in (⋮ menu on the dashboard) — works on Windows, macOS and Linux
+- **Launch at startup**: Optionally start the server when you log in (⋮ menu on the dashboard) — starts minimized to the system tray; works on Windows, macOS and Linux
 
 ### 🎨 Enhanced UI/UX
 - **Material Design 3**: Modern, consistent design language across all platforms

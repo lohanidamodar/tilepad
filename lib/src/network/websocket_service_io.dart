@@ -25,6 +25,7 @@ class IOClientWebSocketService implements ClientWebSocketService {
   String? _lastConnectedAddress;
   Timer? _reconnectTimer;
   Timer? _healthCheckTimer;
+  Timer? _initialHealthCheckTimer;
   bool _reconnecting = false;
   void Function(bool)? _onReconnectionStateChanged;
 
@@ -334,8 +335,11 @@ class IOClientWebSocketService implements ClientWebSocketService {
   void _startHealthCheck() {
     _stopHealthCheck();
 
-    // First health check after 20 seconds, then every 30 seconds
-    Timer(const Duration(seconds: 20), () {
+    // First health check after 20 seconds, then every 30 seconds. Both timers
+    // are kept so a close() (or a reconnect to another server) cancels them;
+    // an orphaned first-check timer could otherwise fire against the next
+    // connection.
+    _initialHealthCheckTimer = Timer(const Duration(seconds: 20), () {
       if (_isConnected) {
         _performHealthCheck();
       }
@@ -353,6 +357,8 @@ class IOClientWebSocketService implements ClientWebSocketService {
 
   /// Stop health check monitoring
   void _stopHealthCheck() {
+    _initialHealthCheckTimer?.cancel();
+    _initialHealthCheckTimer = null;
     _healthCheckTimer?.cancel();
     _healthCheckTimer = null;
   }
@@ -472,12 +478,6 @@ class IOClientWebSocketService implements ClientWebSocketService {
     if (_connectionStatusController != null) {
       _connectionStatusController!.add(ConnectionStatus.disconnected);
     }
-
-    _isConnected = false;
-
-    if (_connectionStatusController != null) {
-      _connectionStatusController!.add(ConnectionStatus.disconnected);
-    }
   }
 
   /// Dispose of resources
@@ -491,7 +491,11 @@ class IOClientWebSocketService implements ClientWebSocketService {
 /// IO implementation of the server WebSocket service
 class IOServerWebSocketService implements ServerWebSocketService {
   HttpServer? _server;
-  final List<WebSocket> _clients = [];
+
+  /// Sockets keyed by [ClientInfo.id]. Kept as a map (not a list parallel to
+  /// [_connectedClients]) so removing one entry can never shift another
+  /// client's socket onto the wrong id.
+  final Map<String, WebSocket> _sockets = {};
   final List<ClientInfo> _connectedClients = [];
   final Set<String> _blockedIps = {};
   final _messageController = StreamController<Message>.broadcast();
@@ -519,10 +523,10 @@ class IOServerWebSocketService implements ServerWebSocketService {
 
   @override
   void sendMessageToClient(String clientId, Message message) {
-    final index = _connectedClients.indexWhere((c) => c.id == clientId);
-    if (index < 0 || index >= _clients.length) return;
+    final socket = _sockets[clientId];
+    if (socket == null) return;
     try {
-      _clients[index].add(message.encode());
+      socket.add(message.encode());
     } catch (e) {
       debugPrint('Error sending message to client $clientId: $e');
     }
@@ -562,22 +566,24 @@ class IOServerWebSocketService implements ServerWebSocketService {
 
           ClientInfo clientInfo;
           if (existingClientIndex >= 0) {
-            // Reuse existing client info but remove old WebSocket
+            // Reuse existing client info but replace the old WebSocket
             clientInfo = _connectedClients[existingClientIndex];
             debugPrint(
               'Client reconnecting from: $clientIp (reusing existing client info)',
             );
 
-            // Remove old WebSocket if it exists
-            if (existingClientIndex < _clients.length) {
+            // Register the new socket BEFORE closing the old one: the old
+            // socket's onDone only cleans up while it is still the registered
+            // socket, so this order keeps it from evicting the reconnected
+            // client.
+            final oldSocket = _sockets[clientInfo.id];
+            _sockets[clientInfo.id] = webSocket;
+            if (oldSocket != null) {
               try {
-                await _clients[existingClientIndex].close();
+                await oldSocket.close();
               } catch (e) {
                 debugPrint('Error closing old WebSocket: $e');
               }
-              _clients[existingClientIndex] = webSocket;
-            } else {
-              _clients.add(webSocket);
             }
           } else {
             // New client
@@ -586,7 +592,7 @@ class IOServerWebSocketService implements ServerWebSocketService {
               ipAddress: clientIp,
               connectedAt: DateTime.now(),
             );
-            _clients.add(webSocket);
+            _sockets[clientInfo.id] = webSocket;
             _connectedClients.add(clientInfo);
             debugPrint('New client connected from: $clientIp');
           }
@@ -613,8 +619,11 @@ class IOServerWebSocketService implements ServerWebSocketService {
                     if (message.payload != null &&
                         message.payload is Map &&
                         message.payload['deviceName'] != null) {
-                      // Update client info with device name
-                      final index = _connectedClients.indexOf(clientInfo);
+                      // Update client info with device name. Match by id:
+                      // a previous rename replaced the captured instance in
+                      // the list, so identity (indexOf) would miss it.
+                      final index = _connectedClients
+                          .indexWhere((c) => c.id == clientInfo.id);
                       debugPrint(
                         'Client index in list: $index, total clients: ${_connectedClients.length}',
                       );
@@ -708,57 +717,11 @@ class IOServerWebSocketService implements ServerWebSocketService {
               debugPrint(
                 'WebSocket connection closed for ${clientInfo.ipAddress}',
               );
-
-              // Find and remove this specific WebSocket
-              final wsIndex = _clients.indexOf(webSocket);
-              if (wsIndex >= 0) {
-                _clients.removeAt(wsIndex);
-
-                // Find the matching client by IP address
-                final clientIndex = _connectedClients.indexWhere(
-                  (c) => c.ipAddress == clientInfo.ipAddress,
-                );
-
-                if (clientIndex >= 0) {
-                  final removedClient = _connectedClients[clientIndex];
-                  _connectedClients.removeAt(clientIndex);
-                  debugPrint(
-                    'Removed client: ${removedClient.deviceName ?? "Unknown Device"} (${removedClient.ipAddress})',
-                  );
-                  _clientConnectionController.add(
-                    ClientConnectionEvent(
-                      clientInfo: removedClient,
-                      connected: false,
-                    ),
-                  );
-                } else {
-                  debugPrint(
-                    'Warning: Client ${clientInfo.ipAddress} not found in connected clients list',
-                  );
-                }
-              }
+              _removeClient(clientInfo.id, webSocket);
             },
             onError: (error) {
               debugPrint('Client error from ${clientInfo.ipAddress}: $error');
-
-              // Remove WebSocket
-              _clients.remove(webSocket);
-
-              // Find and remove client by IP address
-              final clientIndex = _connectedClients.indexWhere(
-                (c) => c.ipAddress == clientInfo.ipAddress,
-              );
-
-              if (clientIndex >= 0) {
-                final removedClient = _connectedClients[clientIndex];
-                _connectedClients.removeAt(clientIndex);
-                _clientConnectionController.add(
-                  ClientConnectionEvent(
-                    clientInfo: removedClient,
-                    connected: false,
-                  ),
-                );
-              }
+              _removeClient(clientInfo.id, webSocket);
             },
           );
         }
@@ -771,24 +734,42 @@ class IOServerWebSocketService implements ServerWebSocketService {
     }
   }
 
+  /// Drops [socket]'s registration for [clientId] and emits the disconnect
+  /// event. A no-op when the id is already registered to a NEWER socket (a
+  /// reconnect replaced it; the old socket's onDone must not evict the new
+  /// connection) or when the client was already removed.
+  void _removeClient(String clientId, WebSocket socket) {
+    if (_sockets[clientId] != socket) return;
+    _sockets.remove(clientId);
+
+    final clientIndex = _connectedClients.indexWhere((c) => c.id == clientId);
+    if (clientIndex < 0) return;
+    final removedClient = _connectedClients.removeAt(clientIndex);
+    debugPrint(
+      'Removed client: ${removedClient.deviceName ?? "Unknown Device"} (${removedClient.ipAddress})',
+    );
+    _clientConnectionController.add(
+      ClientConnectionEvent(clientInfo: removedClient, connected: false),
+    );
+  }
+
   @override
   void sendMessage(Message message) {
     final encodedMessage = message.encode();
-    final clientsToRemove = <WebSocket>[];
+    final failed = <String, WebSocket>{};
 
-    for (final client in _clients) {
+    for (final entry in _sockets.entries) {
       try {
-        client.add(encodedMessage);
+        entry.value.add(encodedMessage);
       } catch (e) {
-        debugPrint('Error sending message to client: $e');
-        clientsToRemove.add(client);
+        debugPrint('Error sending message to client ${entry.key}: $e');
+        failed[entry.key] = entry.value;
       }
     }
 
-    // Remove clients that couldn't receive the message
-    for (final client in clientsToRemove) {
-      _clients.remove(client);
-    }
+    // Remove clients that couldn't receive the message (info and socket
+    // together, so the rest of the bookkeeping stays consistent).
+    failed.forEach(_removeClient);
   }
 
   @override
@@ -798,12 +779,12 @@ class IOServerWebSocketService implements ServerWebSocketService {
 
   @override
   void disconnectClient(String clientId) {
-    final index = _connectedClients.indexWhere((c) => c.id == clientId);
-    if (index < 0 || index >= _clients.length) return;
+    final socket = _sockets[clientId];
+    if (socket == null) return;
     try {
       // Closing the socket fires its onDone handler, which removes the client
-      // from the lists and emits the disconnect event.
-      _clients[index].close();
+      // from the bookkeeping and emits the disconnect event.
+      socket.close();
       debugPrint('Disconnected client $clientId');
     } catch (e) {
       debugPrint('Error disconnecting client $clientId: $e');
@@ -826,14 +807,14 @@ class IOServerWebSocketService implements ServerWebSocketService {
 
   @override
   Future<void> close() async {
-    for (final client in _clients) {
+    for (final client in _sockets.values.toList()) {
       try {
         await client.close();
       } catch (e) {
         debugPrint('Error closing client connection: $e');
       }
     }
-    _clients.clear();
+    _sockets.clear();
     _connectedClients.clear();
 
     if (_server != null) {

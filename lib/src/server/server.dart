@@ -798,11 +798,13 @@ class TilepadServer {
 
   /// Handles a button press message
   void _handleButtonPress(dynamic payload, String clientId) async {
-    if (payload == null || !payload.containsKey('buttonId')) {
+    // A malformed (non-Map) payload from a client must not throw out of this
+    // async handler.
+    if (payload is! Map || payload['buttonId'] is! String) {
       return;
     }
 
-    final buttonId = payload['buttonId'];
+    final buttonId = payload['buttonId'] as String;
     final button = _buttonManager.getButton(buttonId);
 
     if (button == null) {
